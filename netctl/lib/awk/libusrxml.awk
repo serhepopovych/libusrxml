@@ -5,48 +5,48 @@
 #
 function syntax_err()
 {
-	printf "USRXML: %d: syntax error\n",
-		__USRXML_linenum >"/dev/stderr"
+	printf "USRXML: %s: %d: syntax error\n",
+		__USRXML_filename, __USRXML_linenum >"/dev/stderr"
 	USRXML_errno = USRXML_E_SYNTAX;
 	return USRXML_E_SYNTAX;
 }
 
 function scope_err(section)
 {
-	printf "USRXML: %d: <%s> scope error\n",
-		__USRXML_linenum, section >"/dev/stderr"
+	printf "USRXML: %s: %d: <%s> scope error\n",
+		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
 	USRXML_errno = USRXML_E_SCOPE;
 	return USRXML_E_SCOPE;
 }
 
 function inv_arg(section, value)
 {
-	printf "USRXML: %d: invalid argument \"%s\" in <%s>\n",
-		__USRXML_linenum, value, section >"/dev/stderr"
+	printf "USRXML: %s: %d: invalid argument \"%s\" in <%s>\n",
+		__USRXML_filename, __USRXML_linenum, value, section >"/dev/stderr"
 	USRXML_errno = USRXML_E_INVAL;
 	return USRXML_E_INVAL;
 }
 
 function ept_val(section)
 {
-	printf "USRXML: %d: empty value in <%s>\n",
-		__USRXML_linenum, section >"/dev/stderr"
+	printf "USRXML: %s: %d: empty value in <%s>\n",
+		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
 	USRXML_errno = USRXML_E_EMPTY;
 	return USRXML_E_EMPTY;
 }
 
 function dup_arg(section)
 {
-	printf "USRXML: %d: duplicated argument <%s>\n",
-		__USRXML_linenum, section >"/dev/stderr"
+	printf "USRXML: %s: %d: duplicated argument <%s>\n",
+		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
 	USRXML_errno = USRXML_E_DUP;
 	return USRXML_E_DUP;
 }
 
 function missing_arg(section)
 {
-	printf "USRXML: %d: missing mandatory argument <%s>\n",
-		__USRXML_linenum, section >"/dev/stderr"
+	printf "USRXML: %s: %d: missing mandatory argument <%s>\n",
+		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
 	USRXML_errno = USRXML_E_MISS;
 	return USRXML_E_MISS;
 }
@@ -102,6 +102,9 @@ function init_usr_xml_parser()
 	# These variables are *internal*, but needed to be
 	# preserved accross library function calls.
 	#
+
+	# FILENAME might be unknown if called from BEGIN{} sections
+	__USRXML_filename	= FILENAME;
 	__USRXML_linenum	= 0;
 	__USRXML_useropen	= 0;
 	__USRXML_pipeopen	= 0;
