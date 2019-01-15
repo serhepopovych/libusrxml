@@ -82,23 +82,20 @@ function init_usr_xml_parser()
 
 	# USRXML_usernames[userid]
 	#
-	# USRXML_userpipenum[userid]
+	# USRXML_userpipe[userid]
 	# USRXML_userpipezone[userid,pipeid]
 	# USRXML_userpipedir[userid,pipeid]
 	# USRXML_userpipebw[userid,pipeid]
 	#
-	# USRXML_useriface[userid]
+	# USRXML_userif[userid]
 	#
-	# USRXML_usernetnum[userid]
 	# USRXML_usernets[userid,netid]
 	#
-	# USRXML_usernetnum6[userid]
 	# USRXML_usernets6[userid,net6id]
 	#
-	# USRXML_usernatnum[userid]
 	# USRXML_usernats[userid,natid]
 	#
-	# USRXML_ifaceusers[ifaceid]
+	# USRXML_ifusers[ifaceid]
 
 	#
 	# These variables are *internal*, but needed to be
@@ -153,7 +150,7 @@ function fini_usr_xml_parser(    zd_bits, zone_dir_bits, zones_dirs,
 
 	for (userid = 0; userid < USRXML_nusers; userid++) {
 		zones_dirs = 0;
-		for (pipeid = 0; pipeid < USRXML_userpipenum[userid]; pipeid++) {
+		for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
 			zd_bits = zone_dir_bits[USRXML_userpipezone[userid,pipeid],
 						USRXML_userpipedir[userid,pipeid]];
 			if (and(zones_dirs, zd_bits)) {
@@ -171,7 +168,7 @@ function fini_usr_xml_parser(    zd_bits, zone_dir_bits, zones_dirs,
 #
 # Parse and validate XML document.
 #
-function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
+function run_usr_xml_parser(line,    name, val, token, nfields, a, n, seps)
 {
 	__USRXML_linenum++;
 
@@ -216,10 +213,10 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 		__USRXML_net6_ok = 0;
 
 		USRXML_usernames[USRXML_nusers] = val;
-		USRXML_userpipenum[USRXML_nusers] = 0;
-		USRXML_usernetnum[USRXML_nusers] = 0;
-		USRXML_usernetnum6[USRXML_nusers] = 0;
-		USRXML_usernatnum[USRXML_nusers] = 0;
+		USRXML_userpipe[USRXML_nusers] = 0;
+		USRXML_usernets[USRXML_nusers] = 0;
+		USRXML_usernets6[USRXML_nusers] = 0;
+		USRXML_usernats[USRXML_nusers] = 0;
 	} else if (name == "if") {
 		if (!__USRXML_useropen || __USRXML_pipeopen)
 			return scope_err(name);
@@ -229,12 +226,12 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 			return dup_arg(name);
 		__USRXML_if_once = 1;
 
-		if (val in USRXML_ifaceusers)
-			USRXML_ifaceusers[val] = USRXML_ifaceusers[val]","USRXML_nusers;
+		if (val in USRXML_ifusers)
+			USRXML_ifusers[val] = USRXML_ifusers[val]","USRXML_nusers;
 		else
-			USRXML_ifaceusers[val] = USRXML_nusers;
+			USRXML_ifusers[val] = USRXML_nusers;
 
-		USRXML_useriface[USRXML_nusers] = val;
+		USRXML_userif[USRXML_nusers] = val;
 	} else if (name == "net") {
 		if (!__USRXML_useropen || __USRXML_pipeopen)
 			return scope_err(name);
@@ -242,8 +239,8 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 			return ept_val(name);
 		__USRXML_net_ok = 1;
 
-		USRXML_usernets[USRXML_nusers,USRXML_usernetnum[USRXML_nusers]] = val;
-		USRXML_usernetnum[USRXML_nusers]++;
+		n = USRXML_usernets[USRXML_nusers]++;
+		USRXML_usernets[USRXML_nusers,n] = val;
 	} else if (name == "net6") {
 		if (!__USRXML_useropen || __USRXML_pipeopen)
 			return scope_err(name);
@@ -251,8 +248,8 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 			return ept_val(name);
 		__USRXML_net6_ok = 1;
 
-		USRXML_usernets6[USRXML_nusers,USRXML_usernetnum6[USRXML_nusers]] = val;
-		USRXML_usernetnum6[USRXML_nusers]++;
+		n = USRXML_usernets6[USRXML_nusers]++;
+		USRXML_usernets6[USRXML_nusers,n] = val;
 	} else if (name == "nat") {
 		if (!__USRXML_useropen || __USRXML_pipeopen)
 			return scope_err(name);
@@ -260,14 +257,14 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 			return ept_val(name);
 		__USRXML_nat_ok = 1;
 
-		USRXML_usernats[USRXML_nusers,USRXML_usernatnum[USRXML_nusers]] = val;
-		USRXML_usernatnum[USRXML_nusers]++;
+		n = USRXML_usernats[USRXML_nusers]++;
+		USRXML_usernats[USRXML_nusers,n] = val;
 	} else if (name == "pipe") {
 		if (!__USRXML_useropen || __USRXML_pipeopen)
 			return scope_err(name);
 		if (val == "")
 			return ept_val(name);
-		if (val != USRXML_userpipenum[USRXML_nusers] + 1)
+		if (val != USRXML_userpipe[USRXML_nusers] + 1)
 			return inv_arg(name, val);
 		__USRXML_pipeopen = 1;
 
@@ -275,7 +272,8 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 		__USRXML_zone_once = 0;
 		__USRXML_dir_once = 0;
 
-		USRXML_userpipelinenum[USRXML_nusers,USRXML_userpipenum[USRXML_nusers]] = __USRXML_linenum;
+		n = USRXML_userpipe[USRXML_nusers];
+		USRXML_userpipelinenum[USRXML_nusers,] = __USRXML_linenum;
 	} else if (name == "zone") {
 		if (!__USRXML_pipeopen)
 			return scope_err(name);
@@ -290,7 +288,7 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 
 		__USRXML_zone_once = 1;
 
-		USRXML_userpipezone[USRXML_nusers,USRXML_userpipenum[USRXML_nusers]] = val;
+		USRXML_userpipezone[USRXML_nusers,USRXML_userpipe[USRXML_nusers]] = val;
 	} else if (name == "dir" ) {
 		if (!__USRXML_pipeopen)
 			return scope_err(name);
@@ -305,7 +303,7 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 
 		__USRXML_dir_once = 1;
 
-		USRXML_userpipedir[USRXML_nusers,USRXML_userpipenum[USRXML_nusers]] = val;
+		USRXML_userpipedir[USRXML_nusers,USRXML_userpipe[USRXML_nusers]] = val;
 	} else if (name == "bw") {
 		if (!__USRXML_pipeopen)
 			return scope_err(name);
@@ -320,11 +318,11 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 
 		__USRXML_bw_once = 1;
 
-		USRXML_userpipebw[USRXML_nusers,USRXML_userpipenum[USRXML_nusers]] = val;
+		USRXML_userpipebw[USRXML_nusers,USRXML_userpipe[USRXML_nusers]] = val;
 	}else if (name == "/pipe") {
 		if (!__USRXML_pipeopen)
 			return scope_err(name);
-		if (val != "" && val != USRXML_userpipenum[USRXML_nusers] + 1)
+		if (val != "" && val != USRXML_userpipe[USRXML_nusers] + 1)
 			return inv_arg(name, val);
 
 		if (!__USRXML_bw_once)
@@ -336,7 +334,7 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 
 		__USRXML_pipeopen = 0;
 
-		USRXML_userpipenum[USRXML_nusers]++;
+		USRXML_userpipe[USRXML_nusers]++;
 	} else if (name == "/user") {
 		if (!__USRXML_useropen || __USRXML_pipeopen)
 			return scope_err(name);
@@ -364,7 +362,7 @@ function run_usr_xml_parser(line,    name, val, token, nfields, a, seps)
 function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid)
 {
 	printf "<user %s>\n", USRXML_usernames[userid];
-	for (pipeid = 0; pipeid < USRXML_userpipenum[userid]; pipeid++) {
+	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
 		printf "\t<pipe %d>\n" \
 		       "\t\t<zone %s>\n" \
 		       "\t\t<dir %s>\n" \
@@ -375,12 +373,12 @@ function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid)
 			USRXML_userpipedir[userid,pipeid],
 			USRXML_userpipebw[userid,pipeid];
 	}
-	printf "\t<if %s>\n", USRXML_useriface[userid];
-	for (netid = 0; netid < USRXML_usernetnum[userid]; netid++)
+	printf "\t<if %s>\n", USRXML_userif[userid];
+	for (netid = 0; netid < USRXML_usernets[userid]; netid++)
 		printf "\t<net %s>\n", USRXML_usernets[userid,netid];
-	for (net6id = 0; net6id < USRXML_usernetnum6[userid]; net6id++)
+	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++)
 		printf "\t<net6 %s>\n", USRXML_usernets6[userid,net6id];
-	for (natid = 0; natid < USRXML_usernatnum[userid]; natid++)
+	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
 		printf "\t<nat %s>\n", USRXML_usernats[userid,natid];
 	print "</user>\n";
 }
@@ -391,19 +389,19 @@ function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid)
 function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid)
 {
 	printf "<user %s>", USRXML_usernames[userid];
-	for (pipeid = 0; pipeid < USRXML_userpipenum[userid]; pipeid++) {
+	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
 		printf "<pipe %d><zone %s><dir %s><bw %sKb></pipe>",
 			pipeid + 1,
 			USRXML_userpipezone[userid,pipeid],
 			USRXML_userpipedir[userid,pipeid],
 			USRXML_userpipebw[userid,pipeid];
 	}
-	printf "<if %s>", USRXML_useriface[userid];
-	for (netid = 0; netid < USRXML_usernetnum[userid]; netid++)
+	printf "<if %s>", USRXML_userif[userid];
+	for (netid = 0; netid < USRXML_usernets[userid]; netid++)
 		printf "<net %s>", USRXML_usernets[userid,netid];
-	for (net6id = 0; net6id < USRXML_usernetnum6[userid]; net6id++)
+	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++)
 		printf "<net6 %s>", USRXML_usernets6[userid,net6id];
-	for (natid = 0; natid < USRXML_usernatnum[userid]; natid++)
+	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
 		printf "<nat %s>", USRXML_usernats[userid,natid];
 	print "</user>";
 }

@@ -96,11 +96,11 @@ data structures become avaiable to the calling code:
 
   # Name of network device where <user> connected. Can be shared
   # by multiple "userid"s data structures.
-  USRXML_useriface[userid]
+  USRXML_userif[userid]
 
   # Number of <pipe> data structures for given "userid". Each <pipe>
   # data structure has number starting from 0 called "pipeid".
-  USRXML_userpipenum[userid]
+  USRXML_userpipe[userid]
   # Zone name of given pipe for which settings applied.
   USRXML_userpipezone[userid,pipeid]
   # Direction for given zone. Can be "world", "local" or "all".
@@ -110,25 +110,25 @@ data structures become avaiable to the calling code:
 
   # Number of IPv4 networks for given "userid". Each
   # <net> data structure has number starting from 0 called "netid".
-  USRXML_usernetnum[userid]
+  USRXML_usernets[userid]
   # Set of <net>s for given "userid"
   USRXML_usernets[userid,netid]
 
   # Number of IPv6 networks for given "userid". Each
   # <net6> data structure has number starting from 0 called "net6id".
-  USRXML_usernetnum6[userid]
+  USRXML_usernets6[userid]
   # Set of <net6>s for given "userid"
   USRXML_usernets6[userid,net6id]
 
   # Number of IPv4 networks before SNAT for given "userid". Each
   # <nat> data structure has number starting from 0 called "natid".
-  USRXML_usernatnum[userid]
+  USRXML_usernats[userid]
   # Set of <nat4>s for given "userid"
   USRXML_usernats[userid,natid]
 
   # Mapping of USRXML_useriface[userid] to comma separated list of "userid"
   # for all network devices we need to configure traffic control rules.
-  USRXML_ifaceusers[ifaceid]
+  USRXML_ifusers[ifaceid]
 
 There is two additional functions defined in the library to print <user>
 that can be used only with successfuly parsed document:
