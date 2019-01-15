@@ -148,6 +148,7 @@ function init_usr_xml_parser()
 	# USRXML_usernets6[userid,net6id]
 	#
 	# USRXML_usernats[userid,natid]
+	# USRXML_usernats6[userid,nat6id]
 	#
 	# USRXML_ifusers[ifaceid]
 
@@ -182,6 +183,7 @@ function init_usr_xml_parser()
 	# __USRXML_usernets[userid,net]
 	# __USRXML_usernets6[userid,net]
 	# __USRXML_usernats[userid,nat]
+	# __USRXML_usernats6[userid,nat]
 	#
 	# __USRXML_fileline[key,{ "file" | "line" },n]
 
@@ -250,6 +252,7 @@ function fini_usr_xml_parser(    zd_bits, zone_dir_bits, zones_dirs,
 
 	delete __USRXML_fileline;
 
+	delete __USRXML_usernats6;
 	delete __USRXML_usernats;
 	delete __USRXML_usernets6;
 	delete __USRXML_usernets;
@@ -280,6 +283,7 @@ function __usrxml_scope_none(name, val)
 			USRXML_usernets[USRXML_userid]  = 0;
 			USRXML_usernets6[USRXML_userid] = 0;
 			USRXML_usernats[USRXML_userid]  = 0;
+			USRXML_usernats6[USRXML_userid] = 0;
 		}
 
 		__USRXML_scope = __USRXML_scope_user;
@@ -338,6 +342,15 @@ function __usrxml_scope_user(name, val,    n)
 
 		n = USRXML_usernats[USRXML_userid]++;
 		USRXML_usernats[USRXML_userid,n] = val;
+	} else if (name == "nat6") {
+		if (val == "")
+			return ept_val(name);
+		if ((USRXML_userid, val) in __USRXML_usernats6)
+			return 0;
+		__USRXML_usernats6[USRXML_userid,val] = 1;
+
+		n = USRXML_usernats6[USRXML_userid]++;
+		USRXML_usernats6[USRXML_userid,n] = val;
 	} else if (name == "pipe") {
 		if (val == "")
 			return ept_val(name);
@@ -434,7 +447,7 @@ function run_usr_xml_parser(line,    a, nfields, fn)
 #
 # Print users entry in xml format
 #
-function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid)
+function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid, nat6id)
 {
 	printf "<user %s>\n", USRXML_usernames[userid];
 	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
@@ -455,13 +468,15 @@ function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid)
 		printf "\t<net6 %s>\n", USRXML_usernets6[userid,net6id];
 	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
 		printf "\t<nat %s>\n", USRXML_usernats[userid,natid];
+	for (nat6id = 0; nat6id < USRXML_usernats6[userid]; nat6id++)
+		printf "\t<nat6 %s>\n", USRXML_usernats6[userid,nat6id];
 	print "</user>\n";
 }
 
 #
 # Print users entry in one line xml format
 #
-function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid)
+function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid, nat6id)
 {
 	printf "<user %s>", USRXML_usernames[userid];
 	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
@@ -478,5 +493,7 @@ function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid)
 		printf "<net6 %s>", USRXML_usernets6[userid,net6id];
 	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
 		printf "<nat %s>", USRXML_usernats[userid,natid];
+	for (nat6id = 0; nat6id < USRXML_usernats6[userid]; nat6id++)
+		printf "<nat6 %s>", USRXML_usernats6[userid,nat6id];
 	print "</user>";
 }

@@ -127,6 +127,12 @@ data structures become avaiable to the calling code:
   # Set of <nat4>s for given "userid"
   USRXML_usernats[userid,natid]
 
+  # Number of IPv6 networks before SNAT for given "userid". Each
+  # <nat6> data structure has number starting from 0 called "nat6id".
+  USRXML_usernats6[userid]
+  # Set of <nat6>s for given "userid"
+  USRXML_usernats6[userid,nat6id]
+
   # Mapping of USRXML_useriface[userid] to comma separated list of "userid"
   # for all network devices we need to configure traffic control rules.
   USRXML_ifusers[ifaceid]
