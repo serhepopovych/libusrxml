@@ -60,6 +60,7 @@ function init_usr_xml_parser()
 	#
 	# USRXML error codes.
 	#
+	USRXML_E_NONE	= 0;
 	USRXML_E_INVAL	= -1;
 	USRXML_E_EMPTY	= -2;
 	USRXML_E_DUP	= -3;
@@ -72,7 +73,7 @@ function init_usr_xml_parser()
 	# USRXML error code variable is set to non-zero
 	# if an error encountered during XML document
 	# parsing/validation.
-	USRXML_errno	= 0;
+	USRXML_errno	= USRXML_E_NONE;
 
 	#
 	# Following variables are populated from parsing

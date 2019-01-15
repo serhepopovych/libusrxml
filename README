@@ -76,6 +76,7 @@ and special constant-like defines matching these codes to find exact problem:
   #
   # USRXML error codes.
   #
+  USRXML_E_NONE   = 0;
   USRXML_E_INVAL  = -1;
   USRXML_E_EMPTY  = -2;
   USRXML_E_DUP    = -3;
