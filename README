@@ -1,0 +1,169 @@
+Simple XML-like format parsing libarary and useful utilities written in awk(1)
+==============================================================================
+
+Data format is specific to define traffic control rules for given network
+service provider subscriber (called just "user" for simplicity).
+
+This code however can be an example on how to parse XML or similar data using
+awk(1) from shell scripts.
+
+Document format
+---------------
+
+Document contains multiple user definitions each of which defines interface
+user connected, set of IPv4/IPv6 networks/addresses assigned to user, zones
+with directions and allocated bandwidth.
+
+Zones, directions and bandwidths are grouped together within pipe data
+structure.
+
+  Zones can be "local" for traffic belonging to local networks (e.g.
+  country/city IXPs, peering connections, etc), "world" for rest of
+  networks and "all" to treat everything equally.
+
+  Directions can be "in" for incoming traffic to user (download), "out"
+  for outgoing traffic from user (upload) or "all" to apply for both
+  "in" and "out" directions.
+
+  Bandwidth gives allocated bandwidth for direction in zone. It is
+  specified in Kbit/s.
+
+Here is typical example of document format library is able to parse:
+
+<user WN2019011501>
+	<pipe 1>
+		<zone local>
+		<dir all>
+		<bw 102400Kb>
+	</pipe>
+	<pipe 2>
+		<zone world>
+		<dir in>
+		<bw 10240Kb>
+	</pipe>
+	<pipe 3>
+		<zone world>
+		<dir out>
+		<bw 5120Kb>
+	</pipe>
+	<if eth0.4094>
+	<net 203.0.113.128/30>
+	<net 192.0.2.128/30>
+</user>
+
+This document describes
+
+Library API
+-----------
+
+There are three main API functions provided by libusrxml.awk module:
+
+  # Prepare parser by initializing internal variables. This should be
+  # very first routine called from the library.
+  init_usr_xml_parser()
+
+  # Takes single line of data and parses it to internal data structures.
+  run_usr_xml_parser(line)
+
+  # Performs final checks to ensure document parsed correctly and release
+  # all internal data structures.
+  fini_usr_xml_parser()
+
+All these functions return zero on success or less than zero on error. One
+can use USRXML_errno variable holding integer value representing error code
+and special constant-like defines matching these codes to find exact problem:
+
+  #
+  # USRXML error codes.
+  #
+  USRXML_E_INVAL  = -1;
+  USRXML_E_EMPTY  = -2;
+  USRXML_E_DUP    = -3;
+  USRXML_E_MISS   = -4;
+  USRXML_E_SCOPE  = -50;
+  # generic
+  USRXML_E_SYNTAX = -100;
+
+If document parsed successfuly (i.e. fini_usr_xml_parser() returns 0) following
+data structures become avaiable to the calling code:
+
+  # Number of <user> data structures parsed in document. Each
+  # <user> data structure has number starting from zero "userid".
+  USRXML_nusers
+
+  # Name from <user {name}> data structure for given "userid"
+  USRXML_usernames[userid]
+
+  # Name of network device where <user> connected. Can be shared
+  # by multiple "userid"s data structures.
+  USRXML_useriface[userid]
+
+  # Number of <pipe> data structures for given "userid". Each <pipe>
+  # data structure has number starting from 0 called "pipeid".
+  USRXML_userpipenum[userid]
+  # Zone name of given pipe for which settings applied.
+  USRXML_userpipezone[userid,pipeid]
+  # Direction for given zone. Can be "world", "local" or "all".
+  USRXML_userpipedir[userid,pipeid]
+  # Bandwidth for given zone. Specified in Kbits/s.
+  USRXML_userpipebw[userid,pipeid]
+
+  # Number of IPv4 networks for given "userid". Each
+  # <net> data structure has number starting from 0 called "netid".
+  USRXML_usernetnum[userid]
+  # Set of <net>s for given "userid"
+  USRXML_usernets[userid,netid]
+
+  # Number of IPv6 networks for given "userid". Each
+  # <net6> data structure has number starting from 0 called "net6id".
+  USRXML_usernetnum6[userid]
+  # Set of <net6>s for given "userid"
+  USRXML_usernets6[userid,net6id]
+
+  # Number of IPv4 networks before SNAT for given "userid". Each
+  # <nat> data structure has number starting from 0 called "natid".
+  USRXML_usernatnum[userid]
+  # Set of <nat4>s for given "userid"
+  USRXML_usernats[userid,natid]
+
+  # Mapping of USRXML_useriface[userid] to comma separated list of "userid"
+  # for all network devices we need to configure traffic control rules.
+  USRXML_ifaceusers[ifaceid]
+
+There is two additional functions defined in the library to print <user>
+that can be used only with successfuly parsed document:
+
+  # Use friendly output format with each <tag> placed on their
+  # own newline and tabs for indendation.
+  print_usr_xml_entry(userid)
+
+  # Put everything on single line. This format is useful for machine
+  # processing (e.g. search with grep(1)).
+  print_usr_xml_entry_oneline(userid)
+
+Examples
+--------
+
+There is users_xml2lst.awk and users_lst2xml.awk binaries that parse
+document and output it with each <user> tag on single line or normal
+format.
+
+Assuming you have installed these scripts under /netctl/bin you can
+use following command sequence to verify document correctness:
+
+  $ cat >/tmp/usr.xml <<EOF
+<user WN2019011502>
+	<pipe 1>
+		<zone world>
+		<dir all>
+		<bw 20480Kb>
+	</pipe>
+	<if eth0.4094>
+	<net 203.0.113.97/32>
+</user>
+EOF
+
+  $ /netctl/bin/users_xml2lst.awk /tmp/usr.xml | \
+  /netctl/bin/users_lst2xml.awk
+
+These tools can also be used for document validation from shell.
