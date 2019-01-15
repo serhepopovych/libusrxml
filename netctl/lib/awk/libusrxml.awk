@@ -159,12 +159,14 @@ function init_usr_xml_parser()
 	__USRXML_scope_none	= 0;
 	__USRXML_scope_user	= 1;
 	__USRXML_scope_pipe	= 2;
+	__USRXML_scope_qdisc	= 3;
 
 	__USRXML_scope		= __USRXML_scope_none;
 
 	__USRXML_scope2name[__USRXML_scope_none]	= "none";
 	__USRXML_scope2name[__USRXML_scope_user]	= "user";
 	__USRXML_scope2name[__USRXML_scope_pipe]	= "pipe";
+	__USRXML_scope2name[__USRXML_scope_qdisc]	= "qdisc";
 
 	# Valid "zone" values
 	__USRXML_zone["world"]	= 1;
@@ -412,6 +414,31 @@ function __usrxml_scope_pipe(name, val)
 			return inv_arg(name, val);
 
 		USRXML_userpipebw[USRXML_userid,USRXML_pipeid] = val;
+	} else if (name == "qdisc") {
+		if (val == "")
+			return ept_val(name);
+
+		__USRXML_scope = __USRXML_scope_qdisc;
+
+		USRXML_userpipeqdisc[USRXML_userid,USRXML_pipeid] = val;
+	} else {
+		return syntax_err();
+	}
+
+	return 0;
+}
+
+function __usrxml_scope_qdisc(name, val,    qdisc, n)
+{
+	if (name == "/qdisc") {
+		qdisc = USRXML_userpipeqdisc[USRXML_userid,USRXML_pipeid];
+		if (val != "" && val != qdisc)
+			return inv_arg(name, val);
+
+		__USRXML_scope = __USRXML_scope_pipe;
+	} else if (name == "opts") {
+		n = USRXML_userpipeqdisc[USRXML_userid,USRXML_pipeid,"opts"]++;
+		USRXML_userpipeqdisc[USRXML_userid,USRXML_pipeid,"opts",n] = val;
 	} else {
 		return syntax_err();
 	}
@@ -447,19 +474,33 @@ function run_usr_xml_parser(line,    a, nfields, fn)
 #
 # Print users entry in xml format
 #
-function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid, nat6id)
+function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid, nat6id, n, i)
 {
 	printf "<user %s>\n", USRXML_usernames[userid];
 	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
 		printf "\t<pipe %d>\n" \
 		       "\t\t<zone %s>\n" \
 		       "\t\t<dir %s>\n" \
-		       "\t\t<bw %sKb>\n" \
-		       "\t</pipe>\n",
+		       "\t\t<bw %sKb>\n",
 			pipeid + 1,
 			USRXML_userpipezone[userid,pipeid],
 			USRXML_userpipedir[userid,pipeid],
 			USRXML_userpipebw[userid,pipeid];
+
+		if (USRXML_userpipeqdisc[userid,pipeid] != "") {
+			printf "\t\t<qdisc %s>\n",
+				USRXML_userpipeqdisc[userid,pipeid];
+
+			n = USRXML_userpipeqdisc[userid,pipeid,"opts"];
+			for (i = 0; i < n; i++) {
+				printf "\t\t\t<opts %s>\n",
+					USRXML_userpipeqdisc[userid,pipeid,"opts",i];
+			}
+
+			printf "\t\t</qdisc>\n";
+		}
+
+		printf "\t</pipe>\n";
 	}
 	printf "\t<if %s>\n", USRXML_userif[userid];
 	for (netid = 0; netid < USRXML_usernets[userid]; netid++)
@@ -476,15 +517,30 @@ function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid, nat6id)
 #
 # Print users entry in one line xml format
 #
-function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid, nat6id)
+function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid, nat6id, n, i)
 {
 	printf "<user %s>", USRXML_usernames[userid];
 	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
-		printf "<pipe %d><zone %s><dir %s><bw %sKb></pipe>",
+		printf "<pipe %d><zone %s><dir %s><bw %sKb>",
 			pipeid + 1,
 			USRXML_userpipezone[userid,pipeid],
 			USRXML_userpipedir[userid,pipeid],
 			USRXML_userpipebw[userid,pipeid];
+
+		if (USRXML_userpipeqdisc[userid,pipeid] != "") {
+			printf "<qdisc %s>",
+				USRXML_userpipeqdisc[userid,pipeid];
+
+			n = USRXML_userpipeqdisc[userid,pipeid,"opts"];
+			for (i = 0; i < n; i++) {
+				printf "<opts %s>",
+					USRXML_userpipeqdisc[userid,pipeid,"opts",i];
+			}
+
+			printf "</qdisc>";
+		}
+
+		printf "</pipe>";
 	}
 	printf "<if %s>", USRXML_userif[userid];
 	for (netid = 0; netid < USRXML_usernets[userid]; netid++)
