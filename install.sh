@@ -1,0 +1,1 @@
+.subprojects/netctl-base/install.sh

@@ -1,0 +1,1 @@
+../.subprojects/netctl-base/etc/logrotate.d

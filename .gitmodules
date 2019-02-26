@@ -1,0 +1,3 @@
+[submodule ".subprojects/netctl-base"]
+	path = .subprojects/netctl-base
+	url = https://github.com/serhepopovych/netctl-base.git
