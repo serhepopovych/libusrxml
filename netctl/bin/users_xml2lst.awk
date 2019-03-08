@@ -1,7 +1,7 @@
 #!/usr/bin/gawk -f
 
 # Source USRXML database parsing library.
-@include "@dest@/netctl/lib/awk/libusrxml.awk"
+@include "@target@/netctl/lib/awk/libusrxml.awk"
 
 ################################################################################
 
