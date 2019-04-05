@@ -125,6 +125,11 @@ function init_usr_xml_parser()
 	USRXML_errno	= USRXML_E_NONE;
 
 	#
+	# Network interface name size (including '\0' byte)
+	#
+	USRXML_IFNAMSIZ = 16
+
+	#
 	# Following variables are populated from parsing
 	# XML document.
 	#
@@ -315,6 +320,8 @@ function __usrxml_scope_user(name, val,    n)
 	} else if (name == "if") {
 		if (val == "")
 			return ept_val(name);
+		if (length(val) >= USRXML_IFNAMSIZ)
+			return inv_arg(name, val);
 
 		USRXML_userif[USRXML_userid] = val;
 	} else if (name == "net") {
