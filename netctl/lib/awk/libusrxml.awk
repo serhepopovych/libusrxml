@@ -157,6 +157,10 @@ function init_usr_xml_parser()
 
 	# USRXML_usernames[userid]
 	# USRXML_userids[username]
+	# USRXML_nets[net]
+	# USRXML_nets6[net]
+	# USRXML_nats[nat]
+	# USRXML_nats6[nat]
 	#
 	# USRXML_userpipe[userid]
 	# USRXML_userpipezone[userid,pipeid]
@@ -205,11 +209,6 @@ function init_usr_xml_parser()
 	__USRXML_filename	= FILENAME;
 	__USRXML_linenum	= 0;
 
-	# __USRXML_usernets[net]
-	# __USRXML_usernets6[net]
-	# __USRXML_usernats[nat]
-	# __USRXML_usernats6[nat]
-	#
 	# __USRXML_fileline[key,{ "file" | "line" },n]
 
 	return 0;
@@ -277,11 +276,6 @@ function fini_usr_xml_parser(    zd_bits, zone_dir_bits, zones_dirs,
 
 	delete __USRXML_fileline;
 
-	delete __USRXML_usernats6;
-	delete __USRXML_usernats;
-	delete __USRXML_usernets6;
-	delete __USRXML_usernets;
-
 	delete __USRXML_dir;
 
 	delete __USRXML_zone;
@@ -345,36 +339,36 @@ function __usrxml_scope_user(name, val,    n)
 	} else if (name == "net") {
 		if (val == "")
 			return ept_val(name);
-		if (val in __USRXML_usernets)
-			return __dup_val(name, val, __USRXML_usernets[val]);
-		__USRXML_usernets[val] = USRXML_userid;
+		if (val in USRXML_nets)
+			return __dup_val(name, val, USRXML_nets[val]);
+		USRXML_nets[val] = USRXML_userid;
 
 		n = USRXML_usernets[USRXML_userid]++;
 		USRXML_usernets[USRXML_userid,n] = val;
 	} else if (name == "net6") {
 		if (val == "")
 			return ept_val(name);
-		if (val in __USRXML_usernets6)
-			return __dup_val(name, val, __USRXML_usernets6[val]);
-		__USRXML_usernets6[val] = USRXML_userid;
+		if (val in USRXML_nets6)
+			return __dup_val(name, val, USRXML_nets6[val]);
+		USRXML_nets6[val] = USRXML_userid;
 
 		n = USRXML_usernets6[USRXML_userid]++;
 		USRXML_usernets6[USRXML_userid,n] = val;
 	} else if (name == "nat") {
 		if (val == "")
 			return ept_val(name);
-		if (val in __USRXML_usernats)
-			return __dup_val(name, val, __USRXML_usernats[val]);
-		__USRXML_usernats[val] = USRXML_userid;
+		if (val in USRXML_nats)
+			return __dup_val(name, val, USRXML_nats[val]);
+		USRXML_nats[val] = USRXML_userid;
 
 		n = USRXML_usernats[USRXML_userid]++;
 		USRXML_usernats[USRXML_userid,n] = val;
 	} else if (name == "nat6") {
 		if (val == "")
 			return ept_val(name);
-		if (val in __USRXML_usernats6)
-			return __dup_val(name, val, __USRXML_usernats6[val]);
-		__USRXML_usernats6[val] = USRXML_userid;
+		if (val in USRXML_nats6)
+			return __dup_val(name, val, USRXML_nats6[val]);
+		USRXML_nats6[val] = USRXML_userid;
 
 		n = USRXML_usernats6[USRXML_userid]++;
 		USRXML_usernats6[USRXML_userid,n] = val;
