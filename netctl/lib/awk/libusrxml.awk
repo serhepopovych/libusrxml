@@ -35,6 +35,14 @@ function ept_val(section)
 	return USRXML_E_EMPTY;
 }
 
+function dup_val(section, value)
+{
+	printf "USRXML: %s: %d: duplicated value \"%s\" in <%s>\n",
+		__USRXML_filename, __USRXML_linenum, value, section >"/dev/stderr"
+	USRXML_errno = USRXML_E_DUP;
+	return USRXML_E_DUP;
+}
+
 function dup_arg(section)
 {
 	printf "USRXML: %s: %d: duplicated argument <%s>\n",
@@ -85,6 +93,16 @@ function section_fn_arg(section, key, fn,    n, ret, s_fn, s_ln)
 function __inv_arg(section)
 {
 	return inv_arg(section["name"], section["value"]);
+}
+
+function __dup_val(section, value, userid,    ret)
+{
+	if (userid == USRXML_userid)
+		return 0;
+	ret = dup_val(section, value);
+	printf "USRXML: %s: %d: already defined by \"%s\" user\n",
+		__USRXML_filename, __USRXML_linenum, USRXML_usernames[userid] >"/dev/stderr"
+	return ret;
 }
 
 function section_inv_arg(_section, value, key,    section)
@@ -187,10 +205,10 @@ function init_usr_xml_parser()
 	__USRXML_filename	= FILENAME;
 	__USRXML_linenum	= 0;
 
-	# __USRXML_usernets[userid,net]
-	# __USRXML_usernets6[userid,net]
-	# __USRXML_usernats[userid,nat]
-	# __USRXML_usernats6[userid,nat]
+	# __USRXML_usernets[net]
+	# __USRXML_usernets6[net]
+	# __USRXML_usernats[nat]
+	# __USRXML_usernats6[nat]
 	#
 	# __USRXML_fileline[key,{ "file" | "line" },n]
 
@@ -327,36 +345,36 @@ function __usrxml_scope_user(name, val,    n)
 	} else if (name == "net") {
 		if (val == "")
 			return ept_val(name);
-		if ((USRXML_userid, val) in __USRXML_usernets)
-			return 0;
-		__USRXML_usernets[USRXML_userid,val] = 1;
+		if (val in __USRXML_usernets)
+			return __dup_val(name, val, __USRXML_usernets[val]);
+		__USRXML_usernets[val] = USRXML_userid;
 
 		n = USRXML_usernets[USRXML_userid]++;
 		USRXML_usernets[USRXML_userid,n] = val;
 	} else if (name == "net6") {
 		if (val == "")
 			return ept_val(name);
-		if ((USRXML_userid, val) in __USRXML_usernets6)
-			return 0;
-		__USRXML_usernets6[USRXML_userid,val] = 1;
+		if (val in __USRXML_usernets6)
+			return __dup_val(name, val, __USRXML_usernets6[val]);
+		__USRXML_usernets6[val] = USRXML_userid;
 
 		n = USRXML_usernets6[USRXML_userid]++;
 		USRXML_usernets6[USRXML_userid,n] = val;
 	} else if (name == "nat") {
 		if (val == "")
 			return ept_val(name);
-		if ((USRXML_userid, val) in __USRXML_usernats)
-			return 0;
-		__USRXML_usernats[USRXML_userid,val] = 1;
+		if (val in __USRXML_usernats)
+			return __dup_val(name, val, __USRXML_usernats[val]);
+		__USRXML_usernats[val] = USRXML_userid;
 
 		n = USRXML_usernats[USRXML_userid]++;
 		USRXML_usernats[USRXML_userid,n] = val;
 	} else if (name == "nat6") {
 		if (val == "")
 			return ept_val(name);
-		if ((USRXML_userid, val) in __USRXML_usernats6)
-			return 0;
-		__USRXML_usernats6[USRXML_userid,val] = 1;
+		if (val in __USRXML_usernats6)
+			return __dup_val(name, val, __USRXML_usernats6[val]);
+		__USRXML_usernats6[val] = USRXML_userid;
 
 		n = USRXML_usernats6[USRXML_userid]++;
 		USRXML_usernats6[USRXML_userid,n] = val;
