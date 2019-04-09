@@ -47,8 +47,13 @@ Here is typical example of document format library is able to parse:
 		<bw 5120Kb>
 	</pipe>
 	<if eth0.4094>
-	<net 203.0.113.128/30>
+	<net 203.0.113.130/30>
+		<src 203.0.113.129>
+		<mac 02:11:22:33:44:55>
+	</net>
 	<net 192.0.2.128/30>
+		<via 203.0.113.130>
+	</net>
 </user>
 
 This document describes
@@ -167,6 +172,9 @@ use following command sequence to verify document correctness:
 	</pipe>
 	<if eth0.4094>
 	<net 203.0.113.97/32>
+		<src 203.0.113.1>
+		<mac 02:11:22:33:44:55>
+	</net>
 </user>
 EOF
 

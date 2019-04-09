@@ -1,5 +1,8 @@
 #!/usr/bin/gawk -f
 
+# Source USRXML database parsing library.
+@include "@target@/netctl/lib/awk/libinet.awk"
+
 #
 # Parser helper routines to report various errors.
 #
@@ -187,6 +190,8 @@ function init_usr_xml_parser()
 	__USRXML_scope_user	= 1;
 	__USRXML_scope_pipe	= 2;
 	__USRXML_scope_qdisc	= 3;
+	__USRXML_scope_net	= 4;
+	__USRXML_scope_net6	= 5;
 
 	__USRXML_scope		= __USRXML_scope_none;
 
@@ -194,6 +199,8 @@ function init_usr_xml_parser()
 	__USRXML_scope2name[__USRXML_scope_user]	= "user";
 	__USRXML_scope2name[__USRXML_scope_pipe]	= "pipe";
 	__USRXML_scope2name[__USRXML_scope_qdisc]	= "qdisc";
+	__USRXML_scope2name[__USRXML_scope_net]		= "net";
+	__USRXML_scope2name[__USRXML_scope_net6]	= "net6";
 
 	# Valid "zone" values
 	__USRXML_zone["world"]	= 1;
@@ -343,8 +350,12 @@ function __usrxml_scope_user(name, val,    n)
 			return __dup_val(name, val, USRXML_nets[val]);
 		USRXML_nets[val] = USRXML_userid;
 
-		n = USRXML_usernets[USRXML_userid]++;
+		n = USRXML_usernets[USRXML_userid];
 		USRXML_usernets[USRXML_userid,n] = val;
+
+		__USRXML_scope = __USRXML_scope_net;
+
+		section_record_fileline(USRXML_userid);
 	} else if (name == "net6") {
 		if (val == "")
 			return ept_val(name);
@@ -352,8 +363,12 @@ function __usrxml_scope_user(name, val,    n)
 			return __dup_val(name, val, USRXML_nets6[val]);
 		USRXML_nets6[val] = USRXML_userid;
 
-		n = USRXML_usernets6[USRXML_userid]++;
+		n = USRXML_usernets6[USRXML_userid];
 		USRXML_usernets6[USRXML_userid,n] = val;
+
+		__USRXML_scope = __USRXML_scope_net6;
+
+		section_record_fileline(USRXML_userid);
 	} else if (name == "nat") {
 		if (val == "")
 			return ept_val(name);
@@ -465,6 +480,80 @@ function __usrxml_scope_qdisc(name, val,    qdisc, n)
 	return 0;
 }
 
+function __usrxml_scope_net(name, val,    net, n)
+{
+	n = USRXML_usernets[USRXML_userid];
+	net = USRXML_usernets[USRXML_userid,n];
+
+	if (name == "/net") {
+		if (val != "" && val != net)
+			return inv_arg(name, val);
+
+		USRXML_usernets[USRXML_userid]++;
+
+		__USRXML_scope = __USRXML_scope_user;
+	} else if (name == "src") {
+		if (val == "")
+			return ept_val(name);
+		USRXML_usernets[USRXML_userid,n,name] = val;
+	} else if (name == "via") {
+		if (val == "")
+			return ept_val(name);
+		if ((USRXML_userid, n, "mac") in USRXML_usernets)
+			return inv_arg(name, val);
+		USRXML_usernets[USRXML_userid,n,name] = val;
+	} else if (name == "mac") {
+		if (val == "")
+			return ept_val(name);
+		if ((USRXML_userid, n, "via") in USRXML_usernets)
+			return inv_arg(name, val);
+		if (!is_ipp_host(net))
+			return inv_arg(name, val);
+		USRXML_usernets[USRXML_userid,n,name] = val;
+	} else {
+		return syntax_err();
+	}
+
+	return 0;
+}
+
+function __usrxml_scope_net6(name, val,    net6, n)
+{
+	n = USRXML_usernets6[USRXML_userid];
+	net6 = USRXML_usernets6[USRXML_userid,n];
+
+	if (name == "/net6") {
+		if (val != "" && val != net6)
+			return inv_arg(name, val);
+
+		USRXML_usernets6[USRXML_userid]++;
+
+		__USRXML_scope = __USRXML_scope_user;
+	} else if (name == "src") {
+		if (val == "")
+			return ept_val(name);
+		USRXML_usernets6[USRXML_userid,n,name] = val;
+	} else if (name == "via") {
+		if (val == "")
+			return ept_val(name);
+		if ((USRXML_userid, n, "mac") in USRXML_usernets6)
+			return inv_arg(name, val);
+		USRXML_usernets6[USRXML_userid,n,name] = val;
+	} else if (name == "mac") {
+		if (val == "")
+			return ept_val(name);
+		if ((USRXML_userid, n, "via") in USRXML_usernets6)
+			return inv_arg(name, val);
+		if (!is_ipp_host(net6))
+			return inv_arg(name, val);
+		USRXML_usernets6[USRXML_userid,n,name] = val;
+	} else {
+		return syntax_err();
+	}
+
+	return 0;
+}
+
 function run_usr_xml_parser(line,    a, nfields, fn)
 {
 	if (__USRXML_filename != FILENAME) {
@@ -522,10 +611,26 @@ function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid, nat6id, n,
 		printf "\t</pipe>\n";
 	}
 	printf "\t<if %s>\n", USRXML_userif[userid];
-	for (netid = 0; netid < USRXML_usernets[userid]; netid++)
+	for (netid = 0; netid < USRXML_usernets[userid]; netid++) {
 		printf "\t<net %s>\n", USRXML_usernets[userid,netid];
-	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++)
+		if ((userid,netid,"src") in USRXML_usernets)
+			printf "\t\t<src %s>\n", USRXML_usernets[userid,netid,"src"];
+		if ((userid,netid,"via") in USRXML_usernets)
+			printf "\t\t<via %s>\n", USRXML_usernets[userid,netid,"via"];
+		if ((userid,netid,"mac") in USRXML_usernets)
+			printf "\t\t<mac %s>\n", USRXML_usernets[userid,netid,"mac"];
+		printf "</net>\n";
+	}
+	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++) {
 		printf "\t<net6 %s>\n", USRXML_usernets6[userid,net6id];
+		if ((userid,net6id,"src") in USRXML_usernets6)
+			printf "\t\t<src %s>\n", USRXML_usernets6[userid,net6id,"src"];
+		if ((userid,net6id,"via") in USRXML_usernets6)
+			printf "\t\t<via %s>\n", USRXML_usernets6[userid,net6id,"via"];
+		if ((userid,net6id,"mac") in USRXML_usernets6)
+			printf "\t\t<mac %s>\n", USRXML_usernet6s[userid,net6id,"mac"];
+		printf "</net6>\n";
+	}
 	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
 		printf "\t<nat %s>\n", USRXML_usernats[userid,natid];
 	for (nat6id = 0; nat6id < USRXML_usernats6[userid]; nat6id++)
@@ -562,10 +667,26 @@ function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid, na
 		printf "</pipe>";
 	}
 	printf "<if %s>", USRXML_userif[userid];
-	for (netid = 0; netid < USRXML_usernets[userid]; netid++)
+	for (netid = 0; netid < USRXML_usernets[userid]; netid++) {
 		printf "<net %s>", USRXML_usernets[userid,netid];
-	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++)
+		if ((userid,netid,"src") in USRXML_usernets)
+			printf "<src %s>", USRXML_usernets[userid,netid,"src"];
+		if ((userid,netid,"via") in USRXML_usernets)
+			printf "<via %s>", USRXML_usernets[userid,netid,"via"];
+		if ((userid,netid,"mac") in USRXML_usernets)
+			printf "<mac %s>", USRXML_usernets[userid,netid,"mac"];
+		printf "</net>";
+	}
+	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++) {
 		printf "<net6 %s>", USRXML_usernets6[userid,net6id];
+		if ((userid,net6id,"src") in USRXML_usernets6)
+			printf "<src %s>", USRXML_usernets6[userid,net6id,"src"];
+		if ((userid,net6id,"via") in USRXML_usernets6)
+			printf "<via %s>", USRXML_usernets6[userid,net6id,"via"];
+		if ((userid,net6id,"mac") in USRXML_usernets6)
+			printf "<mac %s>", USRXML_usernets6[userid,net6id,"mac"];
+		printf "</net6>";
+	}
 	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
 		printf "<nat %s>", USRXML_usernats[userid,natid];
 	for (nat6id = 0; nat6id < USRXML_usernats6[userid]; nat6id++)
