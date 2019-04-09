@@ -145,7 +145,7 @@ data structures become avaiable to the calling code:
   # Set of <nat6>s for given "userid"
   USRXML_usernats6[userid,nat6id]
 
-  # Mapping of USRXML_useriface[userid] to comma separated list of "userid"
+  # Mapping of USRXML_userif[userid] to space separated list of "userid"
   # for all network devices we need to configure traffic control rules.
   USRXML_ifusers[ifaceid]
 

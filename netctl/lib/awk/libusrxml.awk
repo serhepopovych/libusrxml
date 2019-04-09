@@ -270,7 +270,7 @@ function fini_usr_xml_parser(    zd_bits, zone_dir_bits, zones_dirs,
 
 		val = USRXML_userif[userid];
 		if (val in USRXML_ifusers)
-			USRXML_ifusers[val] = USRXML_ifusers[val]","userid;
+			USRXML_ifusers[val] = USRXML_ifusers[val] " " userid;
 		else
 			USRXML_ifusers[val] = userid;
 	}
