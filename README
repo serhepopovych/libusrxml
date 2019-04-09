@@ -108,11 +108,18 @@ data structures become avaiable to the calling code:
   # data structure has number starting from 0 called "pipeid".
   USRXML_userpipe[userid]
   # Zone name of given pipe for which settings applied.
-  USRXML_userpipezone[userid,pipeid]
+  USRXML_userpipe[userid,pipeid,"zone"]
   # Direction for given zone. Can be "world", "local" or "all".
-  USRXML_userpipedir[userid,pipeid]
+  USRXML_userpipe[userid,pipeid,"dir"]
   # Bandwidth for given zone. Specified in Kbits/s.
-  USRXML_userpipebw[userid,pipeid]
+  USRXML_userpipe[userid,pipeid,"bw"]
+  # Queueing discipline name to attach. Default is empty ("") if unspecified.
+  USRXML_userpipe[userid,pipeid,"qdisc"]
+  # Number of queueing discipline options. Each
+  # <opts> data structure has number starting from 0 called "optid".
+  USRXML_userpipe[userid,pipeid,"opts"]
+  # Queueing options
+  USRXML_userpipe[userid,pipeid,"opts",optid]
 
   # Number of IPv4 networks for given "userid". Each
   # <net> data structure has number starting from 0 called "netid".
