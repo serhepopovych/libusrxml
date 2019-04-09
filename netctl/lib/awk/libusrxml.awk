@@ -358,6 +358,9 @@ function __usrxml_scope_user(name, val,    n)
 	} else if (name == "net") {
 		if (val == "")
 			return ept_val(name);
+		val = ipp_normalize(val);
+		if (val == "")
+			return inv_arg(name, val);
 		if (val in USRXML_nets)
 			return __dup_val(name, val, USRXML_nets[val]);
 		USRXML_nets[val] = USRXML_userid;
@@ -371,6 +374,9 @@ function __usrxml_scope_user(name, val,    n)
 	} else if (name == "net6") {
 		if (val == "")
 			return ept_val(name);
+		val = ipp_normalize(val);
+		if (val == "")
+			return inv_arg(name, val);
 		if (val in USRXML_nets6)
 			return __dup_val(name, val, USRXML_nets6[val]);
 		USRXML_nets6[val] = USRXML_userid;
@@ -384,6 +390,9 @@ function __usrxml_scope_user(name, val,    n)
 	} else if (name == "nat") {
 		if (val == "")
 			return ept_val(name);
+		val = ipp_normalize(val);
+		if (val == "")
+			return inv_arg(name, val);
 		if (val in USRXML_nats)
 			return __dup_val(name, val, USRXML_nats[val]);
 		USRXML_nats[val] = USRXML_userid;
@@ -393,6 +402,9 @@ function __usrxml_scope_user(name, val,    n)
 	} else if (name == "nat6") {
 		if (val == "")
 			return ept_val(name);
+		val = ipp_normalize(val);
+		if (val == "")
+			return inv_arg(name, val);
 		if (val in USRXML_nats6)
 			return __dup_val(name, val, USRXML_nats6[val]);
 		USRXML_nats6[val] = USRXML_userid;
