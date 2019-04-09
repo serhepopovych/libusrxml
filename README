@@ -95,18 +95,25 @@ data structures become avaiable to the calling code:
 
   # Number of <user> data structures parsed in document. Each
   # <user> data structure has number starting from zero "userid".
-  USRXML_nusers
+  userid = [0 .. USRXML_nusers - 1]
 
-  # Name from <user {name}> data structure for given "userid"
-  USRXML_usernames[userid]
+  # Name from <user {name}> data structure for given "userid".
+  username = USRXML_usernames[userid]
+  # Userid for given name from <user {name}>.
+  userid = USRXML_userids[username]
+  # Space separated list of "userid"s for given "userif".
+  USRXML_ifusers[userif]
 
-  # Name of network device where <user> connected. Can be shared
-  # by multiple "userid"s data structures.
-  USRXML_userif[userid]
+  # Map net, net6, nat, nat6. Used internally for duplicate
+  # detection; overlapping networks supported.
+  userid = USRXML_nets[net]
+  userid = USRXML_nets6[net6]
+  userid = USRXML_nats[nat]
+  userid = USRXML_nats6[nat6]
 
-  # Number of <pipe> data structures for given "userid". Each <pipe>
-  # data structure has number starting from 0 called "pipeid".
-  USRXML_userpipe[userid]
+  # Number of pipes for given "userid". Each <pipe> data
+  # structure has index (pipeid) starting from 0 to this number.
+  pipeid = USRXML_userpipe[userid]
   # Zone name of given pipe for which settings applied.
   USRXML_userpipe[userid,pipeid,"zone"]
   # Direction for given zone. Can be "world", "local" or "all".
@@ -115,39 +122,45 @@ data structures become avaiable to the calling code:
   USRXML_userpipe[userid,pipeid,"bw"]
   # Queueing discipline name to attach. Default is empty ("") if unspecified.
   USRXML_userpipe[userid,pipeid,"qdisc"]
-  # Number of queueing discipline options. Each
-  # <opts> data structure has number starting from 0 called "optid".
-  USRXML_userpipe[userid,pipeid,"opts"]
+  # Number of queueing discipline options. Each <opts> data
+  # structure has index (optid) starting from 0 to this number.
+  optid = USRXML_userpipe[userid,pipeid,"opts"]
   # Queueing options
   USRXML_userpipe[userid,pipeid,"opts",optid]
 
-  # Number of IPv4 networks for given "userid". Each
-  # <net> data structure has number starting from 0 called "netid".
-  USRXML_usernets[userid]
-  # Set of <net>s for given "userid"
+  # Name of network interface where <user> connected.
+  # Can be shared by multiple "userid"s data structures.
+  userif = USRXML_userif[userid]
+
+  # Number of IPv4 networks for given "userid". Each <net> data
+  # structure has index (netid) starting from 0 to this number.
+  netid = USRXML_usernets[userid]
+  # Set of <net>s for given "userid".
   USRXML_usernets[userid,netid]
+  USRXML_usernets[userid,netid,"src"]
+  USRXML_usernets[userid,netid,"via"]
+  USRXML_usernets[userid,netid,"mac"]
 
-  # Number of IPv6 networks for given "userid". Each
-  # <net6> data structure has number starting from 0 called "net6id".
-  USRXML_usernets6[userid]
-  # Set of <net6>s for given "userid"
+  # Number of IPv6 networks for given "userid". Each <net6> data
+  # structure has index (net6id) starting from 0 to this number.
+  net6id = USRXML_usernets6[userid]
+  # Set of <net6>s for given "userid".
   USRXML_usernets6[userid,net6id]
+  USRXML_usernets6[userid,net6id,"src"]
+  USRXML_usernets6[userid,net6id,"via"]
+  USRXML_usernets6[userid,net6id,"mac"]
 
-  # Number of IPv4 networks before SNAT for given "userid". Each
-  # <nat> data structure has number starting from 0 called "natid".
-  USRXML_usernats[userid]
-  # Set of <nat4>s for given "userid"
+  # Number of IPv4 networks before SNAT for given "userid". Each <nat> data
+  # structure has index (natid) starting from 0 to this number.
+  natid = USRXML_usernats[userid]
+  # Set of <nat4>s for given "userid".
   USRXML_usernats[userid,natid]
 
-  # Number of IPv6 networks before SNAT for given "userid". Each
-  # <nat6> data structure has number starting from 0 called "nat6id".
-  USRXML_usernats6[userid]
-  # Set of <nat6>s for given "userid"
+  # Number of IPv6 networks before SNAT for given "userid". Each <nat6> data
+  # structure has index (nat6id) starting from 0 to this number.
+  nat6id = USRXML_usernats6[userid]
+  # Set of <nat6>s for given "userid".
   USRXML_usernats6[userid,nat6id]
-
-  # Mapping of USRXML_userif[userid] to space separated list of "userid"
-  # for all network devices we need to configure traffic control rules.
-  USRXML_ifusers[ifaceid]
 
 There is two additional functions defined in the library to print <user>
 that can be used only with successfuly parsed document:

@@ -158,25 +158,41 @@ function init_usr_xml_parser()
 	USRXML_userid	= 0;
 	USRXML_pipeid	= 0;
 
-	# USRXML_usernames[userid]
-	# USRXML_userids[username]
-	# USRXML_nets[net]
-	# USRXML_nets6[net]
-	# USRXML_nats[nat]
-	# USRXML_nats6[nat]
+	# userid = [0 .. USRXML_nusers - 1]
+	# username = USRXML_usernames[userid]
+	# userid = USRXML_userids[username]
+	# USRXML_ifusers[userif]
 	#
-	# USRXML_userpipe[userid]
+	# userid = USRXML_nets[net]
+	# userid = USRXML_nets6[net6]
+	# userid = USRXML_nats[nat]
+	# userid = USRXML_nats6[nat6]
 	#
-	# USRXML_userif[userid]
+	# pipeid = USRXML_userpipe[userid]
+	# USRXML_userpipe[userid,pipeid,"zone"]
+	# USRXML_userpipe[userid,pipeid,"dir"]
+	# USRXML_userpipe[userid,pipeid,"bw"]
+	# USRXML_userpipe[userid,pipeid,"qdisc"]
+	# optid = USRXML_userpipe[userid,pipeid,"opts"]
+	# USRXML_userpipe[userid,pipeid,"opts",optid]
 	#
+	# userif = USRXML_userif[userid]
+	#
+	# netid = USRXML_usernets[userid]
 	# USRXML_usernets[userid,netid]
-	#
+	# USRXML_usernets[userid,netid,"src"]
+	# USRXML_usernets[userid,netid,"via"]
+	# USRXML_usernets[userid,netid,"mac"]
+	# net6id = USRXML_usernets6[userid]
 	# USRXML_usernets6[userid,net6id]
+	# USRXML_usernets6[userid,net6id,"src"]
+	# USRXML_usernets6[userid,net6id,"via"]
+	# USRXML_usernets6[userid,net6id,"mac"]
 	#
+	# natid = USRXML_usernats[userid]
 	# USRXML_usernats[userid,natid]
+	# nat6id = USRXML_usernats6[userid]
 	# USRXML_usernats6[userid,nat6id]
-	#
-	# USRXML_ifusers[ifaceid]
 
 	#
 	# These constants and variables are *internal*, but
