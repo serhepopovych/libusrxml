@@ -4,132 +4,208 @@
 @include "@target@/netctl/lib/awk/libinet.awk"
 
 #
+# Parser descriptor handling helper routines.
+#
+
+function is_valid_usrxml_handle(h)
+{
+	return USRXML_instance["h",h] == h;
+}
+
+function usrxml__alloc_handle(    h)
+{
+	h = int(USRXML_instance["h"]);
+
+	do {
+		if (h + 1 < 1) {
+			return USRXML_E_HANDLE_FULL;
+		}
+		h++;
+	} while (is_valid_usrxml_handle(h));
+
+	USRXML_instance["h",h] = h;
+	USRXML_instance["h"] = h;
+
+	return h;
+}
+
+function usrxml__free_handle(h)
+{
+	if (is_valid_usrxml_handle(h)) {
+		delete USRXML_instance["h",h];
+		USRXML_instance["h"] = h - 1;
+	}
+}
+
+#
+# Error handling functions.
+#
+
+function usrxml_errno(h)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+	return USRXML_instance[h,"errno"];
+}
+
+function usrxml__seterrno(h, val)
+{
+	USRXML_instance[h,"errno"] = val;
+	return val;
+}
+
+function usrxml_seterrno(h, val)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+	return usrxml__seterrno(h, val);
+}
+
+#
 # Parser helper routines to report various errors.
 #
-function syntax_err()
+
+function usrxml_syntax_err(h)
 {
 	printf "USRXML: %s: %d: syntax error\n",
-		__USRXML_filename, __USRXML_linenum >"/dev/stderr"
-	USRXML_errno = USRXML_E_SYNTAX;
-	return USRXML_E_SYNTAX;
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"] >"/dev/stderr"
+	return usrxml__seterrno(h, USRXML_E_SYNTAX);
 }
 
-function scope_err(section)
+function usrxml_scope_err(h, section)
 {
 	printf "USRXML: %s: %d: <%s> scope error\n",
-		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
-	USRXML_errno = USRXML_E_SCOPE;
-	return USRXML_E_SCOPE;
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
+		section >"/dev/stderr"
+	return usrxml__seterrno(h, USRXML_E_SCOPE);
 }
 
-function inv_arg(section, value)
+function usrxml_inv_arg(h, section, value)
 {
 	printf "USRXML: %s: %d: invalid argument \"%s\" in <%s>\n",
-		__USRXML_filename, __USRXML_linenum, value, section >"/dev/stderr"
-	USRXML_errno = USRXML_E_INVAL;
-	return USRXML_E_INVAL;
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
+		value, section >"/dev/stderr"
+	return usrxml__seterrno(h, USRXML_E_INVAL);
 }
 
-function ept_val(section)
+function usrxml_ept_val(h, section)
 {
 	printf "USRXML: %s: %d: empty value in <%s>\n",
-		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
-	USRXML_errno = USRXML_E_EMPTY;
-	return USRXML_E_EMPTY;
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
+		section >"/dev/stderr"
+	return usrxml__seterrno(h, USRXML_E_EMPTY);
 }
 
-function dup_val(section, value)
+function usrxml_dup_val(h, section, value)
 {
 	printf "USRXML: %s: %d: duplicated value \"%s\" in <%s>\n",
-		__USRXML_filename, __USRXML_linenum, value, section >"/dev/stderr"
-	USRXML_errno = USRXML_E_DUP;
-	return USRXML_E_DUP;
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
+		value, section >"/dev/stderr"
+	return usrxml__seterrno(h, USRXML_E_DUP);
 }
 
-function dup_arg(section)
+function usrxml_dup_arg(h, section)
 {
 	printf "USRXML: %s: %d: duplicated argument <%s>\n",
-		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
-	USRXML_errno = USRXML_E_DUP;
-	return USRXML_E_DUP;
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
+		section >"/dev/stderr"
+	return usrxml__seterrno(h, USRXML_E_DUP);
 }
 
-function missing_arg(section)
+function usrxml_dup_net(h, section, value, userid,    ret)
+{
+	if (userid == USRXML_instance[h,"userid"])
+		return usrxml__seterrno(h, USRXML_E_NONE);
+
+	ret = usrxml_dup_val(h, section, value);
+
+	printf "USRXML: %s: %d: already defined by \"%s\" user\n",
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"], \
+		USRXML_usernames[userid] >"/dev/stderr"
+
+	return ret;
+}
+
+function usrxml_missing_arg(h, section)
 {
 	printf "USRXML: %s: %d: missing mandatory argument <%s>\n",
-		__USRXML_filename, __USRXML_linenum, section >"/dev/stderr"
-	USRXML_errno = USRXML_E_MISS;
-	return USRXML_E_MISS;
+		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
+		section >"/dev/stderr"
+	return usrxml__seterrno(h, USRXML_E_MISS);
 }
 
 #
 # Helper routines to track section (e.g. <user>, <pipe>) filename and linenum.
 #
-function section_record_fileline(key,    n)
+
+function usrxml_section_record_fileline(h, key,    n)
 {
-	n = __USRXML_fileline[key]++;
-	__USRXML_fileline[key,"file",n] = __USRXML_filename;
-	__USRXML_fileline[key,"line",n] = __USRXML_linenum;
+	n = USRXML__fileline[key]++;
+	USRXML__fileline[key,"file",n] = USRXML_instance[h,"filename"];
+	USRXML__fileline[key,"line",n] = USRXML_instance[h,"linenum"];
 }
 
-function section_fn_arg(section, key, fn,    n, ret, s_fn, s_ln)
+function usrxml_section_delete_fileline(h, key,    n, i)
 {
-	ret = USRXML_E_SYNTAX;
+	n = USRXML__fileline[key];
+	delete USRXML__fileline[key];
+	for (i = 0; i < n; i++) {
+		delete USRXML__fileline[key,"file",i];
+		delete USRXML__fileline[key,"line",i];
+	}
+}
 
-	s_fn = __USRXML_filename;
-	s_ln = __USRXML_linenum;
+function usrxml_section_fn_arg(h, section, key, fn,    n, ret, s_fn, s_ln)
+{
+	ret = usrxml__seterrno(h, USRXML_E_SYNTAX);
 
-	n = __USRXML_fileline[key];
+	s_fn = USRXML_instance[h,"filename"];
+	s_ln = USRXML_instance[h,"linenum"];
+
+	n = USRXML__fileline[key];
 	while (n--) {
-		__USRXML_filename = __USRXML_fileline[key,"file",n];
-		__USRXML_linenum  = __USRXML_fileline[key,"line",n];
+		USRXML_instance[h,"filename"] = USRXML__fileline[key,"file",n];
+		USRXML_instance[h,"linenum"]  = USRXML__fileline[key,"line",n];
 
-		ret = @fn(section);
+		ret = @fn(h, section);
 	}
 
-	__USRXML_filename = s_fn;
-	__USRXML_linenum  = s_ln;
+	USRXML_instance[h,"filename"] = s_fn;
+	USRXML_instance[h,"linenum"]  = s_ln;
 
 	return ret;
 }
 
-function __inv_arg(section)
+function usrxml__inv_arg(h, section)
 {
-	return inv_arg(section["name"], section["value"]);
+	return usrxml_inv_arg(h, section["name"], section["value"]);
 }
 
-function __dup_val(section, value, userid,    ret)
-{
-	if (userid == USRXML_userid)
-		return 0;
-	ret = dup_val(section, value);
-	printf "USRXML: %s: %d: already defined by \"%s\" user\n",
-		__USRXML_filename, __USRXML_linenum, USRXML_usernames[userid] >"/dev/stderr"
-	return ret;
-}
-
-function section_inv_arg(_section, value, key,    section)
+function usrxml_section_inv_arg(h, _section, value, key,    section)
 {
 	section["name"]  = _section;
 	section["value"] = value;
 
-	return section_fn_arg(section, key, "__inv_arg");
+	return usrxml_section_fn_arg(h, section, key, "usrxml__inv_arg");
 }
 
-function section_missing_arg(section, key)
+function usrxml_section_missing_arg(h, section, key)
 {
-	return section_fn_arg(section, key, "missing_arg");
+	return usrxml_section_fn_arg(h, section, key, "usrxml_missing_arg");
 }
 
 #
 # Initialize users database XML document parser/validator.
 # This is usually called from BEGIN{} section.
 #
-function init_usr_xml_parser()
+# Returns parser instance handle that may be passed to others.
+#
+
+function init_usrxml_parser(    h)
 {
-	#
-	# USRXML error codes.
-	#
+	## Constants (public)
+
+	# USRXML error codes (visible in case of handle allocation error)
 	USRXML_E_NONE	= 0;
 	USRXML_E_INVAL	= -1;
 	USRXML_E_EMPTY	= -2;
@@ -138,117 +214,118 @@ function init_usr_xml_parser()
 	USRXML_E_SCOPE	= -50;
 	# generic
 	USRXML_E_SYNTAX	= -100;
+	# API
+	USRXML_E_HANDLE_INVALID = -201;
+	USRXML_E_HANDLE_FULL    = -202;
 
-	#
-	# USRXML error code variable is set to non-zero
-	# if an error encountered during XML document
-	# parsing/validation.
-	USRXML_errno	= USRXML_E_NONE;
+	# Establish next (first) instance
+	h = usrxml__alloc_handle();
+	if (h < 0)
+		return h;
 
-	#
 	# Network interface name size (including '\0' byte)
-	#
-	USRXML_IFNAMSIZ = 16
+	USRXML_IFNAMSIZ = 16;
 
-	#
-	# Following variables are populated from parsing
-	# XML document.
-	#
-	USRXML_nusers	= 0;
-	USRXML_userid	= 0;
-	USRXML_pipeid	= 0;
+	## Constants (internal, arrays get cleaned )
 
-	# userid = [0 .. USRXML_nusers - 1]
-	# username = USRXML_usernames[userid]
-	# userid = USRXML_userids[username]
-	# USRXML_ifusers[userif]
-	#
-	# userid = USRXML_nets[net]
-	# userid = USRXML_nets6[net6]
-	# userid = USRXML_nats[nat]
-	# userid = USRXML_nats6[nat6]
-	#
-	# pipeid = USRXML_userpipe[userid]
-	# USRXML_userpipe[userid,pipeid,"zone"]
-	# USRXML_userpipe[userid,pipeid,"dir"]
-	# USRXML_userpipe[userid,pipeid,"bw"]
-	# USRXML_userpipe[userid,pipeid,"qdisc"]
-	# optid = USRXML_userpipe[userid,pipeid,"opts"]
-	# USRXML_userpipe[userid,pipeid,"opts",optid]
-	#
-	# userif = USRXML_userif[userid]
-	#
-	# netid = USRXML_usernets[userid]
-	# USRXML_usernets[userid,netid]
-	# USRXML_usernets[userid,netid,"src"]
-	# USRXML_usernets[userid,netid,"via"]
-	# USRXML_usernets[userid,netid,"mac"]
-	# net6id = USRXML_usernets6[userid]
-	# USRXML_usernets6[userid,net6id]
-	# USRXML_usernets6[userid,net6id,"src"]
-	# USRXML_usernets6[userid,net6id,"via"]
-	# USRXML_usernets6[userid,net6id,"mac"]
-	#
-	# natid = USRXML_usernats[userid]
-	# USRXML_usernats[userid,natid]
-	# nat6id = USRXML_usernats6[userid]
-	# USRXML_usernats6[userid,nat6id]
+	# Tag scope
+	USRXML__scope_none	= 0;
+	USRXML__scope_user	= 1;
+	USRXML__scope_pipe	= 2;
+	USRXML__scope_qdisc	= 3;
+	USRXML__scope_net	= 4;
+	USRXML__scope_net6	= 5;
 
-	#
-	# These constants and variables are *internal*, but
-	# needed to be preserved accross library function calls.
-	#
-	__USRXML_scope_none	= 0;
-	__USRXML_scope_user	= 1;
-	__USRXML_scope_pipe	= 2;
-	__USRXML_scope_qdisc	= 3;
-	__USRXML_scope_net	= 4;
-	__USRXML_scope_net6	= 5;
-
-	__USRXML_scope		= __USRXML_scope_none;
-
-	__USRXML_scope2name[__USRXML_scope_none]	= "none";
-	__USRXML_scope2name[__USRXML_scope_user]	= "user";
-	__USRXML_scope2name[__USRXML_scope_pipe]	= "pipe";
-	__USRXML_scope2name[__USRXML_scope_qdisc]	= "qdisc";
-	__USRXML_scope2name[__USRXML_scope_net]		= "net";
-	__USRXML_scope2name[__USRXML_scope_net6]	= "net6";
+	USRXML__scope2name[USRXML__scope_none]	= "none";
+	USRXML__scope2name[USRXML__scope_user]	= "user";
+	USRXML__scope2name[USRXML__scope_pipe]	= "pipe";
+	USRXML__scope2name[USRXML__scope_qdisc]	= "qdisc";
+	USRXML__scope2name[USRXML__scope_net]	= "net";
+	USRXML__scope2name[USRXML__scope_net6]	= "net6";
 
 	# Valid "zone" values
-	__USRXML_zone["world"]	= 1;
-	__USRXML_zone["local"]	= 1;
-	__USRXML_zone["all"]	= 1;
+	USRXML__zone["world"]	= 1;
+	USRXML__zone["local"]	= 1;
+	USRXML__zone["all"]	= 1;
 
 	# Valid "dir" values
-	__USRXML_dir["in"]	= 1;
-	__USRXML_dir["out"]	= 1;
-	__USRXML_dir["all"]	= 1;
+	USRXML__dir["in"]	= 1;
+	USRXML__dir["out"]	= 1;
+	USRXML__dir["all"]	= 1;
+
+	## Variables
+
+	# USRXML_instance[] internal information about parser instance
+
+	# Error number updated on each library call
+	USRXML_instance[h,"errno"] = USRXML_E_NONE;
+
+	# Current scope
+	USRXML_instance[h,"scope"] = USRXML__scope_none;
+
+	# Populated from parsing XML document
+	USRXML_instance[h,"nusers"] = 0;
+	USRXML_instance[h,"userid"] = 0;
+	USRXML_instance[h,"pipeid"] = 0;
+	USRXML_instance[h,"netid"] = 0;
+	USRXML_instance[h,"net6id"] = 0;
+
+	# username = USRXML_usernames[h,userid]
+	# userid = USRXML_userids[h,username]
+	# USRXML_ifusers[h,userif]
+	#
+	# userid = USRXML_nets[h,net]
+	# userid = USRXML_nets6[h,net6]
+	# userid = USRXML_nats[h,nat]
+	# userid = USRXML_nats6[h,nat6]
+	#
+	# pipeid = USRXML_userpipe[h,userid]
+	# pipenum = USRXML_userpipe[h,userid,pipeid]
+	# USRXML_userpipe[h,userid,pipeid,"zone"]
+	# USRXML_userpipe[h,userid,pipeid,"dir"]
+	# USRXML_userpipe[h,userid,pipeid,"bw"]
+	# USRXML_userpipe[h,userid,pipeid,"qdisc"]
+	# optid = USRXML_userpipe[h,userid,pipeid,"opts"]
+	# USRXML_userpipe[h,userid,pipeid,"opts",optid]
+	#
+	# userif = USRXML_userif[h,userid]
+	#
+	# netid = USRXML_usernets[h,userid]
+	# USRXML_usernets[h,userid,netid]
+	# net6id = USRXML_usernets6[h,userid]
+	# USRXML_usernets6[h,userid,net6id]
+	#
+	# natid = USRXML_usernats[h,userid]
+	# USRXML_usernats[h,userid,natid]
+	# nat6id = USRXML_usernats6[h,userid]
+	# USRXML_usernats6[h,userid,nat6id]
 
 	# FILENAME might be unknown if called from BEGIN{} sections
-	__USRXML_filename	= FILENAME;
-	__USRXML_linenum	= 0;
+	USRXML_instance[h,"filename"] = FILENAME;
+	USRXML_instance[h,"linenum"] = 0;
 
-	# __USRXML_fileline[key,{ "file" | "line" },n]
+	# USRXML__fileline[key,{ "file" | "line" },n]
 
-	return 0;
+	return h;
 }
 
 #
-# Finish XML document validation.
-# This is usually called from END{} section.
+# Return XML document parsing result performing final validation steps.
 #
-function fini_usr_xml_parser(    zd_bits, zone_dir_bits, zones_dirs,
-			     userid, pipeid, n, val)
+
+function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
+			      n, m, i, j, u, p, val)
 {
-	# Check for library errors first.
-	if (USRXML_errno)
-		return USRXML_errno;
+	val = usrxml_errno(h);
+	if (val != USRXML_E_NONE)
+		return val;
 
-	# Check for open sections.
-	if (__USRXML_scope != __USRXML_scope_none)
-		return scope_err(__USRXML_scope2name[__USRXML_scope]);
+	# Check for open sections
+	val = USRXML_instance[h,"scope"];
+	if (val != USRXML__scope_none)
+		return usrxml_scope_err(h, USRXML__scope2name[val]);
 
-	# Zone and direction names to mask mapping.
+	# Zone and direction names to mask mapping
 	zone_dir_bits["world","in"]	= 0x01;
 	zone_dir_bits["world","out"]	= 0x02;
 	zone_dir_bits["world","all"]	= 0x03;
@@ -259,387 +336,564 @@ function fini_usr_xml_parser(    zd_bits, zone_dir_bits, zones_dirs,
 	zone_dir_bits["all","out"]	= 0x0a;
 	zone_dir_bits["all","all"]	= 0x0f;
 
-	for (userid = 0; userid < USRXML_nusers; userid++) {
-		if (USRXML_userif[userid] == "")
-			return section_missing_arg("if", userid);
-		if (!USRXML_usernets[userid] &&
-		    !USRXML_usernets6[userid])
-			return section_missing_arg("net|net6", userid);
+	# user
+	n = USRXML_instance[h,"nusers"];
+	for (u = 0; u < n; u++) {
+		i = h SUBSEP u;
+
+		val = "user" SUBSEP i;
+
+		if (USRXML_userif[i] == "")
+			return usrxml_section_missing_arg(h, "if", val);
+		if (!USRXML_usernets[i] && !USRXML_usernets6[i])
+			return usrxml_section_missing_arg(h, "net|net6", val);
 
 		zones_dirs = 0;
-		n = USRXML_userpipe[userid];
-		for (pipeid = 0; pipeid < n; pipeid++) {
-			if (!((userid,pipeid,"zone") in USRXML_userpipe))
-				return section_missing_arg("zone", userid SUBSEP pipeid);
-			if (!((userid,pipeid,"dir") in USRXML_userpipe))
-				return section_missing_arg("dir", userid SUBSEP pipeid);
-			if (!((userid,pipeid,"bw") in USRXML_userpipe))
-				return section_missing_arg("bw", userid SUBSEP pipeid);
 
-			zd_bits = zone_dir_bits[USRXML_userpipe[userid,pipeid,"zone"],
-						USRXML_userpipe[userid,pipeid,"dir"]];
+		# pipe
+		m = USRXML_userpipe[i];
+		for (p = 0; p < m; p++) {
+			j = i SUBSEP p;
+
+			val = "pipe" SUBSEP j;
+
+			if (!((j,"zone") in USRXML_userpipe))
+				return usrxml_section_missing_arg(h, "zone", val);
+			if (!((j,"dir") in USRXML_userpipe))
+				return usrxml_section_missing_arg(h, "dir", val);
+			if (!((j,"bw") in USRXML_userpipe))
+				return usrxml_section_missing_arg(h, "bw", val);
+
+			zd_bits = zone_dir_bits[USRXML_userpipe[j,"zone"],
+						USRXML_userpipe[j,"dir"]];
 			if (and(zones_dirs, zd_bits))
-				return section_inv_arg("pipe", "zone|dir", userid SUBSEP pipeid);
+				return usrxml_section_inv_arg(h, "pipe", "zone|dir", val);
 
 			zones_dirs = or(zones_dirs, zd_bits);
 		}
 
-		val = USRXML_userif[userid];
+		val = USRXML_userif[i];
 		if (val in USRXML_ifusers)
-			USRXML_ifusers[val] = USRXML_ifusers[val] " " userid;
+			USRXML_ifusers[h,val] = USRXML_ifusers[h,val] " " u;
 		else
-			USRXML_ifusers[val] = userid;
+			USRXML_ifusers[h,val] = u;
 	}
 
-	delete zone_dir_bits;
+	return USRXML_E_NONE;
+}
 
-	delete __USRXML_fileline;
+#
+# Destroy XML document parser instance.
+# This is usually called from END{} section.
+#
 
-	delete __USRXML_dir;
+function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
 
-	delete __USRXML_zone;
+	# Error encountered during XML parsing/validation
+	delete USRXML_instance[h,"errno"];
 
-	delete __USRXML_scope2name;
+	# Current scope
+	delete USRXML_instance[h,"scope"];
+
+	# Populated from parsing XML document
+	n = USRXML_instance[h,"nusers"];
+	delete USRXML_instance[h,"nusers"];
+	delete USRXML_instance[h,"userid"];
+	delete USRXML_instance[h,"pipeid"];
+	delete USRXML_instance[h,"netid"];
+	delete USRXML_instance[h,"net6id"];
+
+	# FILENAME might be unknown if called from BEGIN{} sections
+	delete USRXML_instance[h,"filename"];
+	delete USRXML_instance[h,"linenum"];
+
+	# user
+	for (u = 0; u < n; u++) {
+		# h,userid
+		i = h SUBSEP u;
+
+		usrxml_section_delete_fileline(h, "user" SUBSEP i);
+
+		val = USRXML_usernames[i];
+		delete USRXML_usernames[i];
+		delete USRXML_userids[h,val];
+
+		val = USRXML_userif[i];
+		delete USRXML_userif[i];
+		delete USRXML_ifusers[h,val];
+
+		# pipe
+		m = USRXML_userpipe[i];
+		delete USRXML_userpipe[i];
+		for (p = 0; p < m; p++) {
+			# h,userid,pipeid
+			j = i SUBSEP p;
+
+			usrxml_section_delete_fileline(h, "pipe" SUBSEP j);
+			delete USRXML_userpipe[j];
+			delete USRXML_userpipe[j,"zone"];
+			delete USRXML_userpipe[j,"dir"];
+			delete USRXML_userpipe[j,"bw"];
+
+			usrxml_section_delete_fileline(h, "qdisc" SUBSEP j);
+			delete USRXML_userpipe[j,"qdisc"];
+
+			# h,userid,pipeid,opts
+			j = j SUBSEP "opts";
+
+			val = USRXML_userpipe[j];
+			delete USRXML_userpipe[j];
+			for (o = 0; o < val; o++)
+				delete USRXML_userpipe[j,o];
+		}
+
+		# net
+		m = USRXML_usernets[i];
+		delete USRXML_usernets[i];
+		for (p = 0; p < m; p++) {
+			# h,userid,netid
+			j = i SUBSEP p;
+
+			usrxml_section_delete_fileline(h, "net" SUBSEP j);
+			val = USRXML_usernets[j];
+			delete USRXML_usernets[j];
+			delete USRXML_usernets[j,"src"];
+			delete USRXML_usernets[j,"via"];
+			delete USRXML_usernets[j,"mac"];
+			delete USRXML_usernets[j,"has_opts"];
+			delete USRXML_nets[h,val];
+		}
+
+		# net6
+		m = USRXML_usernets6[i];
+		delete USRXML_usernets6[i];
+		for (p = 0; p < m; p++) {
+			# h,userid,net6id
+			j = i SUBSEP p;
+
+			usrxml_section_delete_fileline(h, "net6" SUBSEP j);
+			val = USRXML_usernets6[j];
+			delete USRXML_usernets6[j];
+			delete USRXML_usernets6[j,"src"];
+			delete USRXML_usernets6[j,"via"];
+			delete USRXML_usernets6[j,"mac"];
+			delete USRXML_usernets6[j,"has_opts"];
+			delete USRXML_nets6[h,val];
+		}
+
+		# nat
+		m = USRXML_usernats[i];
+		delete USRXML_usernats[i];
+		for (p = 0; p < m; p++) {
+			# h,userid,natid
+			j = i SUBSEP p;
+
+			val = USRXML_usernats[j];
+			delete USRXML_usernats[j];
+			delete USRXML_nats[h,val];
+		}
+
+		# nat6
+		m = USRXML_usernats6[i];
+		delete USRXML_usernats6[i];
+		for (p = 0; p < m; p++) {
+			# h,userid,nat6id
+			j = i SUBSEP p;
+
+			val = USRXML_usernats6[j];
+			delete USRXML_usernats6[j];
+			delete USRXML_nats6[h,val];
+		}
+	}
+
+	usrxml__free_handle(h);
+
+	return USRXML_E_NONE;
 }
 
 #
 # Parse and validate XML document.
 #
-function __usrxml_scope_none(name, val)
+
+function usrxml__scope_none(h, name, val,    n, i)
 {
 	if (name == "user") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
 
-		if (val in USRXML_userids) {
-			USRXML_userid = USRXML_userids[val];
+		n = h SUBSEP val;
+		if (n in USRXML_userids) {
+			i = h SUBSEP USRXML_userids[n];
 		} else {
-			USRXML_userid = USRXML_nusers;
+			i = USRXML_instance[h,"nusers"]++;
+			USRXML_userids[n] = i;
+			i = h SUBSEP i;
 
-			USRXML_usernames[USRXML_userid] = val;
-			USRXML_userpipe[USRXML_userid]  = 0;
-			USRXML_usernets[USRXML_userid]  = 0;
-			USRXML_usernets6[USRXML_userid] = 0;
-			USRXML_usernats[USRXML_userid]  = 0;
-			USRXML_usernats6[USRXML_userid] = 0;
+			USRXML_usernames[i] = val;
+			USRXML_userpipe[i]  = 0;
+			USRXML_usernets[i]  = 0;
+			USRXML_usernets6[i] = 0;
+			USRXML_usernats[i]  = 0;
+			USRXML_usernats6[i] = 0;
 		}
 
-		__USRXML_scope = __USRXML_scope_user;
+		USRXML_instance[h,"userid"] = i;
+		USRXML_instance[h,"scope"] = USRXML__scope_user;
 
-		section_record_fileline(USRXML_userid);
+		usrxml_section_record_fileline(h, name SUBSEP i);
 	} else {
-		return syntax_err();
+		return usrxml_syntax_err(h);
 	}
 
-	return 0;
+	return USRXML_E_NONE;
 }
 
-function __usrxml_scope_user(name, val,    n)
+function usrxml__scope_user(h, name, val,    n, i)
 {
+	i = USRXML_instance[h,"userid"];
+
 	if (name == "/user") {
-		if (val != "") {
-			if (val != USRXML_usernames[USRXML_userid])
-				return inv_arg(name, val);
-		} else {
-			val = USRXML_usernames[USRXML_userid];
-		}
+		if (val != "" && val != USRXML_usernames[i])
+			return usrxml_inv_arg(h, name, val);
 
-		if (!(val in USRXML_userids))
-			USRXML_userids[val] = USRXML_nusers++;
-
-		__USRXML_scope = __USRXML_scope_none;
+		USRXML_instance[h,"scope"] = USRXML__scope_none;
 	} else if (name == "if") {
 		if (val == "")
-			return ept_val(name);
-		if (length(val) >= USRXML_IFNAMSIZ)
-			return inv_arg(name, val);
+			return usrxml_ept_val(h, name);
 
-		USRXML_userif[USRXML_userid] = val;
+		if (length(val) >= USRXML_IFNAMSIZ)
+			return usrxml_inv_arg(h, name, val);
+
+		USRXML_userif[i] = val;
 	} else if (name == "net") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
+
 		n = val;
+
 		val = ipp_normalize(val);
 		if (val == "")
-			return inv_arg(name, n);
-		if (val in USRXML_nets)
-			return __dup_val(name, val, USRXML_nets[val]);
-		USRXML_nets[val] = USRXML_userid;
+			return usrxml_inv_arg(h, name, n);
 
-		n = USRXML_usernets[USRXML_userid];
-		USRXML_usernets[USRXML_userid,n] = val;
+		if ((h,val) in USRXML_nets)
+			return usrxml_dup_net(h, name, n, USRXML_nets[h,val]);
+		USRXML_nets[h,val] = i;
 
-		__USRXML_scope = __USRXML_scope_net;
+		n = i SUBSEP USRXML_usernets[i]++;
+		USRXML_usernets[n] = val;
 
-		section_record_fileline(USRXML_userid);
+		USRXML_instance[h,"netid"] = n;
+		USRXML_instance[h,"scope"] = USRXML__scope_net;
+
+		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else if (name == "net6") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
+
 		n = val;
+
 		val = ipp_normalize(val);
 		if (val == "")
-			return inv_arg(name, n);
-		if (val in USRXML_nets6)
-			return __dup_val(name, val, USRXML_nets6[val]);
-		USRXML_nets6[val] = USRXML_userid;
+			return usrxml_inv_arg(h, name, n);
 
-		n = USRXML_usernets6[USRXML_userid];
-		USRXML_usernets6[USRXML_userid,n] = val;
+		if ((h,val) in USRXML_nets6)
+			return usrxml_dup_net(h, name, n, USRXML_nets6[h,val]);
+		USRXML_nets6[h,val] = i;
 
-		__USRXML_scope = __USRXML_scope_net6;
+		n = i SUBSEP USRXML_usernets6[i]++;
+		USRXML_usernets6[n] = val;
 
-		section_record_fileline(USRXML_userid);
+		USRXML_instance[h,"net6id"] = n;
+		USRXML_instance[h,"scope"] = USRXML__scope_net6;
+
+		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else if (name == "nat") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
+
 		n = val;
+
 		val = ipp_normalize(val);
 		if (val == "")
-			return inv_arg(name, n);
-		if (val in USRXML_nats)
-			return __dup_val(name, val, USRXML_nats[val]);
-		USRXML_nats[val] = USRXML_userid;
+			return usrxml_inv_arg(h, name, n);
 
-		n = USRXML_usernats[USRXML_userid]++;
-		USRXML_usernats[USRXML_userid,n] = val;
+		if ((h,val) in USRXML_nats)
+			return usrxml_dup_net(h, name, n, USRXML_nats[h,val]);
+		USRXML_nats[h,val] = i;
+
+		n = i SUBSEP USRXML_usernats[i]++;
+		USRXML_usernats[n] = val;
 	} else if (name == "nat6") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
+
 		n = val;
+
 		val = ipp_normalize(val);
 		if (val == "")
-			return inv_arg(name, n);
-		if (val in USRXML_nats6)
-			return __dup_val(name, val, USRXML_nats6[val]);
-		USRXML_nats6[val] = USRXML_userid;
+			return usrxml_inv_arg(h, name, n);
 
-		n = USRXML_usernats6[USRXML_userid]++;
-		USRXML_usernats6[USRXML_userid,n] = val;
+		if ((h,val) in USRXML_nats6)
+			return usrxml_dup_net(h, name, n, USRXML_nats6[h,val]);
+		USRXML_nats6[h,val] = i;
+
+		n = i SUBSEP USRXML_usernats6[i]++;
+		USRXML_usernats6[n] = val;
 	} else if (name == "pipe") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
 
 		val = 0 + val;
 		if (val <= 0)
-			return inv_arg(name, val);
+			return usrxml_inv_arg(h, name, val);
 
-		USRXML_pipeid = val - 1;
-		if (USRXML_pipeid > USRXML_userpipe[USRXML_userid])
-			return inv_arg(name, val);
+		n = val - 1;
+		if (n > USRXML_userpipe[i])
+			return usrxml_inv_arg(h, name, val);
 
-		__USRXML_scope = __USRXML_scope_pipe;
+		if (val > USRXML_userpipe[i])
+			USRXML_userpipe[i] = val;
 
-		USRXML_userpipe[USRXML_userid,USRXML_pipeid,"qdisc"] = "";
+		n = i SUBSEP n;
+		USRXML_userpipe[n] = val;
+		USRXML_userpipe[n,"qdisc"] = "";
 
-		section_record_fileline(USRXML_userid SUBSEP USRXML_pipeid);
+		USRXML_instance[h,"pipeid"] = n;
+		USRXML_instance[h,"scope"] = USRXML__scope_pipe;
+
+		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else {
-		return syntax_err();
+		return usrxml_syntax_err(h);
 	}
 
-	return 0;
+	return USRXML_E_NONE;
 }
 
-function __usrxml_scope_pipe(name, val)
+function usrxml__scope_pipe(h, name, val,    n)
 {
+	n = USRXML_instance[h,"pipeid"];
+
 	if (name == "/pipe") {
-		USRXML_pipeid++;
+		if (val != "" && val != USRXML_userpipe[n])
+			return usrxml_inv_arg(h, name, val);
 
-		if (val != "" && val != USRXML_pipeid)
-			return inv_arg(name, val);
-
-		__USRXML_scope = __USRXML_scope_user;
-
-		if (USRXML_pipeid > USRXML_userpipe[USRXML_userid])
-			USRXML_userpipe[USRXML_userid] = USRXML_pipeid;
+		USRXML_instance[h,"scope"] = USRXML__scope_user;
 	} else if (name == "zone") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
 
-		if (!(val in __USRXML_zone))
-			return inv_arg(name, val);
+		if (!(val in USRXML__zone))
+			return usrxml_inv_arg(h, name, val);
 
-		USRXML_userpipe[USRXML_userid,USRXML_pipeid,name] = val;
+		USRXML_userpipe[n,name] = val;
 	} else if (name == "dir" ) {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
 
-		if (!(val in __USRXML_dir))
-			return inv_arg(name, val);
+		if (!(val in USRXML__dir))
+			return usrxml_inv_arg(h, name, val);
 
-		USRXML_userpipe[USRXML_userid,USRXML_pipeid,name] = val;
+		USRXML_userpipe[n,name] = val;
 	} else if (name == "bw") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
 
 		val = 0 + val;
 		if (!val)
-			return inv_arg(name, val);
+			return usrxml_inv_arg(h, name, val);
 
-		USRXML_userpipe[USRXML_userid,USRXML_pipeid,name] = val;
+		USRXML_userpipe[n,name] = val;
 	} else if (name == "qdisc") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
 
-		__USRXML_scope = __USRXML_scope_qdisc;
+		USRXML_userpipe[n,name] = val;
+		USRXML_userpipe[n,"opts"] = 0;
 
-		USRXML_userpipe[USRXML_userid,USRXML_pipeid,name] = val;
+		USRXML_instance[h,"scope"] = USRXML__scope_qdisc;
+
+		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else {
-		return syntax_err();
+		return usrxml_syntax_err(h);
 	}
 
-	return 0;
+	return USRXML_E_NONE;
 }
 
-function __usrxml_scope_qdisc(name, val,    qdisc, n)
+function usrxml__scope_qdisc(h, name, val,    n, o)
 {
+	n = USRXML_instance[h,"pipeid"];
+
 	if (name == "/qdisc") {
-		qdisc = USRXML_userpipe[USRXML_userid,USRXML_pipeid,"qdisc"];
-		if (val != "" && val != qdisc)
-			return inv_arg(name, val);
+		if (val != "" && val != USRXML_userpipe[n,"qdisc"])
+			return usrxml_inv_arg(h, name, val);
 
-		__USRXML_scope = __USRXML_scope_pipe;
+		USRXML_instance[h,"scope"] = USRXML__scope_pipe;
 	} else if (name == "opts") {
-		n = USRXML_userpipe[USRXML_userid,USRXML_pipeid,name]++;
-		USRXML_userpipe[USRXML_userid,USRXML_pipeid,name,n] = val;
+		o = USRXML_userpipe[n,name]++;
+		USRXML_userpipe[n,name,o] = val;
 	} else {
-		return syntax_err();
+		return usrxml_syntax_err(h);
 	}
 
-	return 0;
+	return USRXML_E_NONE;
 }
 
-function __usrxml_scope_net(name, val,    net, n, o)
+function usrxml__scope_net(h, name, val,    n, o, net)
 {
-	n = USRXML_usernets[USRXML_userid];
-	net = USRXML_usernets[USRXML_userid,n];
+	n = USRXML_instance[h,"netid"];
+	net = USRXML_usernets[n];
 
 	if (name == "/net") {
 		if (val != "" && val != net)
-			return inv_arg(name, val);
+			return usrxml_inv_arg(h, name, val);
 
-		USRXML_usernets[USRXML_userid]++;
+		USRXML_instance[h,"scope"] = USRXML__scope_user;
 
-		__USRXML_scope = __USRXML_scope_user;
-
-		return 0;
+		return USRXML_E_NONE;
 	} else if (name == "src") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
+
 		o = val;
+
 		val = ipa_normalize(val);
 		if (val == "")
-			return inv_arg(name, o);
-		USRXML_usernets[USRXML_userid,n,name] = val;
+			return usrxml_inv_arg(h, name, o);
+
+		USRXML_usernets[n,name] = val;
 	} else if (name == "via") {
 		if (val == "")
-			return ept_val(name);
-		if ((USRXML_userid, n, "mac") in USRXML_usernets)
-			return inv_arg(name, val);
+			return usrxml_ept_val(h, name);
+
+		if ((n, "mac") in USRXML_usernets)
+			return usrxml_inv_arg(h, name, val);
+
 		o = val;
+
 		val = ipa_normalize(val);
 		if (val == "")
-			return inv_arg(name, o);
-		USRXML_usernets[USRXML_userid,n,name] = val;
+			return usrxml_inv_arg(h, name, o);
+
+		USRXML_usernets[n,name] = val;
 	} else if (name == "mac") {
 		if (val == "")
-			return ept_val(name);
-		if ((USRXML_userid, n, "via") in USRXML_usernets)
-			return inv_arg(name, val);
+			return usrxml_ept_val(h, name);
+
+		if ((n, "via") in USRXML_usernets)
+			return usrxml_inv_arg(h, name, val);
+
 		if (!is_ipp_host(net))
-			return inv_arg(name, val);
-		USRXML_usernets[USRXML_userid,n,name] = val;
-	} else if ((USRXML_userid,n,"has_opts") in USRXML_usernets) {
-		return syntax_err(h);
+			return usrxml_inv_arg(h, name, val);
+
+		USRXML_usernets[n,name] = val;
+	} else if ((n,"has_opts") in USRXML_usernets) {
+		return usrxml_syntax_err(h);
 	} else {
-		USRXML_usernets[USRXML_userid]++;
+		USRXML_instance[h,"scope"] = USRXML__scope_user;
 
-		__USRXML_scope = __USRXML_scope_user;
-
+		# Signal caller to lookup with new scope
 		return 1;
 	}
 
-	USRXML_usernets[USRXML_userid,n,"has_opts"] = 1;
-	return 0;
+	USRXML_usernets[n,"has_opts"] = 1;
+	return USRXML_E_NONE;
 }
 
-function __usrxml_scope_net6(name, val,    net6, n, o)
+function usrxml__scope_net6(h, name, val,    n, o, net6)
 {
-	n = USRXML_usernets6[USRXML_userid];
-	net6 = USRXML_usernets6[USRXML_userid,n];
+	n = USRXML__instance[h,"net6id"];
+	net6 = USRXML_usernets6[n];
 
 	if (name == "/net6") {
 		if (val != "" && val != net6)
-			return inv_arg(name, val);
+			return usrxml_inv_arg(h, name, val);
 
-		USRXML_usernets6[USRXML_userid]++;
+		USRXML_instance[h,"scope"] = USRXML__scope_user;
 
-		__USRXML_scope = __USRXML_scope_user;
-
-		return 0;
+		return USRXML_E_NONE;
 	} else if (name == "src") {
 		if (val == "")
-			return ept_val(name);
+			return usrxml_ept_val(h, name);
+
 		o = val;
+
 		val = ipa_normalize(val);
 		if (val == "")
-			return inv_arg(name, o);
-		USRXML_usernets6[USRXML_userid,n,name] = val;
+			return usrxml_inv_arg(h, name, o);
+
+		USRXML_usernets6[n,name] = val;
 	} else if (name == "via") {
 		if (val == "")
-			return ept_val(name);
-		if ((USRXML_userid, n, "mac") in USRXML_usernets6)
-			return inv_arg(name, val);
+			return usrxml_ept_val(h, name);
+
+		if ((n, "mac") in USRXML_usernets6)
+			return usrxml_inv_arg(h, name, val);
+
 		o = val;
+
 		val = ipa_normalize(val);
 		if (val == "")
-			return inv_arg(name, o);
-		USRXML_usernets6[USRXML_userid,n,name] = val;
+			return usrxml_inv_arg(h, name, o);
+
+		USRXML_usernets6[n,name] = val;
 	} else if (name == "mac") {
 		if (val == "")
-			return ept_val(name);
-		if ((USRXML_userid, n, "via") in USRXML_usernets6)
-			return inv_arg(name, val);
+			return usrxml_ept_val(h, name);
+
+		if ((n, "via") in USRXML_usernets6)
+			return usrxml_inv_arg(h, name, val);
+
 		if (!is_ipp_host(net6))
-			return inv_arg(name, val);
-		USRXML_usernets6[USRXML_userid,n,name] = val;
-	} else if ((USRXML_userid,n,"has_opts") in USRXML_usernets) {
-		return syntax_err(h);
+			return usrxml_inv_arg(h, name, val);
+
+		USRXML_usernets6[n,name] = val;
+	} else if ((n,"has_opts") in USRXML_usernets6) {
+		return usrxml_syntax_err(h);
 	} else {
-		USRXML_usernets6[USRXML_userid]++;
+		USRXML_instance[h,"scope"] = USRXML__scope_user;
 
-		__USRXML_scope = __USRXML_scope_user;
-
+		# Signal caller to lookup with new scope
 		return 1;
 	}
 
-	USRXML_usernets6[USRXML_userid,n,"has_opts"] = 1;
-	return 0;
+	USRXML_usernets6[n,"has_opts"] = 1;
+	return USRXML_E_NONE;
 }
 
-function run_usr_xml_parser(line,    a, nfields, fn, val)
+function run_usrxml_parser(h, line,    a, nfields, fn, val)
 {
-	if (__USRXML_filename != FILENAME) {
-		__USRXML_filename = FILENAME;
-		__USRXML_linenum = 0;
+	val = usrxml_errno(h);
+	if (val != USRXML_E_NONE)
+		return val;
+
+	if (USRXML_instance[h,"filename"] != FILENAME) {
+		USRXML_instance[h,"filename"] = FILENAME;
+		USRXML_instance[h,"linenum"] = 0;
 	}
-	__USRXML_linenum++;
+	USRXML_instance[h,"linenum"]++;
 
 	if (line ~ /^[[:space:]]*$/)
-		return 0;
+		return USRXML_E_NONE;
 
 	nfields = match(line, "^[[:space:]]*<([[:alpha:]_][[:alnum:]_]+)[[:space:]]+([^<>]+)>[[:space:]]*$", a);
 	if (!nfields) {
 		nfields = match(line, "^[[:space:]]*<(/[[:alpha:]_][[:alnum:]_]+)[[:space:]]*([^<>]*)>[[:space:]]*$", a);
 		if (!nfields)
-			return syntax_err();
+			return usrxml_syntax_err(h);
 	}
 
 	# name = a[1]
 	# val  = a[2]
 
 	do {
-		fn = "__usrxml_scope_" __USRXML_scope2name[__USRXML_scope];
-		val = @fn(a[1], a[2]);
+		val = USRXML_instance[h,"scope"];
+
+		fn = "usrxml__scope_" USRXML__scope2name[val];
+		val = @fn(h, a[1], a[2]);
 	} while (val > 0);
 
 	return val;
@@ -648,27 +902,39 @@ function run_usr_xml_parser(line,    a, nfields, fn, val)
 #
 # Print users entry in xml format
 #
-function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid, nat6id, n, i)
+
+function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 {
-	printf "<user %s>\n", USRXML_usernames[userid];
-	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
+	o = usrxml_errno(h);
+	if (o != USRXML_E_NONE)
+		return o;
+
+	i = h SUBSEP userid;
+
+	printf "<user %s>\n", USRXML_usernames[i];
+
+	n = USRXML_userpipe[i];
+	for (p = 0; p < n; p++) {
+		j = i SUBSEP p;
+
 		printf "\t<pipe %d>\n" \
 		       "\t\t<zone %s>\n" \
 		       "\t\t<dir %s>\n" \
 		       "\t\t<bw %sKb>\n",
-			pipeid + 1,
-			USRXML_userpipe[userid,pipeid,"zone"],
-			USRXML_userpipe[userid,pipeid,"dir"],
-			USRXML_userpipe[userid,pipeid,"bw"];
+			USRXML_userpipe[j],
+			USRXML_userpipe[j,"zone"],
+			USRXML_userpipe[j,"dir"],
+			USRXML_userpipe[j,"bw"];
 
-		if ((userid,pipeid) in USRXML_userpipe) {
-			printf "\t\t<qdisc %s>\n",
-				USRXML_userpipe[userid,pipeid,"qdisc"];
+		o = USRXML_userpipe[j,"qdisc"];
+		if (o != "") {
+			printf "\t\t<qdisc %s>\n", o;
 
-			n = USRXML_userpipe[userid,pipeid,"opts"];
-			for (i = 0; i < n; i++) {
+			j = j SUBSEP "opts";
+			m = USRXML_userpipe[j];
+			for (o = 0; o < m; o++) {
 				printf "\t\t\t<opts %s>\n",
-					USRXML_userpipe[userid,pipeid,"opts",i];
+					USRXML_userpipe[j,o];
 			}
 
 			printf "\t\t</qdisc>\n";
@@ -676,59 +942,87 @@ function print_usr_xml_entry(userid,    pipeid, netid, net6id, natid, nat6id, n,
 
 		printf "\t</pipe>\n";
 	}
-	printf "\t<if %s>\n", USRXML_userif[userid];
-	for (netid = 0; netid < USRXML_usernets[userid]; netid++) {
-		printf "\t<net %s>\n", USRXML_usernets[userid,netid];
-		if ((userid,netid,"has_opts") in USRXML_usernets) {
-			if ((userid,netid,"src") in USRXML_usernets)
-				printf "\t\t<src %s>\n", USRXML_usernets[userid,netid,"src"];
-			if ((userid,netid,"via") in USRXML_usernets)
-				printf "\t\t<via %s>\n", USRXML_usernets[userid,netid,"via"];
-			if ((userid,netid,"mac") in USRXML_usernets)
-				printf "\t\t<mac %s>\n", USRXML_usernets[userid,netid,"mac"];
-			printf "</net>\n";
+
+	printf "\t<if %s>\n", USRXML_userif[i];
+
+	n = USRXML_usernets[i];
+	for (p = 0; p < n; p++) {
+		j = i SUBSEP p;
+
+		printf "\t<net %s>\n", USRXML_usernets[j];
+		if ((j,"has_opts") in USRXML_usernets) {
+			if ((j,"src") in USRXML_usernets)
+				printf "\t\t<src %s>\n", USRXML_usernets[j,"src"];
+			if ((j,"via") in USRXML_usernets)
+				printf "\t\t<via %s>\n", USRXML_usernets[j,"via"];
+			if ((j,"mac") in USRXML_usernets)
+				printf "\t\t<mac %s>\n", USRXML_usernets[j,"mac"];
+			printf "\t</net>\n";
 		}
 	}
-	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++) {
-		printf "\t<net6 %s>\n", USRXML_usernets6[userid,net6id];
-		if ((userid,netid,"has_opts") in USRXML_usernets6) {
-			if ((userid,net6id,"src") in USRXML_usernets6)
-				printf "\t\t<src %s>\n", USRXML_usernets6[userid,net6id,"src"];
-			if ((userid,net6id,"via") in USRXML_usernets6)
-				printf "\t\t<via %s>\n", USRXML_usernets6[userid,net6id,"via"];
-			if ((userid,net6id,"mac") in USRXML_usernets6)
-				printf "\t\t<mac %s>\n", USRXML_usernet6s[userid,net6id,"mac"];
-			printf "</net6>\n";
+
+	n = USRXML_usernets6[i];
+	for (p = 0; p < n; p++) {
+		j = i SUBSEP p;
+
+		printf "\t<net6 %s>\n", USRXML_usernets6[j];
+		if ((j,"has_opts") in USRXML_usernets6) {
+			if ((j,"src") in USRXML_usernets6)
+				printf "\t\t<src %s>\n", USRXML_usernets6[j,"src"];
+			if ((j,"via") in USRXML_usernets6)
+				printf "\t\t<via %s>\n", USRXML_usernets6[j,"via"];
+			if ((j,"mac") in USRXML_usernets6)
+				printf "\t\t<mac %s>\n", USRXML_usernets6[j,"mac"];
+			printf "\t</net>\n";
 		}
 	}
-	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
-		printf "\t<nat %s>\n", USRXML_usernats[userid,natid];
-	for (nat6id = 0; nat6id < USRXML_usernats6[userid]; nat6id++)
-		printf "\t<nat6 %s>\n", USRXML_usernats6[userid,nat6id];
+
+	n = USRXML_usernats[i];
+	for (p = 0; p < n; p++)
+		printf "\t<nat %s>\n", USRXML_usernats[i,p];
+
+	n = USRXML_usernats6[i];
+	for (p = 0; p < n; p++)
+		printf "\t<nat6 %s>\n", USRXML_usernats6[i,p];
+
 	print "</user>\n";
+
+	return USRXML_E_NONE;
 }
 
 #
 # Print users entry in one line xml format
 #
-function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid, nat6id, n, i)
+
+function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
 {
-	printf "<user %s>", USRXML_usernames[userid];
-	for (pipeid = 0; pipeid < USRXML_userpipe[userid]; pipeid++) {
+	o = usrxml_errno(h);
+	if (o != USRXML_E_NONE)
+		return o;
+
+	i = h SUBSEP userid;
+
+	printf "<user %s>", USRXML_usernames[i];
+
+	n = USRXML_userpipe[i];
+	for (p = 0; p < n; p++) {
+		j = i SUBSEP p;
+
 		printf "<pipe %d><zone %s><dir %s><bw %sKb>",
-			pipeid + 1,
-			USRXML_userpipe[userid,pipeid,"zone"],
-			USRXML_userpipe[userid,pipeid,"dir"],
-			USRXML_userpipe[userid,pipeid,"bw"];
+			USRXML_userpipe[j],
+			USRXML_userpipe[j,"zone"],
+			USRXML_userpipe[j,"dir"],
+			USRXML_userpipe[j,"bw"];
 
-		if ((userid,pipeid) in USRXML_userpipe) {
-			printf "<qdisc %s>",
-				USRXML_userpipe[userid,pipeid,"qdisc"];
+		o = USRXML_userpipe[j,"qdisc"];
+		if (o != "") {
+			printf "<qdisc %s>", o;
 
-			n = USRXML_userpipe[userid,pipeid,"opts"];
-			for (i = 0; i < n; i++) {
+			j = j SUBSEP "opts";
+			m = USRXML_userpipe[j];
+			for (o = 0; o < m; o++) {
 				printf "<opts %s>",
-					USRXML_userpipe[userid,pipeid,"opts",i];
+					USRXML_userpipe[j,o];
 			}
 
 			printf "</qdisc>";
@@ -736,34 +1030,50 @@ function print_usr_xml_entry_oneline(userid,    pipeid, netid, net6id, natid, na
 
 		printf "</pipe>";
 	}
-	printf "<if %s>", USRXML_userif[userid];
-	for (netid = 0; netid < USRXML_usernets[userid]; netid++) {
-		printf "<net %s>", USRXML_usernets[userid,netid];
-		if ((userid,netid,"has_opts") in USRXML_usernets) {
-			if ((userid,netid,"src") in USRXML_usernets)
-				printf "<src %s>", USRXML_usernets[userid,netid,"src"];
-			if ((userid,netid,"via") in USRXML_usernets)
-				printf "<via %s>", USRXML_usernets[userid,netid,"via"];
-			if ((userid,netid,"mac") in USRXML_usernets)
-				printf "<mac %s>", USRXML_usernets[userid,netid,"mac"];
+
+	printf "<if %s>", USRXML_userif[i];
+
+	n = USRXML_usernets[i];
+	for (p = 0; p < n; p++) {
+		j = i SUBSEP p;
+
+		printf "<net %s>", USRXML_usernets[j];
+		if ((j,"has_opts") in USRXML_usernets) {
+			if ((j,"src") in USRXML_usernets)
+				printf "<src %s>", USRXML_usernets[j,"src"];
+			if ((j,"via") in USRXML_usernets)
+				printf "<via %s>", USRXML_usernets[j,"via"];
+			if ((j,"mac") in USRXML_usernets)
+				printf "<mac %s>", USRXML_usernets[j,"mac"];
 			printf "</net>";
 		}
 	}
-	for (net6id = 0; net6id < USRXML_usernets6[userid]; net6id++) {
-		printf "<net6 %s>", USRXML_usernets6[userid,net6id];
-		if ((userid,netid,"has_opts") in USRXML_usernets6) {
-			if ((userid,net6id,"src") in USRXML_usernets6)
-				printf "<src %s>", USRXML_usernets6[userid,net6id,"src"];
-			if ((userid,net6id,"via") in USRXML_usernets6)
-				printf "<via %s>", USRXML_usernets6[userid,net6id,"via"];
-			if ((userid,net6id,"mac") in USRXML_usernets6)
-				printf "<mac %s>", USRXML_usernets6[userid,net6id,"mac"];
+
+	n = USRXML_usernets6[i];
+	for (p = 0; p < n; p++) {
+		j = i SUBSEP p;
+
+		printf "<net6 %s>", USRXML_usernets6[j];
+		if ((j,"has_opts") in USRXML_usernets6) {
+			if ((j,"src") in USRXML_usernets6)
+				printf "<src %s>", USRXML_usernets6[j,"src"];
+			if ((j,"via") in USRXML_usernets6)
+				printf "<via %s>", USRXML_usernets6[j,"via"];
+			if ((j,"mac") in USRXML_usernets6)
+				printf "<mac %s>", USRXML_usernets6[j,"mac"];
 			printf "</net6>";
 		}
 	}
-	for (natid = 0; natid < USRXML_usernats[userid]; natid++)
-		printf "<nat %s>", USRXML_usernats[userid,natid];
-	for (nat6id = 0; nat6id < USRXML_usernats6[userid]; nat6id++)
-		printf "<nat6 %s>", USRXML_usernats6[userid,nat6id];
+
+	n = USRXML_usernats[i];
+	for (p = 0; p < n; p++)
+		printf "<nat %s>", USRXML_usernats[i,p];
+
+	n = USRXML_usernats6[i];
+	for (p = 0; p < n; p++)
+		printf "<nat6 %s>", USRXML_usernats6[i,p];
+
 	print "</user>";
+
+	return USRXML_E_NONE;
 }

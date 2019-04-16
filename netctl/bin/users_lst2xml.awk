@@ -9,28 +9,49 @@ BEGIN{
 	RS	= ">"
 
 	##
-	## Initialize user database parser.
+	## Initialize user database parser
 	##
-	if (init_usr_xml_parser() < 0)
+	h = init_usrxml_parser();
+	if (h < 0)
 		exit 1;
 }
 
 {
 	##
-	## Parse user database.
+	## Parse user database
 	##
 	line = ($0 !~ /^[[:space:]]*$/) ? $0">" : "";
-	if (run_usr_xml_parser(line) < 0)
+	if (run_usrxml_parser(h, line) != USRXML_E_NONE)
 		exit 1;
 }
 
 END{
 	##
-	## Finish user database parsing.
+	## Exit code
 	##
-	if (fini_usr_xml_parser() < 0)
-		exit 1;
+	rc = 0;
 
-	for (userid = 0; userid < USRXML_nusers; userid++)
-		print_usr_xml_entry(userid);
+	##
+	## Perform final validations and return result
+	##
+	rc += result_usrxml_parser(h) != USRXML_E_NONE;
+
+	##
+	## Print entries
+	##
+	if (!rc) {
+		n = USRXML_instance[h,"nusers"];
+		for (u = 0; u < n; u++)
+			print_usrxml_entry(h, u);
+	}
+
+	##
+	## Finish user database parsing
+	##
+	rc += fini_usrxml_parser(h);
+
+	##
+	## Exit with given code
+	##
+	exit rc;
 }

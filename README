@@ -63,16 +63,40 @@ Library API
 
 There are three main API functions provided by libusrxml.awk module:
 
-  # Prepare parser by initializing internal variables. This should be
-  # very first routine called from the library.
-  init_usr_xml_parser()
+  BEGIN{
+      # Prepare parser by initializing internal variables. This should be
+      # very first routine called from the library.
+      # Usually called from BEGIN{} awk(1) program section.
 
-  # Takes single line of data and parses it to internal data structures.
-  run_usr_xml_parser(line)
+      h = init_usrxml_parser();
+      if (h < 0)
+          exit 1;
+  }
 
-  # Performs final checks to ensure document parsed correctly and release
-  # all internal data structures.
-  fini_usr_xml_parser()
+  {
+      # Takes single line of data and parses it to internal data structures.
+      # Usually called from main {} awk(1) program section.
+
+      rc = run_usrxml_parser(h, line);
+      if (rc != USRXML_E_NONE)
+          exit 1;
+  }
+
+  END{
+      rc = 0;
+
+      # Performs final checks to ensure document parsed correctly.
+      # Usually called from END{} awk(1) program section.
+
+      rc += result_usrxml_parser(h);
+
+      # Destroy parser data structures for given handle @.
+      # Usually called from END{} awk(1) program section.
+
+      rc += fini_usrxml_parser(h);
+
+      exit rc;
+  }
 
 All these functions return zero on success or less than zero on error. One
 can use USRXML_errno variable holding integer value representing error code
@@ -89,89 +113,99 @@ and special constant-like defines matching these codes to find exact problem:
   USRXML_E_SCOPE  = -50;
   # generic
   USRXML_E_SYNTAX = -100;
+  # API
+  USRXML_E_HANDLE_INVALID = -201;
+  USRXML_E_HANDLE_FULL    = -202;
 
-If document parsed successfuly (i.e. fini_usr_xml_parser() returns 0) following
+If document parsed successfuly (i.e. result_usrxml_parser() returns 0) following
 data structures become avaiable to the calling code:
 
   # Number of <user> data structures parsed in document. Each
   # <user> data structure has number starting from zero "userid".
-  userid = [0 .. USRXML_nusers - 1]
+  nusers = USRXML_instance[h,"nusers"]
+  userid = [0 .. nusers - 1]
 
   # Name from <user {name}> data structure for given "userid".
-  username = USRXML_usernames[userid]
+  username = USRXML_usernames[h,userid]
+
   # Userid for given name from <user {name}>.
-  userid = USRXML_userids[username]
+  userid = USRXML_userids[h,username]
+
   # Space separated list of "userid"s for given "userif".
-  USRXML_ifusers[userif]
+  USRXML_ifusers[h,userif]
 
   # Map net, net6, nat, nat6. Used internally for duplicate
   # detection; overlapping networks supported.
-  userid = USRXML_nets[net]
-  userid = USRXML_nets6[net6]
-  userid = USRXML_nats[nat]
-  userid = USRXML_nats6[nat6]
+  userid = USRXML_nets[h,net]
+  userid = USRXML_nets6[h,net6]
+  userid = USRXML_nats[h,nat]
+  userid = USRXML_nats6[h,nat6]
 
   # Number of pipes for given "userid". Each <pipe> data
   # structure has index (pipeid) starting from 0 to this number.
-  pipeid = USRXML_userpipe[userid]
+  pipeid = USRXML_userpipe[h,userid]
   # Zone name of given pipe for which settings applied.
-  USRXML_userpipe[userid,pipeid,"zone"]
+  USRXML_userpipe[h,userid,pipeid,"zone"]
   # Direction for given zone. Can be "world", "local" or "all".
-  USRXML_userpipe[userid,pipeid,"dir"]
+  USRXML_userpipe[h,userid,pipeid,"dir"]
   # Bandwidth for given zone. Specified in Kbits/s.
-  USRXML_userpipe[userid,pipeid,"bw"]
+  USRXML_userpipe[h,userid,pipeid,"bw"]
   # Queueing discipline name to attach. Default is empty ("") if unspecified.
-  USRXML_userpipe[userid,pipeid,"qdisc"]
+  USRXML_userpipe[h,userid,pipeid,"qdisc"]
   # Number of queueing discipline options. Each <opts> data
   # structure has index (optid) starting from 0 to this number.
-  optid = USRXML_userpipe[userid,pipeid,"opts"]
+  optid = USRXML_userpipe[h,userid,pipeid,"opts"]
   # Queueing options
-  USRXML_userpipe[userid,pipeid,"opts",optid]
+  USRXML_userpipe[h,userid,pipeid,"opts",optid]
 
   # Name of network interface where <user> connected.
   # Can be shared by multiple "userid"s data structures.
-  userif = USRXML_userif[userid]
+  userif = USRXML_userif[h,userid]
 
   # Number of IPv4 networks for given "userid". Each <net> data
   # structure has index (netid) starting from 0 to this number.
-  netid = USRXML_usernets[userid]
+  netid = USRXML_usernets[h,userid]
   # Set of <net>s for given "userid".
-  USRXML_usernets[userid,netid]
-  USRXML_usernets[userid,netid,"src"]
-  USRXML_usernets[userid,netid,"via"]
-  USRXML_usernets[userid,netid,"mac"]
+  USRXML_usernets[h,userid,netid]
+  USRXML_usernets[h,userid,netid,"src"]
+  USRXML_usernets[h,userid,netid,"via"]
+  USRXML_usernets[h,userid,netid,"mac"]
 
   # Number of IPv6 networks for given "userid". Each <net6> data
   # structure has index (net6id) starting from 0 to this number.
-  net6id = USRXML_usernets6[userid]
+  net6id = USRXML_usernets6[h,userid]
   # Set of <net6>s for given "userid".
-  USRXML_usernets6[userid,net6id]
-  USRXML_usernets6[userid,net6id,"src"]
-  USRXML_usernets6[userid,net6id,"via"]
-  USRXML_usernets6[userid,net6id,"mac"]
+  USRXML_usernets6[h,userid,net6id]
+  USRXML_usernets6[h,userid,net6id,"src"]
+  USRXML_usernets6[h,userid,net6id,"via"]
+  USRXML_usernets6[h,userid,net6id,"mac"]
 
   # Number of IPv4 networks before SNAT for given "userid". Each <nat> data
   # structure has index (natid) starting from 0 to this number.
-  natid = USRXML_usernats[userid]
+  natid = USRXML_usernats[h,userid]
   # Set of <nat4>s for given "userid".
-  USRXML_usernats[userid,natid]
+  USRXML_usernats[h,userid,natid]
 
   # Number of IPv6 networks before SNAT for given "userid". Each <nat6> data
   # structure has index (nat6id) starting from 0 to this number.
-  nat6id = USRXML_usernats6[userid]
+  nat6id = USRXML_usernats6[h,userid]
   # Set of <nat6>s for given "userid".
-  USRXML_usernats6[userid,nat6id]
+  USRXML_usernats6[h,userid,nat6id]
 
 There is two additional functions defined in the library to print <user>
 that can be used only with successfuly parsed document:
 
   # Use friendly output format with each <tag> placed on their
   # own newline and tabs for indendation.
-  print_usr_xml_entry(userid)
+  rc = print_usrxml_entry(h, userid);
+  if (rc != USRXML_E_NONE)
+      exit 1;
 
   # Put everything on single line. This format is useful for machine
   # processing (e.g. search with grep(1)).
-  print_usr_xml_entry_oneline(userid)
+  rc = print_usrxml_entry_oneline(h, userid);
+  if (rc != USRXML_E_NONE)
+      exit 1;
 
 Examples
 --------
