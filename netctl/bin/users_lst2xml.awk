@@ -40,7 +40,7 @@ END{
 	## Print entries
 	##
 	if (!rc) {
-		n = USRXML_instance[h,"nusers"];
+		n = USRXML_usernames[h];
 		for (u = 0; u < n; u++)
 			print_usrxml_entry(h, u);
 	}

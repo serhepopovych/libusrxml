@@ -122,7 +122,7 @@ data structures become avaiable to the calling code:
 
   # Number of <user> data structures parsed in document. Each
   # <user> data structure has number starting from zero "userid".
-  nusers = USRXML_instance[h,"nusers"]
+  nusers = USRXML_usernames[h]
   userid = [0 .. nusers - 1]
 
   # Name from <user {name}> data structure for given "userid".

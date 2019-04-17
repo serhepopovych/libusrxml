@@ -9,12 +9,12 @@
 
 function is_valid_usrxml_handle(h)
 {
-	return USRXML_instance["h",h] == h;
+	return USRXML__instance["h",h] == h;
 }
 
 function usrxml__alloc_handle(    h)
 {
-	h = int(USRXML_instance["h"]);
+	h = int(USRXML__instance["h"]);
 
 	do {
 		if (h + 1 < 1) {
@@ -23,8 +23,8 @@ function usrxml__alloc_handle(    h)
 		h++;
 	} while (is_valid_usrxml_handle(h));
 
-	USRXML_instance["h",h] = h;
-	USRXML_instance["h"] = h;
+	USRXML__instance["h",h] = h;
+	USRXML__instance["h"] = h;
 
 	return h;
 }
@@ -32,8 +32,8 @@ function usrxml__alloc_handle(    h)
 function usrxml__free_handle(h)
 {
 	if (is_valid_usrxml_handle(h)) {
-		delete USRXML_instance["h",h];
-		USRXML_instance["h"] = h - 1;
+		delete USRXML__instance["h",h];
+		USRXML__instance["h"] = h - 1;
 	}
 }
 
@@ -45,12 +45,12 @@ function usrxml_errno(h)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
-	return USRXML_instance[h,"errno"];
+	return USRXML__instance[h,"errno"];
 }
 
 function usrxml__seterrno(h, val)
 {
-	USRXML_instance[h,"errno"] = val;
+	USRXML__instance[h,"errno"] = val;
 	return val;
 }
 
@@ -62,27 +62,46 @@ function usrxml_seterrno(h, val)
 }
 
 #
+# Control library verbosity levels.
+#
+
+function usrxml_getverbose(h)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+	return USRXML__instance[h,"verbose"];
+}
+
+function usrxml_setverbose(h, val)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+	USRXML__instance[h,"verbose"] = val;
+	return USRXML_E_NONE;
+}
+
+#
 # Parser helper routines to report various errors.
 #
 
 function usrxml_syntax_err(h)
 {
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: syntax error\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"] >"/dev/stderr"
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"] >"/dev/stderr"
 	}
 	return usrxml__seterrno(h, USRXML_E_SYNTAX);
 }
 
 function usrxml_scope_err(h, section)
 {
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: <%s> scope error\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"],
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"],
 			section >"/dev/stderr"
 	}
 	return usrxml__seterrno(h, USRXML_E_SCOPE);
@@ -90,11 +109,11 @@ function usrxml_scope_err(h, section)
 
 function usrxml_inv_arg(h, section, value)
 {
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: invalid argument \"%s\" in <%s>\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"],
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"],
 			value, section >"/dev/stderr"
 	}
 	return usrxml__seterrno(h, USRXML_E_INVAL);
@@ -102,11 +121,11 @@ function usrxml_inv_arg(h, section, value)
 
 function usrxml_ept_val(h, section)
 {
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: empty value in <%s>\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"],
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"],
 			section >"/dev/stderr"
 	}
 	return usrxml__seterrno(h, USRXML_E_EMPTY);
@@ -114,11 +133,11 @@ function usrxml_ept_val(h, section)
 
 function usrxml_dup_val(h, section, value)
 {
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: duplicated value \"%s\" in <%s>\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"],
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"],
 			value, section >"/dev/stderr"
 	}
 	return usrxml__seterrno(h, USRXML_E_DUP);
@@ -126,11 +145,11 @@ function usrxml_dup_val(h, section, value)
 
 function usrxml_dup_arg(h, section)
 {
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: duplicated argument <%s>\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"],
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"],
 			section >"/dev/stderr"
 	}
 	return usrxml__seterrno(h, USRXML_E_DUP);
@@ -138,16 +157,16 @@ function usrxml_dup_arg(h, section)
 
 function usrxml_dup_net(h, section, value, userid,    ret)
 {
-	if (userid == USRXML_instance[h,"userid"])
+	if (userid == USRXML__instance[h,"userid"])
 		return usrxml__seterrno(h, USRXML_E_NONE);
 
 	ret = usrxml_dup_val(h, section, value);
 
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: already defined by \"%s\" user\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"],
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"],
 			USRXML_usernames[userid] >"/dev/stderr"
 	}
 	return ret;
@@ -155,11 +174,11 @@ function usrxml_dup_net(h, section, value, userid,    ret)
 
 function usrxml_missing_arg(h, section)
 {
-	if (USRXML_instance[h,"verbose"]) {
+	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: missing mandatory argument <%s>\n",
 			h,
-			USRXML_instance[h,"filename"],
-			USRXML_instance[h,"linenum"],
+			USRXML__instance[h,"filename"],
+			USRXML__instance[h,"linenum"],
 			section >"/dev/stderr"
 	}
 	return usrxml__seterrno(h, USRXML_E_MISS);
@@ -172,8 +191,8 @@ function usrxml_missing_arg(h, section)
 function usrxml_section_record_fileline(h, key,    n)
 {
 	n = USRXML__fileline[key]++;
-	USRXML__fileline[key,"file",n] = USRXML_instance[h,"filename"];
-	USRXML__fileline[key,"line",n] = USRXML_instance[h,"linenum"];
+	USRXML__fileline[key,"file",n] = USRXML__instance[h,"filename"];
+	USRXML__fileline[key,"line",n] = USRXML__instance[h,"linenum"];
 }
 
 function usrxml_section_delete_fileline(h, key,    n, i)
@@ -190,19 +209,19 @@ function usrxml_section_fn_arg(h, section, key, fn,    n, ret, s_fn, s_ln)
 {
 	ret = usrxml__seterrno(h, USRXML_E_SYNTAX);
 
-	s_fn = USRXML_instance[h,"filename"];
-	s_ln = USRXML_instance[h,"linenum"];
+	s_fn = USRXML__instance[h,"filename"];
+	s_ln = USRXML__instance[h,"linenum"];
 
 	n = USRXML__fileline[key];
 	while (n--) {
-		USRXML_instance[h,"filename"] = USRXML__fileline[key,"file",n];
-		USRXML_instance[h,"linenum"]  = USRXML__fileline[key,"line",n];
+		USRXML__instance[h,"filename"] = USRXML__fileline[key,"file",n];
+		USRXML__instance[h,"linenum"]  = USRXML__fileline[key,"line",n];
 
 		ret = @fn(h, section);
 	}
 
-	USRXML_instance[h,"filename"] = s_fn;
-	USRXML_instance[h,"linenum"]  = s_ln;
+	USRXML__instance[h,"filename"] = s_fn;
+	USRXML__instance[h,"linenum"]  = s_ln;
 
 	return ret;
 }
@@ -286,26 +305,31 @@ function init_usrxml_parser(    h)
 
 	## Variables
 
-	# USRXML_instance[] internal information about parser instance
+	# USRXML__instance[] internal information about parser instance
 
 	# Report errors by default
-	USRXML_instance[h,"verbose"] = 1;
+	USRXML__instance[h,"verbose"] = 1;
 
 	# Error number updated on each library call
-	USRXML_instance[h,"errno"] = USRXML_E_NONE;
+	USRXML__instance[h,"errno"] = USRXML_E_NONE;
 
 	# Current scope
-	USRXML_instance[h,"scope"] = USRXML__scope_none;
+	USRXML__instance[h,"scope"] = USRXML__scope_none;
 
 	# Populated from parsing XML document
-	USRXML_instance[h,"nusers"] = 0;
-	USRXML_instance[h,"userid"] = 0;
-	USRXML_instance[h,"pipeid"] = 0;
-	USRXML_instance[h,"netid"] = 0;
-	USRXML_instance[h,"net6id"] = 0;
+	USRXML__instance[h,"userid"] = 0;
+	USRXML__instance[h,"pipeid"] = 0;
+	USRXML__instance[h,"netid"] = 0;
+	USRXML__instance[h,"net6id"] = 0;
 
+	# Number of users
+	USRXML_usernames[h] = 0;
+
+	# nusers = USRXML_usernames[h]
+	# userid = [0 .. nusers - 1]
 	# username = USRXML_usernames[h,userid]
-	# userid = USRXML_userids[h,username]
+	# userid   = USRXML_userids[h,username]
+	#
 	# USRXML_ifusers[h,userif]
 	#
 	# userid = USRXML_nets[h,net]
@@ -335,8 +359,8 @@ function init_usrxml_parser(    h)
 	# USRXML_usernats6[h,userid,nat6id]
 
 	# FILENAME might be unknown if called from BEGIN{} sections
-	USRXML_instance[h,"filename"] = FILENAME;
-	USRXML_instance[h,"linenum"] = 0;
+	USRXML__instance[h,"filename"] = FILENAME;
+	USRXML__instance[h,"linenum"] = 0;
 
 	# USRXML__fileline[key,{ "file" | "line" },n]
 
@@ -355,7 +379,7 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 		return val;
 
 	# Check for open sections
-	val = USRXML_instance[h,"scope"];
+	val = USRXML__instance[h,"scope"];
 	if (val != USRXML__scope_none)
 		return usrxml_scope_err(h, USRXML__scope2name[val]);
 
@@ -371,7 +395,7 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	zone_dir_bits["all","all"]	= 0x0f;
 
 	# user
-	n = USRXML_instance[h,"nusers"];
+	n = USRXML_usernames[h];
 	for (u = 0; u < n; u++) {
 		i = h SUBSEP u;
 
@@ -427,7 +451,7 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 		return USRXML_E_HANDLE_INVALID;
 
 	# user
-	n = USRXML_instance[h,"nusers"];
+	n = USRXML_usernames[h];
 	for (u = 0; u < n; u++) {
 		# h,userid
 		i = h SUBSEP u;
@@ -525,26 +549,26 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 			delete USRXML_nats6[h,val];
 		}
 	}
+	delete USRXML_usernames[h];
 
 	# Report errors by default
-	delete USRXML_instance[h,"verbose"];
+	delete USRXML__instance[h,"verbose"];
 
 	# Error encountered during XML parsing/validation
-	delete USRXML_instance[h,"errno"];
+	delete USRXML__instance[h,"errno"];
 
 	# Current scope
-	delete USRXML_instance[h,"scope"];
+	delete USRXML__instance[h,"scope"];
 
 	# Populated from parsing XML document
-	delete USRXML_instance[h,"nusers"];
-	delete USRXML_instance[h,"userid"];
-	delete USRXML_instance[h,"pipeid"];
-	delete USRXML_instance[h,"netid"];
-	delete USRXML_instance[h,"net6id"];
+	delete USRXML__instance[h,"userid"];
+	delete USRXML__instance[h,"pipeid"];
+	delete USRXML__instance[h,"netid"];
+	delete USRXML__instance[h,"net6id"];
 
 	# FILENAME might be unknown if called from BEGIN{} sections
-	delete USRXML_instance[h,"filename"];
-	delete USRXML_instance[h,"linenum"];
+	delete USRXML__instance[h,"filename"];
+	delete USRXML__instance[h,"linenum"];
 
 	usrxml__free_handle(h);
 
@@ -565,7 +589,7 @@ function usrxml__scope_none(h, name, val,    n, i)
 		if (n in USRXML_userids) {
 			i = h SUBSEP USRXML_userids[n];
 		} else {
-			i = USRXML_instance[h,"nusers"]++;
+			i = USRXML_usernames[h]++;
 			USRXML_userids[n] = i;
 			i = h SUBSEP i;
 
@@ -577,8 +601,8 @@ function usrxml__scope_none(h, name, val,    n, i)
 			USRXML_usernats6[i] = 0;
 		}
 
-		USRXML_instance[h,"userid"] = i;
-		USRXML_instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"userid"] = i;
+		USRXML__instance[h,"scope"] = USRXML__scope_user;
 
 		usrxml_section_record_fileline(h, name SUBSEP i);
 	} else {
@@ -590,13 +614,13 @@ function usrxml__scope_none(h, name, val,    n, i)
 
 function usrxml__scope_user(h, name, val,    n, i)
 {
-	i = USRXML_instance[h,"userid"];
+	i = USRXML__instance[h,"userid"];
 
 	if (name == "/user") {
 		if (val != "" && val != USRXML_usernames[i])
 			return usrxml_inv_arg(h, name, val);
 
-		USRXML_instance[h,"scope"] = USRXML__scope_none;
+		USRXML__instance[h,"scope"] = USRXML__scope_none;
 	} else if (name == "if") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -622,8 +646,8 @@ function usrxml__scope_user(h, name, val,    n, i)
 		n = i SUBSEP USRXML_usernets[i]++;
 		USRXML_usernets[n] = val;
 
-		USRXML_instance[h,"netid"] = n;
-		USRXML_instance[h,"scope"] = USRXML__scope_net;
+		USRXML__instance[h,"netid"] = n;
+		USRXML__instance[h,"scope"] = USRXML__scope_net;
 
 		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else if (name == "net6") {
@@ -643,8 +667,8 @@ function usrxml__scope_user(h, name, val,    n, i)
 		n = i SUBSEP USRXML_usernets6[i]++;
 		USRXML_usernets6[n] = val;
 
-		USRXML_instance[h,"net6id"] = n;
-		USRXML_instance[h,"scope"] = USRXML__scope_net6;
+		USRXML__instance[h,"net6id"] = n;
+		USRXML__instance[h,"scope"] = USRXML__scope_net6;
 
 		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else if (name == "nat") {
@@ -698,8 +722,8 @@ function usrxml__scope_user(h, name, val,    n, i)
 		USRXML_userpipe[n] = val;
 		USRXML_userpipe[n,"qdisc"] = "";
 
-		USRXML_instance[h,"pipeid"] = n;
-		USRXML_instance[h,"scope"] = USRXML__scope_pipe;
+		USRXML__instance[h,"pipeid"] = n;
+		USRXML__instance[h,"scope"] = USRXML__scope_pipe;
 
 		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else {
@@ -711,13 +735,13 @@ function usrxml__scope_user(h, name, val,    n, i)
 
 function usrxml__scope_pipe(h, name, val,    n)
 {
-	n = USRXML_instance[h,"pipeid"];
+	n = USRXML__instance[h,"pipeid"];
 
 	if (name == "/pipe") {
 		if (val != "" && val != USRXML_userpipe[n])
 			return usrxml_inv_arg(h, name, val);
 
-		USRXML_instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"scope"] = USRXML__scope_user;
 	} else if (name == "zone") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -750,7 +774,7 @@ function usrxml__scope_pipe(h, name, val,    n)
 		USRXML_userpipe[n,name] = val;
 		USRXML_userpipe[n,"opts"] = 0;
 
-		USRXML_instance[h,"scope"] = USRXML__scope_qdisc;
+		USRXML__instance[h,"scope"] = USRXML__scope_qdisc;
 
 		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else {
@@ -762,13 +786,13 @@ function usrxml__scope_pipe(h, name, val,    n)
 
 function usrxml__scope_qdisc(h, name, val,    n, o)
 {
-	n = USRXML_instance[h,"pipeid"];
+	n = USRXML__instance[h,"pipeid"];
 
 	if (name == "/qdisc") {
 		if (val != "" && val != USRXML_userpipe[n,"qdisc"])
 			return usrxml_inv_arg(h, name, val);
 
-		USRXML_instance[h,"scope"] = USRXML__scope_pipe;
+		USRXML__instance[h,"scope"] = USRXML__scope_pipe;
 	} else if (name == "opts") {
 		o = USRXML_userpipe[n,name]++;
 		USRXML_userpipe[n,name,o] = val;
@@ -781,14 +805,14 @@ function usrxml__scope_qdisc(h, name, val,    n, o)
 
 function usrxml__scope_net(h, name, val,    n, o, net)
 {
-	n = USRXML_instance[h,"netid"];
+	n = USRXML__instance[h,"netid"];
 	net = USRXML_usernets[n];
 
 	if (name == "/net") {
 		if (val != "" && val != net)
 			return usrxml_inv_arg(h, name, val);
 
-		USRXML_instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"scope"] = USRXML__scope_user;
 
 		return USRXML_E_NONE;
 	} else if (name == "src") {
@@ -830,7 +854,7 @@ function usrxml__scope_net(h, name, val,    n, o, net)
 	} else if ((n,"has_opts") in USRXML_usernets) {
 		return usrxml_syntax_err(h);
 	} else {
-		USRXML_instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"scope"] = USRXML__scope_user;
 
 		# Signal caller to lookup with new scope
 		return 1;
@@ -849,7 +873,7 @@ function usrxml__scope_net6(h, name, val,    n, o, net6)
 		if (val != "" && val != net6)
 			return usrxml_inv_arg(h, name, val);
 
-		USRXML_instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"scope"] = USRXML__scope_user;
 
 		return USRXML_E_NONE;
 	} else if (name == "src") {
@@ -891,7 +915,7 @@ function usrxml__scope_net6(h, name, val,    n, o, net6)
 	} else if ((n,"has_opts") in USRXML_usernets6) {
 		return usrxml_syntax_err(h);
 	} else {
-		USRXML_instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"scope"] = USRXML__scope_user;
 
 		# Signal caller to lookup with new scope
 		return 1;
@@ -907,11 +931,11 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 	if (val != USRXML_E_NONE)
 		return val;
 
-	if (USRXML_instance[h,"filename"] != FILENAME) {
-		USRXML_instance[h,"filename"] = FILENAME;
-		USRXML_instance[h,"linenum"] = 0;
+	if (USRXML__instance[h,"filename"] != FILENAME) {
+		USRXML__instance[h,"filename"] = FILENAME;
+		USRXML__instance[h,"linenum"] = 0;
 	}
-	USRXML_instance[h,"linenum"]++;
+	USRXML__instance[h,"linenum"]++;
 
 	if (line ~ /^[[:space:]]*$/)
 		return USRXML_E_NONE;
@@ -927,7 +951,7 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 	# val  = a[2]
 
 	do {
-		val = USRXML_instance[h,"scope"];
+		val = USRXML__instance[h,"scope"];
 
 		fn = "usrxml__scope_" USRXML__scope2name[val];
 		val = @fn(h, a[1], a[2]);
