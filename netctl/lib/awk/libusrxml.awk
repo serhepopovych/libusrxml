@@ -508,7 +508,7 @@ function __usrxml_scope_qdisc(name, val,    qdisc, n)
 	return 0;
 }
 
-function __usrxml_scope_net(name, val,    net, n)
+function __usrxml_scope_net(name, val,    net, n, o)
 {
 	n = USRXML_usernets[USRXML_userid];
 	net = USRXML_usernets[USRXML_userid,n];
@@ -523,12 +523,20 @@ function __usrxml_scope_net(name, val,    net, n)
 	} else if (name == "src") {
 		if (val == "")
 			return ept_val(name);
+		o = val;
+		val = ipa_normalize(val);
+		if (val == "")
+			return inv_arg(name, o);
 		USRXML_usernets[USRXML_userid,n,name] = val;
 	} else if (name == "via") {
 		if (val == "")
 			return ept_val(name);
 		if ((USRXML_userid, n, "mac") in USRXML_usernets)
 			return inv_arg(name, val);
+		o = val;
+		val = ipa_normalize(val);
+		if (val == "")
+			return inv_arg(name, o);
 		USRXML_usernets[USRXML_userid,n,name] = val;
 	} else if (name == "mac") {
 		if (val == "")
@@ -545,7 +553,7 @@ function __usrxml_scope_net(name, val,    net, n)
 	return 0;
 }
 
-function __usrxml_scope_net6(name, val,    net6, n)
+function __usrxml_scope_net6(name, val,    net6, n, o)
 {
 	n = USRXML_usernets6[USRXML_userid];
 	net6 = USRXML_usernets6[USRXML_userid,n];
@@ -560,12 +568,20 @@ function __usrxml_scope_net6(name, val,    net6, n)
 	} else if (name == "src") {
 		if (val == "")
 			return ept_val(name);
+		o = val;
+		val = ipa_normalize(val);
+		if (val == "")
+			return inv_arg(name, o);
 		USRXML_usernets6[USRXML_userid,n,name] = val;
 	} else if (name == "via") {
 		if (val == "")
 			return ept_val(name);
 		if ((USRXML_userid, n, "mac") in USRXML_usernets6)
 			return inv_arg(name, val);
+		o = val;
+		val = ipa_normalize(val);
+		if (val == "")
+			return inv_arg(name, o);
 		USRXML_usernets6[USRXML_userid,n,name] = val;
 	} else if (name == "mac") {
 		if (val == "")
