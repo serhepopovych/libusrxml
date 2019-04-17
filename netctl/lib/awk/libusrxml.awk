@@ -267,6 +267,8 @@ function init_usrxml_parser(    h)
 	# API
 	USRXML_E_HANDLE_INVALID = -201;
 	USRXML_E_HANDLE_FULL    = -202;
+	# entry
+	USRXML_E_NOENT	= -301;
 
 	# Establish next (first) instance
 	h = usrxml__alloc_handle();
@@ -972,6 +974,9 @@ function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 
 	i = h SUBSEP userid;
 
+	if (!(i in USRXML_usernames))
+		return usrxml__seterrno(h, USRXML_E_NOENT);
+
 	printf "<user %s>\n", USRXML_usernames[i];
 
 	n = USRXML_userpipe[i];
@@ -1062,6 +1067,9 @@ function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
 		return o;
 
 	i = h SUBSEP userid;
+
+	if (!(i in USRXML_usernames))
+		return usrxml__seterrno(h, USRXML_E_NOENT);
 
 	printf "<user %s>", USRXML_usernames[i];
 
