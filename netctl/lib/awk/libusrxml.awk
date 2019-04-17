@@ -439,7 +439,7 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 			USRXML_ifusers[h,val] = u;
 	}
 
-	return USRXML_E_NONE;
+	return usrxml__seterrno(h, USRXML_E_NONE);
 }
 
 #
@@ -1053,7 +1053,7 @@ function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 
 	print "</user>\n";
 
-	return USRXML_E_NONE;
+	return usrxml__seterrno(h, USRXML_E_NONE);
 }
 
 #
@@ -1144,5 +1144,5 @@ function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
 
 	print "</user>";
 
-	return USRXML_E_NONE;
+	return usrxml__seterrno(h, USRXML_E_NONE);
 }
