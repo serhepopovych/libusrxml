@@ -68,7 +68,8 @@ function usrxml_seterrno(h, val)
 function usrxml_syntax_err(h)
 {
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: syntax error\n",
+		printf "USRXML[%u]: %s:%d: syntax error\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"] >"/dev/stderr"
 	}
@@ -78,7 +79,8 @@ function usrxml_syntax_err(h)
 function usrxml_scope_err(h, section)
 {
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: <%s> scope error\n",
+		printf "USRXML[%u]: %s:%d: <%s> scope error\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"],
 			section >"/dev/stderr"
@@ -89,7 +91,8 @@ function usrxml_scope_err(h, section)
 function usrxml_inv_arg(h, section, value)
 {
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: invalid argument \"%s\" in <%s>\n",
+		printf "USRXML[%u]: %s:%d: invalid argument \"%s\" in <%s>\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"],
 			value, section >"/dev/stderr"
@@ -100,7 +103,8 @@ function usrxml_inv_arg(h, section, value)
 function usrxml_ept_val(h, section)
 {
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: empty value in <%s>\n",
+		printf "USRXML[%u]: %s:%d: empty value in <%s>\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"],
 			section >"/dev/stderr"
@@ -111,7 +115,8 @@ function usrxml_ept_val(h, section)
 function usrxml_dup_val(h, section, value)
 {
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: duplicated value \"%s\" in <%s>\n",
+		printf "USRXML[%u]: %s:%d: duplicated value \"%s\" in <%s>\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"],
 			value, section >"/dev/stderr"
@@ -122,7 +127,8 @@ function usrxml_dup_val(h, section, value)
 function usrxml_dup_arg(h, section)
 {
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: duplicated argument <%s>\n",
+		printf "USRXML[%u]: %s:%d: duplicated argument <%s>\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"],
 			section >"/dev/stderr"
@@ -138,7 +144,8 @@ function usrxml_dup_net(h, section, value, userid,    ret)
 	ret = usrxml_dup_val(h, section, value);
 
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: already defined by \"%s\" user\n",
+		printf "USRXML[%u]: %s:%d: already defined by \"%s\" user\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"],
 			USRXML_usernames[userid] >"/dev/stderr"
@@ -149,7 +156,8 @@ function usrxml_dup_net(h, section, value, userid,    ret)
 function usrxml_missing_arg(h, section)
 {
 	if (USRXML_instance[h,"verbose"]) {
-		printf "USRXML: %s: %d: missing mandatory argument <%s>\n",
+		printf "USRXML[%u]: %s:%d: missing mandatory argument <%s>\n",
+			h,
 			USRXML_instance[h,"filename"],
 			USRXML_instance[h,"linenum"],
 			section >"/dev/stderr"
