@@ -67,48 +67,66 @@ function usrxml_seterrno(h, val)
 
 function usrxml_syntax_err(h)
 {
-	printf "USRXML: %s: %d: syntax error\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"] >"/dev/stderr"
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: syntax error\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"] >"/dev/stderr"
+	}
 	return usrxml__seterrno(h, USRXML_E_SYNTAX);
 }
 
 function usrxml_scope_err(h, section)
 {
-	printf "USRXML: %s: %d: <%s> scope error\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
-		section >"/dev/stderr"
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: <%s> scope error\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"],
+			section >"/dev/stderr"
+	}
 	return usrxml__seterrno(h, USRXML_E_SCOPE);
 }
 
 function usrxml_inv_arg(h, section, value)
 {
-	printf "USRXML: %s: %d: invalid argument \"%s\" in <%s>\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
-		value, section >"/dev/stderr"
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: invalid argument \"%s\" in <%s>\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"],
+			value, section >"/dev/stderr"
+	}
 	return usrxml__seterrno(h, USRXML_E_INVAL);
 }
 
 function usrxml_ept_val(h, section)
 {
-	printf "USRXML: %s: %d: empty value in <%s>\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
-		section >"/dev/stderr"
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: empty value in <%s>\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"],
+			section >"/dev/stderr"
+	}
 	return usrxml__seterrno(h, USRXML_E_EMPTY);
 }
 
 function usrxml_dup_val(h, section, value)
 {
-	printf "USRXML: %s: %d: duplicated value \"%s\" in <%s>\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
-		value, section >"/dev/stderr"
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: duplicated value \"%s\" in <%s>\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"],
+			value, section >"/dev/stderr"
+	}
 	return usrxml__seterrno(h, USRXML_E_DUP);
 }
 
 function usrxml_dup_arg(h, section)
 {
-	printf "USRXML: %s: %d: duplicated argument <%s>\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
-		section >"/dev/stderr"
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: duplicated argument <%s>\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"],
+			section >"/dev/stderr"
+	}
 	return usrxml__seterrno(h, USRXML_E_DUP);
 }
 
@@ -119,18 +137,23 @@ function usrxml_dup_net(h, section, value, userid,    ret)
 
 	ret = usrxml_dup_val(h, section, value);
 
-	printf "USRXML: %s: %d: already defined by \"%s\" user\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"], \
-		USRXML_usernames[userid] >"/dev/stderr"
-
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: already defined by \"%s\" user\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"],
+			USRXML_usernames[userid] >"/dev/stderr"
+	}
 	return ret;
 }
 
 function usrxml_missing_arg(h, section)
 {
-	printf "USRXML: %s: %d: missing mandatory argument <%s>\n",
-		USRXML_instance[h,"filename"], USRXML_instance[h,"linenum"],
-		section >"/dev/stderr"
+	if (USRXML_instance[h,"verbose"]) {
+		printf "USRXML: %s: %d: missing mandatory argument <%s>\n",
+			USRXML_instance[h,"filename"],
+			USRXML_instance[h,"linenum"],
+			section >"/dev/stderr"
+	}
 	return usrxml__seterrno(h, USRXML_E_MISS);
 }
 
@@ -256,6 +279,9 @@ function init_usrxml_parser(    h)
 	## Variables
 
 	# USRXML_instance[] internal information about parser instance
+
+	# Report errors by default
+	USRXML_instance[h,"verbose"] = 1;
 
 	# Error number updated on each library call
 	USRXML_instance[h,"errno"] = USRXML_E_NONE;
@@ -391,6 +417,9 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
+
+	# Report errors by default
+	delete USRXML_instance[h,"verbose"];
 
 	# Error encountered during XML parsing/validation
 	delete USRXML_instance[h,"errno"];
