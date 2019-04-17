@@ -88,9 +88,9 @@ function do_ipv4(str,    nfields, v, vals)
 		v = vals[nfields];
 		# there might be '-' or '+'
 		if (v !~ "^[[:digit:]]+$")
-			return 0;
+			return "";
 		if (v < 0 || v > 255)
-			return 0;
+			return "";
 		nfields--;
 	}
 	return sprintf("%d.%d.%d.%d", vals[1], vals[2], vals[3], vals[4]);
