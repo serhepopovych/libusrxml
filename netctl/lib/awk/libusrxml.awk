@@ -418,28 +418,8 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
 
-	# Report errors by default
-	delete USRXML_instance[h,"verbose"];
-
-	# Error encountered during XML parsing/validation
-	delete USRXML_instance[h,"errno"];
-
-	# Current scope
-	delete USRXML_instance[h,"scope"];
-
-	# Populated from parsing XML document
-	n = USRXML_instance[h,"nusers"];
-	delete USRXML_instance[h,"nusers"];
-	delete USRXML_instance[h,"userid"];
-	delete USRXML_instance[h,"pipeid"];
-	delete USRXML_instance[h,"netid"];
-	delete USRXML_instance[h,"net6id"];
-
-	# FILENAME might be unknown if called from BEGIN{} sections
-	delete USRXML_instance[h,"filename"];
-	delete USRXML_instance[h,"linenum"];
-
 	# user
+	n = USRXML_instance[h,"nusers"];
 	for (u = 0; u < n; u++) {
 		# h,userid
 		i = h SUBSEP u;
@@ -537,6 +517,26 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 			delete USRXML_nats6[h,val];
 		}
 	}
+
+	# Report errors by default
+	delete USRXML_instance[h,"verbose"];
+
+	# Error encountered during XML parsing/validation
+	delete USRXML_instance[h,"errno"];
+
+	# Current scope
+	delete USRXML_instance[h,"scope"];
+
+	# Populated from parsing XML document
+	delete USRXML_instance[h,"nusers"];
+	delete USRXML_instance[h,"userid"];
+	delete USRXML_instance[h,"pipeid"];
+	delete USRXML_instance[h,"netid"];
+	delete USRXML_instance[h,"net6id"];
+
+	# FILENAME might be unknown if called from BEGIN{} sections
+	delete USRXML_instance[h,"filename"];
+	delete USRXML_instance[h,"linenum"];
 
 	usrxml__free_handle(h);
 
