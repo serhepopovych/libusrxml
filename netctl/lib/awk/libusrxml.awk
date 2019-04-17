@@ -267,6 +267,7 @@ function init_usrxml_parser(    h)
 	# API
 	USRXML_E_HANDLE_INVALID = -201;
 	USRXML_E_HANDLE_FULL    = -202;
+	USRXML_E_API_ORDER      = -203;
 	# entry
 	USRXML_E_NOENT	= -301;
 
@@ -308,6 +309,12 @@ function init_usrxml_parser(    h)
 	## Variables
 
 	# USRXML__instance[] internal information about parser instance
+
+	# Library public functions call order
+	USRXML__order_none   = 0;
+	USRXML__order_parse  = 1
+	USRXML__order_result = 2;
+	USRXML__instance[h,"order"] = USRXML__order_parse;
 
 	# Extra maps build by build_usrxml_extra()
 	USRXML__instance[h,"extra"] = 0;
@@ -446,6 +453,9 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	if (val != USRXML_E_NONE)
 		return val;
 
+	if (USRXML__instance[h,"order"] != USRXML__order_parse)
+		return usrxml__seterrno(h, USRXML_E_API_ORDER);
+
 	# Check for open sections
 	val = USRXML__instance[h,"scope"];
 	if (val != USRXML__scope_none)
@@ -499,6 +509,9 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 		}
 	}
 
+	# Change API order
+	USRXML__instance[h,"order"] = USRXML__order_result;
+
 	return usrxml__seterrno(h, USRXML_E_NONE);
 }
 
@@ -511,6 +524,9 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
+
+	# Disable library functions at all levels
+	delete USRXML__instance[h,"order"];
 
 	# user
 	n = USRXML_usernames[h];
@@ -995,6 +1011,18 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 	if (val != USRXML_E_NONE)
 		return val;
 
+	val = USRXML__instance[h,"order"];
+	if (val < USRXML__order_parse)
+		return usrxml__seterrno(h, USRXML_E_API_ORDER);
+
+	if (val > USRXML__order_parse) {
+		# Destroy extra maps since they no longer valid
+		__unbuild_usrxml_extra(h);
+
+		# Reset order since data updated and needs to be revalidated
+		USRXML__instance[h,"order"] = USRXML__order_parse;
+	}
+
 	if (USRXML__instance[h,"filename"] != FILENAME) {
 		USRXML__instance[h,"filename"] = FILENAME;
 		USRXML__instance[h,"linenum"] = 0;
@@ -1029,6 +1057,9 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o)
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
 		return o;
+
+	if (USRXML__instance[h,"order"] < USRXML__order_result)
+		return usrxml__seterrno(h, USRXML_E_API_ORDER);
 
 	# These are build when calling this helper
 	# ----------------------------------------
@@ -1180,6 +1211,9 @@ function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 	if (o != USRXML_E_NONE)
 		return o;
 
+	if (USRXML__instance[h,"order"] < USRXML__order_result)
+		return usrxml__seterrno(h, USRXML_E_API_ORDER);
+
 	i = h SUBSEP userid;
 
 	if (!(i in USRXML_usernames))
@@ -1273,6 +1307,9 @@ function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
 		return o;
+
+	if (USRXML__instance[h,"order"] < USRXML__order_result)
+		return usrxml__seterrno(h, USRXML_E_API_ORDER);
 
 	i = h SUBSEP userid;
 
