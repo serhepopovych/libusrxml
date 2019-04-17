@@ -324,47 +324,111 @@ function init_usrxml_parser(    h)
 	USRXML__instance[h,"netid"] = 0;
 	USRXML__instance[h,"net6id"] = 0;
 
-	# Number of users
-	USRXML_usernames[h] = 0;
-
-	# nusers = USRXML_usernames[h]
-	# userid = [0 .. nusers - 1]
-	# username = USRXML_usernames[h,userid]
-	# userid   = USRXML_userids[h,username]
-	#
-	# USRXML_ifusers[h,userif]
-	#
-	# userid = USRXML_nets[h,net]
-	# userid = USRXML_nets6[h,net6]
-	# userid = USRXML_nats[h,nat]
-	# userid = USRXML_nats6[h,nat6]
-	#
-	# pipeid = USRXML_userpipe[h,userid]
-	# pipenum = USRXML_userpipe[h,userid,pipeid]
-	# USRXML_userpipe[h,userid,pipeid,"zone"]
-	# USRXML_userpipe[h,userid,pipeid,"dir"]
-	# USRXML_userpipe[h,userid,pipeid,"bw"]
-	# USRXML_userpipe[h,userid,pipeid,"qdisc"]
-	# optid = USRXML_userpipe[h,userid,pipeid,"opts"]
-	# USRXML_userpipe[h,userid,pipeid,"opts",optid]
-	#
-	# userif = USRXML_userif[h,userid]
-	#
-	# netid = USRXML_usernets[h,userid]
-	# USRXML_usernets[h,userid,netid]
-	# net6id = USRXML_usernets6[h,userid]
-	# USRXML_usernets6[h,userid,net6id]
-	#
-	# natid = USRXML_usernats[h,userid]
-	# USRXML_usernats[h,userid,natid]
-	# nat6id = USRXML_usernats6[h,userid]
-	# USRXML_usernats6[h,userid,nat6id]
-
 	# FILENAME might be unknown if called from BEGIN{} sections
 	USRXML__instance[h,"filename"] = FILENAME;
 	USRXML__instance[h,"linenum"] = 0;
 
 	# USRXML__fileline[key,{ "file" | "line" },n]
+
+	# Document format and parameters mapping
+	# --------------------------------------
+	#
+	# nusers = USRXML_usernames[h]
+	# userid = [0 .. nusers - 1]
+	# username = USRXML_usernames[h,userid]
+	# userid   = USRXML_userids[h,username]
+	# userids  = USRXML_ifusers[h,userif]
+	# <user 'name'>
+	#
+	#   npipes = USRXML_userpipe[h,userid]
+	#   pipeid = [0 .. npipes - 1]
+	#   <pipe 'num'>
+	#     USRXML_userpipe[h,userid,pipeid]
+	#     <zone local|world|all>
+	#       zone = USRXML_userpipe[h,userid,pipeid,"zone"]
+	#     <dir in|out>
+	#       dir =USRXML_userpipe[h,userid,pipeid,"dir"]
+	#     <bw kbits>
+	#       bw = USRXML_userpipe[h,userid,pipeid,"bw"]
+	#     <qdisc 'name'>
+	#       qdisc = USRXML_userpipe[h,userid,pipeid,"qdisc"]
+	#
+	#       nopts = USRXML_userpipe[h,userid,pipeid,"opts"]
+	#       optid = [0 .. nopts - 1]
+	#       <opts 'params'>
+	#         opts += USRXML_userpipe[h,userid,pipeid,"opts",optid]
+	#     </qdisc>
+	#   </pipe>
+	#
+	#   <if>
+	#     userif = USRXML_userif[h,userid]
+	#
+	#   nunets = USRXML_usernets[h,userid]
+	#   netid = [0 .. nunets - 1]
+	#   <net 'cidr'>
+	#     net = USRXML_usernets[h,userid,netid]
+	# [
+	#     <!-- These are optional -->
+	#     <src>
+	#       src = USRXML_usernets[h,userid,netid,"src"]
+	#     <via>
+	#       via = USRXML_usernets[h,userid,netid,"via"]
+	#     <mac>
+	#       mac = USRXML_usernets[h,userid,netid,"mac"]
+	#   </net>
+	# ]
+	#
+	#   nunets6 = USRXML_usernets6[h,userid]
+	#   netid6 = [0 .. nunets6 - 1]
+	#   <net6 'cidr6'>
+	#     net6 = USRXML_usernets6[h,userid,netid6]
+	# [
+	#     <!-- These are optional -->
+	#     <src>
+	#       src = USRXML_usernets6[h,userid,netid6,"src"]
+	#     <via>
+	#       via = USRXML_usernets6[h,userid,netid6,"via"]
+	#     <mac>
+	#       mac = USRXML_usernets6[h,userid,netid6,"mac"]
+	#   </net6>
+	# ]
+	#
+	#   nunats = USRXML_usernats[h,userid]
+	#   natid = [0 .. nunats - 1]
+	#   <nat 'cidr'>
+	#     nat = USRXML_usernats[h,userid,natid]
+	#
+	#   nunats6 = USRXML_usernats6[h,userid]
+	#   natid6 = [0 .. nunats6 - 1]
+	#   <nat6 'cidr6'>
+	#     nat6 = USRXML_usernats6[h,userid,natid6]
+	#
+	# </user>
+
+	# These are used to find duplicates at parse time
+	# -----------------------------------------------
+	#
+	# <user 'name'>
+	#
+	#   <net 'cidr'>
+	#     h,userid = USRXML_nets[h,net]
+	#
+	#   <net6 'cidr6'>
+	#     h,userid = USRXML_nets6[h,net6]
+	#
+	#   <nat 'cidr'>
+	#     h,userid = USRXML_nats[h,nat]
+	#
+	#   <nat6 'cidr6'>
+	#     h,userid = USRXML_nats6[h,nat6]
+	#
+	# </user>
+
+	# Number of users
+	USRXML_usernames[h] = 0;
+
+	# Note that rest of USRXML_user*[] arrays
+	# initialized in usrxml__scope_user()
 
 	return h;
 }

@@ -192,6 +192,9 @@ data structures become avaiable to the calling code:
   # Set of <nat6>s for given "userid".
   USRXML_usernats6[h,userid,nat6id]
 
+See libusrxml.awk init_usrxml_parser() function for USRXML schema to
+associative arrays elements mapping.
+
 There is two additional functions defined in the library to print <user>
 that can be used only with successfuly parsed document:
 
