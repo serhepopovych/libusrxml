@@ -245,6 +245,19 @@ function usrxml_section_missing_arg(h, section, key)
 }
 
 #
+# Misc helpers
+#
+
+function usrxml_dev_valid_name(name)
+{
+	if (name == "." || name == "..")
+		return 0;
+	# Network interface name length within [1 .. IFNAMSIZ - 1]
+	# range, where IFNAMSIZ is 16 bytes.
+	return name ~ "^[^[:space:]/:]{1,15}$";
+}
+
+#
 # Initialize users database XML document parser/validator.
 # This is usually called from BEGIN{} section.
 #
@@ -275,9 +288,6 @@ function init_usrxml_parser(    h)
 	h = usrxml__alloc_handle();
 	if (h < 0)
 		return h;
-
-	# Network interface name size (including '\0' byte)
-	USRXML_IFNAMSIZ = 16;
 
 	## Constants (internal, arrays get cleaned )
 
@@ -705,7 +715,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		if (length(val) >= USRXML_IFNAMSIZ)
+		if (!usrxml_dev_valid_name(val))
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML_userif[i] = val;
