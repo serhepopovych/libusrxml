@@ -613,45 +613,7 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	delete USRXML_usernames[h];
 
 	# Extra maps build by build_usrxml_extra()
-	if (USRXML__instance[h,"extra"]) {
-		# if
-		m = USRXML_ifnames[h];
-		for (p = 0; p < m; p++) {
-			# h,p
-			j = h SUBSEP p;
-
-			val = USRXML_ifnames[j];
-			delete USRXML_ifnames[j];
-			delete USRXML_ifusers[h,val];
-		}
-		delete USRXML_ifnames[h];
-
-		# net
-		m = USRXML_nets[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nets[h,p];
-		delete USRXML_nets[h];
-
-		# net6
-		m = USRXML_nets6[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nets6[h,p];
-		delete USRXML_nets6[h];
-
-		# nat
-		m = USRXML_nats[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nats[h,p];
-		delete USRXML_nats[h];
-
-		# nat6
-		m = USRXML_nats6[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nats6[h,p];
-		delete USRXML_nats6[h];
-
-		delete USRXML__instance[h,"extra"];
-	}
+	__unbuild_usrxml_extra(h);
 
 	# Report errors by default
 	delete USRXML__instance[h,"verbose"];
@@ -1154,6 +1116,58 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o)
 	USRXML__instance[h,"extra"] = 1;
 
 	return usrxml__seterrno(h, USRXML_E_NONE);
+}
+
+function __unbuild_usrxml_extra(h,    m, j, p, o, val)
+{
+	# Release extra maps allocated with build_usrxml_extra()
+	if (USRXML__instance[h,"extra"]) {
+		# if
+		m = USRXML_ifnames[h];
+		for (p = 0; p < m; p++) {
+			# h,p
+			j = h SUBSEP p;
+
+			val = USRXML_ifnames[j];
+			delete USRXML_ifnames[j];
+			delete USRXML_ifusers[h,val];
+		}
+		delete USRXML_ifnames[h];
+
+		# net
+		m = USRXML_nets[h];
+		for (p = 0; p < m; p++)
+			delete USRXML_nets[h,p];
+		delete USRXML_nets[h];
+
+		# net6
+		m = USRXML_nets6[h];
+		for (p = 0; p < m; p++)
+			delete USRXML_nets6[h,p];
+		delete USRXML_nets6[h];
+
+		# nat
+		m = USRXML_nats[h];
+		for (p = 0; p < m; p++)
+			delete USRXML_nats[h,p];
+		delete USRXML_nats[h];
+
+		# nat6
+		m = USRXML_nats6[h];
+		for (p = 0; p < m; p++)
+			delete USRXML_nats6[h,p];
+		delete USRXML_nats6[h];
+
+		delete USRXML__instance[h,"extra"];
+	}
+}
+
+function unbuild_usrxml_extra(h)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+
+	__unbuild_usrxml_extra(h);
 }
 
 #
