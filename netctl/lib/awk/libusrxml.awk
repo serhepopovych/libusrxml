@@ -281,6 +281,7 @@ function init_usrxml_parser(    h)
 	USRXML_E_HANDLE_INVALID = -201;
 	USRXML_E_HANDLE_FULL    = -202;
 	USRXML_E_API_ORDER      = -203;
+	USRXML_E_GETLINE        = -204;
 	# entry
 	USRXML_E_NOENT	= -301;
 
@@ -1459,4 +1460,65 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 	print "</user>" >>file;
 
 	return usrxml__seterrno(h, USRXML_E_NONE);
+}
+
+function load_usrxml_file(_h, file,    h, line, rc, ret, stdin)
+{
+	if (is_valid_usrxml_handle(_h)) {
+		h = _h;
+	} else {
+		h = init_usrxml_parser();
+		if (h < 0)
+			return h;
+		# Make sure that h != _h always
+		_h = -1;
+	}
+
+	stdin = "/dev/stdin";
+
+	if (file == "")
+		file = stdin;
+
+	while ((rc = (getline line <file)) > 0) {
+		ret = run_usrxml_parser(h, line);
+		if (ret != USRXML_E_NONE)
+			break;
+	}
+
+	if (file != stdin)
+		close(file);
+
+	if (rc < 0) {
+		ret = usrxml__seterrno(USRXML_E_GETLINE);
+	} else if (ret == USRXML_E_NONE) {
+		# Commit result after each call so we can see
+		# differences between loaded files
+		ret = result_usrxml_parser(h);
+		if (ret == USRXML_E_NONE)
+			return h;
+	}
+
+	if (h != _h)
+		fini_usrxml_parser(h);
+
+	return ret;
+}
+
+function store_usrxml_file(h, file,    u, n, o)
+{
+	o = usrxml_errno(h);
+	if (o != USRXML_E_NONE)
+		return o;
+
+	if (file == "")
+		file = "/dev/stdout";
+
+	n = USRXML_usernames[h];
+	for (u = 0; u < n; u++) {
+		o = print_usrxml_entry(h, u, file);
+		if (o != USRXML_E_NONE)
+			return o;
+	}
+
+	return USRXML_E_NONE;
 }
