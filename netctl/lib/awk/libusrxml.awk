@@ -353,6 +353,13 @@ function init_usrxml_parser(    h)
 	# Document format and parameters mapping
 	# --------------------------------------
 	#
+	# When run_usrxml_parser() used after result_usrxml_parser() names of
+	# modified user entries are put to USRXML_modusernames[]:
+	#
+	# nmodusers = USRXML_modusernames[h]
+	# muserid = [0 .. nmodusers - 1]
+	# username = USRXML_modusernames[h,muserid]
+	#
 	# nusers = USRXML_usernames[h]
 	# userid = [0 .. nusers - 1]
 	# username = USRXML_usernames[h,userid]
@@ -641,6 +648,9 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	# Extra maps build by build_usrxml_extra()
 	__unbuild_usrxml_extra(h);
 
+	# Modified user names map
+	__clear_usrxml_modusernames(h);
+
 	# Report errors by default
 	delete USRXML__instance[h,"verbose"];
 
@@ -674,6 +684,11 @@ function usrxml__scope_none(h, name, val,    n, i)
 	if (name == "user") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
+
+		if (USRXML__instance[h,"modified"]) {
+			i = h SUBSEP USRXML_modusernames[h]++;
+			USRXML_modusernames[i] = val;
+		}
 
 		n = h SUBSEP val;
 		if (n in USRXML_userids) {
@@ -1029,6 +1044,13 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 		# Destroy extra maps since they no longer valid
 		__unbuild_usrxml_extra(h);
 
+		# Destroy modified users mapping since new changes will come
+		__clear_usrxml_modusernames(h);
+
+		# Signal to run_usrxml_parser() and it's callees to create
+		# modified users mapping
+		USRXML__instance[h,"modified"] = 1;
+
 		# Reset order since data updated and needs to be revalidated
 		USRXML__instance[h,"order"] = USRXML__order_parse;
 	}
@@ -1209,6 +1231,27 @@ function unbuild_usrxml_extra(h)
 		return USRXML_E_HANDLE_INVALID;
 
 	__unbuild_usrxml_extra(h);
+}
+
+function __clear_usrxml_modusernames(h)
+{
+	if (USRXML__instance[h,"modified"]) {
+		# user
+		n = USRXML_modusernames[h];
+		for (u = 0; u < n; u++)
+			delete USRXML_modusernames[h,u];
+		delete USRXML_modusernames[h];
+
+		delete USRXML__instance[h,"modified"];
+	}
+}
+
+function clear_usrxml_modusernames(h)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+
+	__clear_usrxml_modusernames(h);
 }
 
 #
