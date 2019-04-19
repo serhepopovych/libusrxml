@@ -1258,7 +1258,7 @@ function clear_usrxml_modusernames(h)
 # Print users entry in xml format
 #
 
-function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
+function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -1272,7 +1272,10 @@ function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 	if (!(i in USRXML_usernames))
 		return usrxml__seterrno(h, USRXML_E_NOENT);
 
-	printf "<user %s>\n", USRXML_usernames[i];
+	if (file == "")
+		file = "/dev/stdout";
+
+	printf "<user %s>\n", USRXML_usernames[i] >>file;
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
@@ -1285,39 +1288,41 @@ function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 			USRXML_userpipe[j],
 			USRXML_userpipe[j,"zone"],
 			USRXML_userpipe[j,"dir"],
-			USRXML_userpipe[j,"bw"];
+			USRXML_userpipe[j,"bw"] >>file;
 
 		o = USRXML_userpipe[j,"qdisc"];
 		if (o != "") {
-			printf "\t\t<qdisc %s>\n", o;
+			printf "\t\t<qdisc %s>\n", o >>file;
 
 			j = j SUBSEP "opts";
 			m = USRXML_userpipe[j];
-			for (o = 0; o < m; o++) {
+			for (o = 0; o < m; o++)
 				printf "\t\t\t<opts %s>\n",
-					USRXML_userpipe[j,o];
-			}
+					USRXML_userpipe[j,o] >>file;
 
-			printf "\t\t</qdisc>\n";
+			printf "\t\t</qdisc>\n" >>file;
 		}
 
-		printf "\t</pipe>\n";
+		printf "\t</pipe>\n" >>file;
 	}
 
-	printf "\t<if %s>\n", USRXML_userif[i];
+	printf "\t<if %s>\n", USRXML_userif[i] >>file;
 
 	n = USRXML_usernets[i];
 	for (p = 0; p < n; p++) {
 		j = i SUBSEP p;
 
-		printf "\t<net %s>\n", USRXML_usernets[j];
+		printf "\t<net %s>\n", USRXML_usernets[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets) {
 			if ((j,"src") in USRXML_usernets)
-				printf "\t\t<src %s>\n", USRXML_usernets[j,"src"];
+				printf "\t\t<src %s>\n",
+					USRXML_usernets[j,"src"] >>file;
 			if ((j,"via") in USRXML_usernets)
-				printf "\t\t<via %s>\n", USRXML_usernets[j,"via"];
+				printf "\t\t<via %s>\n",
+					USRXML_usernets[j,"via"] >>file;
 			if ((j,"mac") in USRXML_usernets)
-				printf "\t\t<mac %s>\n", USRXML_usernets[j,"mac"];
+				printf "\t\t<mac %s>\n",
+					USRXML_usernets[j,"mac"] >>file;
 			printf "\t</net>\n";
 		}
 	}
@@ -1326,27 +1331,30 @@ function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 	for (p = 0; p < n; p++) {
 		j = i SUBSEP p;
 
-		printf "\t<net6 %s>\n", USRXML_usernets6[j];
+		printf "\t<net6 %s>\n", USRXML_usernets6[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets6) {
 			if ((j,"src") in USRXML_usernets6)
-				printf "\t\t<src %s>\n", USRXML_usernets6[j,"src"];
+				printf "\t\t<src %s>\n",
+					USRXML_usernets6[j,"src"] >>file;
 			if ((j,"via") in USRXML_usernets6)
-				printf "\t\t<via %s>\n", USRXML_usernets6[j,"via"];
+				printf "\t\t<via %s>\n",
+					USRXML_usernets6[j,"via"] >>file;
 			if ((j,"mac") in USRXML_usernets6)
-				printf "\t\t<mac %s>\n", USRXML_usernets6[j,"mac"];
-			printf "\t</net>\n";
+				printf "\t\t<mac %s>\n",
+					USRXML_usernets6[j,"mac"] >>file;
+			printf "\t</net>\n" >>file;
 		}
 	}
 
 	n = USRXML_usernats[i];
 	for (p = 0; p < n; p++)
-		printf "\t<nat %s>\n", USRXML_usernats[i,p];
+		printf "\t<nat %s>\n", USRXML_usernats[i,p] >>file;
 
 	n = USRXML_usernats6[i];
 	for (p = 0; p < n; p++)
-		printf "\t<nat6 %s>\n", USRXML_usernats6[i,p];
+		printf "\t<nat6 %s>\n", USRXML_usernats6[i,p] >>file;
 
-	print "</user>\n";
+	print "</user>\n" >>file;
 
 	return usrxml__seterrno(h, USRXML_E_NONE);
 }
@@ -1355,7 +1363,7 @@ function print_usrxml_entry(h, userid,    n, m, i, j, u, p, o)
 # Print users entry in one line xml format
 #
 
-function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
+function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -1369,7 +1377,10 @@ function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
 	if (!(i in USRXML_usernames))
 		return usrxml__seterrno(h, USRXML_E_NOENT);
 
-	printf "<user %s>", USRXML_usernames[i];
+	if (file == "")
+		file = "/dev/stdout";
+
+	printf "<user %s>", USRXML_usernames[i] >>file;
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
@@ -1379,40 +1390,42 @@ function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
 			USRXML_userpipe[j],
 			USRXML_userpipe[j,"zone"],
 			USRXML_userpipe[j,"dir"],
-			USRXML_userpipe[j,"bw"];
+			USRXML_userpipe[j,"bw"] >>file;
 
 		o = USRXML_userpipe[j,"qdisc"];
 		if (o != "") {
-			printf "<qdisc %s>", o;
+			printf "<qdisc %s>", o >>file;
 
 			j = j SUBSEP "opts";
 			m = USRXML_userpipe[j];
-			for (o = 0; o < m; o++) {
+			for (o = 0; o < m; o++)
 				printf "<opts %s>",
-					USRXML_userpipe[j,o];
-			}
+					USRXML_userpipe[j,o] >>file;
 
-			printf "</qdisc>";
+			printf "</qdisc>" >>file;
 		}
 
-		printf "</pipe>";
+		printf "</pipe>" >>file;
 	}
 
-	printf "<if %s>", USRXML_userif[i];
+	printf "<if %s>", USRXML_userif[i] >>file;
 
 	n = USRXML_usernets[i];
 	for (p = 0; p < n; p++) {
 		j = i SUBSEP p;
 
-		printf "<net %s>", USRXML_usernets[j];
+		printf "<net %s>", USRXML_usernets[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets) {
 			if ((j,"src") in USRXML_usernets)
-				printf "<src %s>", USRXML_usernets[j,"src"];
+				printf "<src %s>",
+					USRXML_usernets[j,"src"] >>file;
 			if ((j,"via") in USRXML_usernets)
-				printf "<via %s>", USRXML_usernets[j,"via"];
+				printf "<via %s>",
+					USRXML_usernets[j,"via"] >>file;
 			if ((j,"mac") in USRXML_usernets)
-				printf "<mac %s>", USRXML_usernets[j,"mac"];
-			printf "</net>";
+				printf "<mac %s>",
+					USRXML_usernets[j,"mac"] >>file;
+			printf "</net>" >>file;
 		}
 	}
 
@@ -1420,27 +1433,30 @@ function print_usrxml_entry_oneline(h, userid,    n, m, i, j, u, p, o)
 	for (p = 0; p < n; p++) {
 		j = i SUBSEP p;
 
-		printf "<net6 %s>", USRXML_usernets6[j];
+		printf "<net6 %s>", USRXML_usernets6[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets6) {
 			if ((j,"src") in USRXML_usernets6)
-				printf "<src %s>", USRXML_usernets6[j,"src"];
+				printf "<src %s>",
+					USRXML_usernets6[j,"src"] >>file;
 			if ((j,"via") in USRXML_usernets6)
-				printf "<via %s>", USRXML_usernets6[j,"via"];
+				printf "<via %s>",
+					USRXML_usernets6[j,"via"] >>file;
 			if ((j,"mac") in USRXML_usernets6)
-				printf "<mac %s>", USRXML_usernets6[j,"mac"];
-			printf "</net6>";
+				printf "<mac %s>",
+					USRXML_usernets6[j,"mac"] >>file;
+			printf "</net6>" >>file;
 		}
 	}
 
 	n = USRXML_usernats[i];
 	for (p = 0; p < n; p++)
-		printf "<nat %s>", USRXML_usernats[i,p];
+		printf "<nat %s>", USRXML_usernats[i,p] >>file;
 
 	n = USRXML_usernats6[i];
 	for (p = 0; p < n; p++)
-		printf "<nat6 %s>", USRXML_usernats6[i,p];
+		printf "<nat6 %s>", USRXML_usernats6[i,p] >>file;
 
-	print "</user>";
+	print "</user>" >>file;
 
 	return usrxml__seterrno(h, USRXML_E_NONE);
 }
