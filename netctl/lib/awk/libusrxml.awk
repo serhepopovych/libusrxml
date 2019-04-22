@@ -1357,7 +1357,36 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 
 	print "</user>\n" >>file;
 
+	# Callers should flush output buffers using fflush(file) to ensure
+	# all pending data is written to a file or named pipe before quit.
+
 	return usrxml__seterrno(h, USRXML_E_NONE);
+}
+
+function print_usrxml_entries(h, file,    n, u, o, stdout)
+{
+	o = usrxml_errno(h);
+	if (o != USRXML_E_NONE)
+		return o;
+
+	stdout = "/dev/stdout"
+
+	if (file == "")
+		file = stdout;
+
+	n = USRXML_usernames[h];
+	for (u = 0; u < n; u++) {
+		o = print_usrxml_entry(h, u, file);
+		if (o != USRXML_E_NONE)
+			break;
+	}
+
+	fflush(file);
+
+	if (file != stdout)
+		close(file);
+
+	return o;
 }
 
 #
@@ -1459,7 +1488,36 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 
 	print "</user>" >>file;
 
+	# Callers should flush output buffers using fflush(file) to ensure
+	# all pending data is written to a file or named pipe before quit.
+
 	return usrxml__seterrno(h, USRXML_E_NONE);
+}
+
+function print_usrxml_entries_oneline(h, file,    n, u, o, stdout)
+{
+	o = usrxml_errno(h);
+	if (o != USRXML_E_NONE)
+		return o;
+
+	stdout = "/dev/stdout"
+
+	if (file == "")
+		file = stdout;
+
+	n = USRXML_usernames[h];
+	for (u = 0; u < n; u++) {
+		o = print_usrxml_entry_oneline(h, u, file);
+		if (o != USRXML_E_NONE)
+			break;
+	}
+
+	fflush(file);
+
+	if (file != stdout)
+		close(file);
+
+	return o;
 }
 
 function load_usrxml_file(_h, file,    h, line, rc, ret, stdin)
@@ -1504,21 +1562,7 @@ function load_usrxml_file(_h, file,    h, line, rc, ret, stdin)
 	return ret;
 }
 
-function store_usrxml_file(h, file,    u, n, o)
+function store_usrxml_file(h, file)
 {
-	o = usrxml_errno(h);
-	if (o != USRXML_E_NONE)
-		return o;
-
-	if (file == "")
-		file = "/dev/stdout";
-
-	n = USRXML_usernames[h];
-	for (u = 0; u < n; u++) {
-		o = print_usrxml_entry(h, u, file);
-		if (o != USRXML_E_NONE)
-			return o;
-	}
-
-	return USRXML_E_NONE;
+	print_usrxml_entries(h, file);
 }
