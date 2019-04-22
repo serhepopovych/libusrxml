@@ -793,20 +793,27 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 # Parse and validate XML document.
 #
 
-function usrxml__scope_none(h, name, val,    n, i)
+function usrxml__scope_none(h, name, val,    n, m, i)
 {
 	if (name == "user") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
+		# h,username
+		n = h SUBSEP val;
+
 		if (USRXML__instance[h,"modified"]) {
-			i = USRXML_modusernames[h]++;
-			USRXML_modusernames[h,val,"id"] = i;
-			i = h SUBSEP i;
-			USRXML_modusernames[i] = val;
+			# h,username,"id"
+			m = n SUBSEP "id";
+
+			if (!(m in USRXML_modusernames)) {
+				i = USRXML_modusernames[h]++;
+				USRXML_modusernames[m] = i;
+				i = h SUBSEP i;
+				USRXML_modusernames[i] = val;
+			}
 		}
 
-		n = h SUBSEP val;
 		if (n in USRXML_userids) {
 			i = h SUBSEP USRXML_userids[n];
 		} else {
