@@ -882,6 +882,8 @@ function usrxml__delete_user_by_id(h, userid,    n, m, i, j, p, o, val)
 
 	usrxml__map_del_by_attr(h, val, USRXML_users);
 
+	delete USRXML_users[i,"inactive"];
+
 	# pipe
 	m = USRXML_userpipe[i];
 	for (p = 0; p < m; p++) {
@@ -1053,7 +1055,13 @@ function usrxml__scope_user(h, name, val,    n, i)
 		if (val != "" && val != n)
 			return usrxml_inv_arg(h, name, val);
 
-		n = usrxml__activate_user_by_id(h, USRXML_users[h,n,"id"]);
+		n = USRXML_users[h,n,"id"];
+
+		if ((i,"inactive") in USRXML_users)
+			n = usrxml__deactivate_user_by_id(h, n);
+		else
+			n = usrxml__activate_user_by_id(h, n);
+
 		if (n != USRXML_E_NONE)
 			return n;
 
@@ -1150,6 +1158,16 @@ function usrxml__scope_user(h, name, val,    n, i)
 		USRXML__instance[h,"scope"] = USRXML__scope_pipe;
 
 		usrxml_section_record_fileline(h, name SUBSEP n);
+	} else if (name == "inactive") {
+		if (val == "")
+			return usrxml_ept_val(h, name);
+
+		if (val == "yes")
+			USRXML_users[i,"inactive"] = 1;
+		else if (val == "no")
+			delete USRXML_users[i,"inactive"];
+		else
+			return usrxml_inv_arg(h, name, val);
 	} else {
 		return usrxml_syntax_err(h);
 	}
@@ -1406,7 +1424,7 @@ function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
 # Print users entry in xml format
 #
 
-function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
+function print_usrxml_entry(h, userid, file,    n, m, i, j, p, o)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -1421,6 +1439,9 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 		file = "/dev/stdout";
 
 	printf "<user %s>\n", USRXML_users[i] >>file;
+
+	if ((i,"inactive") in USRXML_users)
+		printf "\t<inactive yes>\n" >>file;
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
@@ -1568,7 +1589,7 @@ function print_usrxml_entries(h, file,    n, u, o, stdout)
 # Print users entry in one line xml format
 #
 
-function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
+function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, p, o)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -1583,6 +1604,9 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 		file = "/dev/stdout";
 
 	printf "<user %s>", USRXML_users[i] >>file;
+
+	if ((i,"inactive") in USRXML_users)
+		printf "<inactive yes>" >>file;
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
