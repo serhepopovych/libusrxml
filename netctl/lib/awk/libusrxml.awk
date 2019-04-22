@@ -533,6 +533,98 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	return usrxml__seterrno(h, USRXML_E_NONE);
 }
 
+function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
+{
+	# h,userid
+	i = h SUBSEP userid;
+
+	val = USRXML_usernames[i];
+	delete USRXML_usernames[i];
+	delete USRXML_userids[h,val];
+
+	# pipe
+	m = USRXML_userpipe[i];
+	for (p = 0; p < m; p++) {
+		# h,userid,pipeid
+		j = i SUBSEP p;
+
+		delete USRXML_userpipe[j];
+		delete USRXML_userpipe[j,"zone"];
+		delete USRXML_userpipe[j,"dir"];
+		delete USRXML_userpipe[j,"bw"];
+
+		delete USRXML_userpipe[j,"qdisc"];
+
+		# h,userid,pipeid,opts
+		j = j SUBSEP "opts";
+
+		val = USRXML_userpipe[j];
+		delete USRXML_userpipe[j];
+		for (o = 0; o < val; o++)
+			delete USRXML_userpipe[j,o];
+	}
+	delete USRXML_userpipe[i];
+
+	# if
+	delete USRXML_userif[i];
+
+	# net
+	m = USRXML_usernets[i];
+	for (p = 0; p < m; p++) {
+		# h,userid,netid
+		j = i SUBSEP p;
+
+		val = USRXML_usernets[j];
+		delete USRXML_usernets[j];
+		delete USRXML_usernets[j,"src"];
+		delete USRXML_usernets[j,"via"];
+		delete USRXML_usernets[j,"mac"];
+		delete USRXML_usernets[j,"has_opts"];
+		delete USRXML_nets[h,val];
+	}
+	delete USRXML_usernets[i];
+
+	# net6
+	m = USRXML_usernets6[i];
+	for (p = 0; p < m; p++) {
+		# h,userid,net6id
+		j = i SUBSEP p;
+
+		val = USRXML_usernets6[j];
+		delete USRXML_usernets6[j];
+		delete USRXML_usernets6[j,"src"];
+		delete USRXML_usernets6[j,"via"];
+		delete USRXML_usernets6[j,"mac"];
+		delete USRXML_usernets6[j,"has_opts"];
+		delete USRXML_nets6[h,val];
+	}
+	delete USRXML_usernets6[i];
+
+	# nat
+	m = USRXML_usernats[i];
+	for (p = 0; p < m; p++) {
+		# h,userid,natid
+		j = i SUBSEP p;
+
+		val = USRXML_usernats[j];
+		delete USRXML_usernats[j];
+		delete USRXML_nats[h,val];
+	}
+	delete USRXML_usernats[i];
+
+	# nat6
+	m = USRXML_usernats6[i];
+	for (p = 0; p < m; p++) {
+		# h,userid,nat6id
+		j = i SUBSEP p;
+
+		val = USRXML_usernats6[j];
+		delete USRXML_usernats6[j];
+		delete USRXML_nats6[h,val];
+	}
+	delete USRXML_usernats6[i];
+}
+
 #
 # Destroy XML document parser instance.
 # This is usually called from END{} section.
@@ -554,95 +646,35 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 
 		usrxml_section_delete_fileline(h, "user" SUBSEP i);
 
-		val = USRXML_usernames[i];
-		delete USRXML_usernames[i];
-		delete USRXML_userids[h,val];
-
 		# pipe
 		m = USRXML_userpipe[i];
-		delete USRXML_userpipe[i];
 		for (p = 0; p < m; p++) {
 			# h,userid,pipeid
 			j = i SUBSEP p;
 
 			usrxml_section_delete_fileline(h, "pipe" SUBSEP j);
-			delete USRXML_userpipe[j];
-			delete USRXML_userpipe[j,"zone"];
-			delete USRXML_userpipe[j,"dir"];
-			delete USRXML_userpipe[j,"bw"];
-
 			usrxml_section_delete_fileline(h, "qdisc" SUBSEP j);
-			delete USRXML_userpipe[j,"qdisc"];
-
-			# h,userid,pipeid,opts
-			j = j SUBSEP "opts";
-
-			val = USRXML_userpipe[j];
-			delete USRXML_userpipe[j];
-			for (o = 0; o < val; o++)
-				delete USRXML_userpipe[j,o];
 		}
-
-		# if
-		delete USRXML_userif[i];
 
 		# net
 		m = USRXML_usernets[i];
-		delete USRXML_usernets[i];
 		for (p = 0; p < m; p++) {
 			# h,userid,netid
 			j = i SUBSEP p;
 
 			usrxml_section_delete_fileline(h, "net" SUBSEP j);
-			val = USRXML_usernets[j];
-			delete USRXML_usernets[j];
-			delete USRXML_usernets[j,"src"];
-			delete USRXML_usernets[j,"via"];
-			delete USRXML_usernets[j,"mac"];
-			delete USRXML_usernets[j,"has_opts"];
-			delete USRXML_nets[h,val];
 		}
 
 		# net6
 		m = USRXML_usernets6[i];
-		delete USRXML_usernets6[i];
 		for (p = 0; p < m; p++) {
 			# h,userid,net6id
 			j = i SUBSEP p;
 
 			usrxml_section_delete_fileline(h, "net6" SUBSEP j);
-			val = USRXML_usernets6[j];
-			delete USRXML_usernets6[j];
-			delete USRXML_usernets6[j,"src"];
-			delete USRXML_usernets6[j,"via"];
-			delete USRXML_usernets6[j,"mac"];
-			delete USRXML_usernets6[j,"has_opts"];
-			delete USRXML_nets6[h,val];
 		}
 
-		# nat
-		m = USRXML_usernats[i];
-		delete USRXML_usernats[i];
-		for (p = 0; p < m; p++) {
-			# h,userid,natid
-			j = i SUBSEP p;
-
-			val = USRXML_usernats[j];
-			delete USRXML_usernats[j];
-			delete USRXML_nats[h,val];
-		}
-
-		# nat6
-		m = USRXML_usernats6[i];
-		delete USRXML_usernats6[i];
-		for (p = 0; p < m; p++) {
-			# h,userid,nat6id
-			j = i SUBSEP p;
-
-			val = USRXML_usernats6[j];
-			delete USRXML_usernats6[j];
-			delete USRXML_nats6[h,val];
-		}
+		__delete_usrxml_user(h, u);
 	}
 	delete USRXML_usernames[h];
 
