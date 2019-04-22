@@ -360,6 +360,7 @@ function init_usrxml_parser(    h)
 	# nmodusers = USRXML_modusernames[h]
 	# muserid = [0 .. nmodusers - 1]
 	# username = USRXML_modusernames[h,muserid]
+	# muserid  = USRXML_modusernames[h,username,"id"]
 	#
 	# nusers = USRXML_usernames[h]
 	# userid = [0 .. nusers - 1]
@@ -540,7 +541,18 @@ function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
 
 	val = USRXML_usernames[i];
 	delete USRXML_usernames[i];
-	delete USRXML_userids[h,val];
+
+	# h,username
+	j = h SUBSEP val;
+
+	delete USRXML_userids[j];
+
+	# h,username,"id" ("modified")
+	j = j SUBSEP "id";
+
+	val = USRXML_modusernames[j];
+	delete USRXML_modusernames[j];
+	delete USRXML_modusernames[h,val];
 
 	# pipe
 	m = USRXML_userpipe[i];
@@ -566,7 +578,28 @@ function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
 	delete USRXML_userpipe[i];
 
 	# if
+	val = USRXML_userif[i];
 	delete USRXML_userif[i];
+
+	# h,userif ("extra")
+	j = h SUBSEP val;
+
+	m = USRXML_ifusers[j];
+
+	if (sub(" " val " ", " ", m) == 1 ||   # 1 x 3 == 1 3
+	    sub(val " ", "", m)      == 1 ||   # x 2 3 == 2 3
+	    sub(" " val, "", m)      == 1) {   # 1 2 x == 1 2
+		USRXML_ifusers[j] = m;
+	} else {
+		delete USRXML_ifusers[j];
+	}
+
+	# h,userif,"id" ("extra")
+	j = j SUBSEP "id";
+
+	val = USRXML_ifnames[j]
+	delete USRXML_ifnames[j];
+	delete USRXML_ifnames[h,val];
 
 	# net
 	m = USRXML_usernets[i];
@@ -580,6 +613,17 @@ function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
 		delete USRXML_usernets[j,"via"];
 		delete USRXML_usernets[j,"mac"];
 		delete USRXML_usernets[j,"has_opts"];
+
+		# h,net
+		j = h SUBSEP val;
+
+		delete USRXML_nets[j];
+
+		# h,net,"id" ("extra")
+		j = j SUBSEP "id";
+
+		val = USRXML_nets[j];
+		delete USRXML_nets[j];
 		delete USRXML_nets[h,val];
 	}
 	delete USRXML_usernets[i];
@@ -596,6 +640,17 @@ function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
 		delete USRXML_usernets6[j,"via"];
 		delete USRXML_usernets6[j,"mac"];
 		delete USRXML_usernets6[j,"has_opts"];
+
+		# h,net6
+		j = h SUBSEP val;
+
+		delete USRXML_nets6[j];
+
+		# h,net6,"id" ("extra")
+		j = j SUBSEP "id";
+
+		val = USRXML_nets6[j];
+		delete USRXML_nets6[j];
 		delete USRXML_nets6[h,val];
 	}
 	delete USRXML_usernets6[i];
@@ -608,6 +663,17 @@ function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
 
 		val = USRXML_usernats[j];
 		delete USRXML_usernats[j];
+
+		# h,nat
+		j = h SUBSEP val;
+
+		delete USRXML_nats[j];
+
+		# h,nat,"id" ("extra")
+		j = j SUBSEP "id";
+
+		val = USRXML_nats[j];
+		delete USRXML_nats[j];
 		delete USRXML_nats[h,val];
 	}
 	delete USRXML_usernats[i];
@@ -620,6 +686,17 @@ function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
 
 		val = USRXML_usernats6[j];
 		delete USRXML_usernats6[j];
+
+		# h,nat6
+		j = h SUBSEP val;
+
+		delete USRXML_nats6[j];
+
+		# h,nat6,"id" ("extra")
+		j = j SUBSEP "id";
+
+		val = USRXML_nats6[j];
+		delete USRXML_nats6[j];
 		delete USRXML_nats6[h,val];
 	}
 	delete USRXML_usernats6[i];
@@ -678,11 +755,15 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	}
 	delete USRXML_usernames[h];
 
-	# Extra maps build by build_usrxml_extra()
-	__unbuild_usrxml_extra(h);
+	delete USRXML__instance[h,"extra"];
+	delete USRXML_ifnames[h];
+	delete USRXML_nets[h];
+	delete USRXML_nets6[h];
+	delete USRXML_nats[h];
+	delete USRXML_nats6[h];
 
-	# Modified user names map
-	__clear_usrxml_modusernames(h);
+	delete USRXML__instance[h,"modified"];
+	delete USRXML_modusernames[h];
 
 	# Report errors by default
 	delete USRXML__instance[h,"verbose"];
@@ -719,7 +800,9 @@ function usrxml__scope_none(h, name, val,    n, i)
 			return usrxml_ept_val(h, name);
 
 		if (USRXML__instance[h,"modified"]) {
-			i = h SUBSEP USRXML_modusernames[h]++;
+			i = USRXML_modusernames[h]++;
+			USRXML_modusernames[h,val,"id"] = i;
+			i = h SUBSEP i;
 			USRXML_modusernames[i] = val;
 		}
 
@@ -1117,7 +1200,7 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 	return val;
 }
 
-function build_usrxml_extra(h,    n, m, i, j, u, p, o)
+function build_usrxml_extra(h,    n, m, i, j, u, p, o, val)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -1131,27 +1214,32 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o)
 	#
 	# nifn = USRXML_ifnames[h]
 	# ifid = [0 .. nifn - 1]
+	# ifid = USRXML_ifnames[h,userif,"id"]
 	# userif = USRXML_ifnames[h,ifid]
 	# userid ...  = USRXML_ifusers[h,userif]
 	# <user 'name'>
 	#
 	#   nnets = USRXML_nets[h]
 	#   nid = [0 .. nnets - 1]
+	#   nid = USRXML_nets[h,net,"id"]
 	#   <net 'cidr'>
 	#     net = USRXML_nets[h,nid]
 	#
 	#   nnets6 = USRXML_nets6[h]
 	#   nid6 = [0 .. nnets6 - 1]
+	#   nid6 = USRXML_nets6[h,net6,"id"]
 	#   <net6 'cidr6'>
 	#     net6 = USRXML_nets6[h,nid6]
 	#
 	#   nnats = USRXML_nats[h]
 	#   tid = [0 .. nnats - 1]
+	#   tid = USRXML_nats[h,nat,"id"]
 	#   <nat 'cidr'>
 	#     nat = USRXML_nats[h,tid]
 	#
 	#   nnats6 = USRXML_nats6[h]
 	#   tid6 = [0 .. nnats6 - 1]
+	#   tid6 = USRXML_nats6[h,nat6,"id"]
 	#   <nat6 'cidr6'>
 	#     nat6 = USRXML_nats6[h,tid6]
 	#
@@ -1175,37 +1263,53 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o)
 			USRXML_ifusers[m] = USRXML_ifusers[m] " " u;
 		} else {
 			USRXML_ifusers[m] = u;
+
 			o = USRXML_ifnames[h]++;
-			USRXML_ifnames[h,o] = USRXML_userif[i];
+
+			val = USRXML_userif[i];
+			USRXML_ifnames[h,o] = val;
+			USRXML_ifnames[h,val,"id"] = o;
 		}
 
 		# net
 		o = USRXML_nets[h];
 		m = USRXML_usernets[i];
-		for (p = 0; p < m; p++)
-			USRXML_nets[h,o + p] = USRXML_usernets[i,p];
-		USRXML_nets[h] += m;
+		for (p = 0; p < m; p++) {
+			val = USRXML_usernets[i,p];
+			USRXML_nets[h,o] = val;
+			USRXML_nets[h,val,"id"] = o++;
+		}
+		USRXML_nets[h] = o;
 
 		# net6
 		o = USRXML_nets6[h];
 		m = USRXML_usernets6[i];
-		for (p = 0; p < m; p++)
-			USRXML_nets6[h,o + p] = USRXML_usernets6[i,p];
-		USRXML_nets6[h] += m;
+		for (p = 0; p < m; p++) {
+			val = USRXML_usernets6[i,p];
+			USRXML_nets6[h,o] = val;
+			USRXML_nets6[h,val,"id"] = o++;
+		}
+		USRXML_nets6[h] = o;
 
 		# nat
 		o = USRXML_nats[h];
 		m = USRXML_usernats[i];
-		for (p = 0; p < m; p++)
-			USRXML_nats[h,o + p] = USRXML_usernats[i,p];
-		USRXML_nats[h] += m;
+		for (p = 0; p < m; p++) {
+			val = USRXML_usernats[i,p];
+			USRXML_nats[h,o] = val;
+			USRXML_nats[h,val,"id"] = o++;
+		}
+		USRXML_nats[h] = o;
 
 		# nat6
 		o = USRXML_nats6[h];
 		m = USRXML_usernats6[i];
-		for (p = 0; p < m; p++)
-			USRXML_nats6[h,o + p] = USRXML_usernats6[i,p];
-		USRXML_nats6[h] += m;
+		for (p = 0; p < m; p++) {
+			val = USRXML_usernats6[i,p];
+			USRXML_nats6[h,o] = val;
+			USRXML_nats6[h,val,"id"] = o++;
+		}
+		USRXML_nats6[h] = o;
 	}
 
 	# Signal to fini_usrxml_parser() to release extra maps
@@ -1221,37 +1325,63 @@ function __unbuild_usrxml_extra(h,    m, j, p, o, val)
 		# if
 		m = USRXML_ifnames[h];
 		for (p = 0; p < m; p++) {
-			# h,p
+			# h,ifid
 			j = h SUBSEP p;
 
 			val = USRXML_ifnames[j];
 			delete USRXML_ifnames[j];
+			delete USRXML_ifnames[h,val,"id"];
+
 			delete USRXML_ifusers[h,val];
 		}
 		delete USRXML_ifnames[h];
 
 		# net
 		m = USRXML_nets[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nets[h,p];
+		for (p = 0; p < m; p++) {
+			# h,nid
+			j = h SUBSEP p;
+
+			val = USRXML_nets[j];
+			delete USRXML_nets[j];
+			delete USRXML_nets[h,val,"id"];
+		}
 		delete USRXML_nets[h];
 
 		# net6
 		m = USRXML_nets6[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nets6[h,p];
+		for (p = 0; p < m; p++) {
+			# h,nid6
+			j = h SUBSEP p;
+
+			val = USRXML_nets6[j];
+			delete USRXML_nets6[j];
+			delete USRXML_nets6[h,val,"id"];
+		}
 		delete USRXML_nets6[h];
 
 		# nat
 		m = USRXML_nats[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nats[h,p];
+		for (p = 0; p < m; p++) {
+			# h,tid
+			j = h SUBSEP p;
+
+			val = USRXML_nats[j];
+			delete USRXML_nats[j];
+			delete USRXML_nats[h,val,"id"];
+		}
 		delete USRXML_nats[h];
 
 		# nat6
 		m = USRXML_nats6[h];
-		for (p = 0; p < m; p++)
-			delete USRXML_nats6[h,p];
+		for (p = 0; p < m; p++) {
+			# h,tid6
+			j = h SUBSEP p;
+
+			val = USRXML_nats6[j];
+			delete USRXML_nats6[j];
+			delete USRXML_nats6[h,val,"id"];
+		}
 		delete USRXML_nats6[h];
 
 		delete USRXML__instance[h,"extra"];
@@ -1266,13 +1396,19 @@ function unbuild_usrxml_extra(h)
 	__unbuild_usrxml_extra(h);
 }
 
-function __clear_usrxml_modusernames(h)
+function __clear_usrxml_modusernames(h,    j, val)
 {
 	if (USRXML__instance[h,"modified"]) {
 		# user
 		n = USRXML_modusernames[h];
-		for (u = 0; u < n; u++)
-			delete USRXML_modusernames[h,u];
+		for (u = 0; u < n; u++) {
+			# h,muserid
+			j = h SUBSEP u;
+
+			val = USRXML_modusernames[j];
+			delete USRXML_modusernames[j];
+			delete USRXML_modusernames[h,val,"id"];
+		}
 		delete USRXML_modusernames[h];
 
 		delete USRXML__instance[h,"modified"];
