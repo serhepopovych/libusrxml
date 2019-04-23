@@ -531,7 +531,13 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	# Change API order
 	USRXML__instance[h,"order"] = USRXML__order_result;
 
-	return usrxml__seterrno(h, USRXML_E_NONE);
+	# Build extra maps again if they exist before modification
+	if (USRXML__instance[h,"modified"] > 1)
+		val = build_usrxml_extra(h);
+	else
+		val = USRXML_E_NONE;
+
+	return usrxml__seterrno(h, val);
 }
 
 function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
@@ -1158,15 +1164,19 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 		return usrxml__seterrno(h, USRXML_E_API_ORDER);
 
 	if (val > USRXML__order_parse) {
-		# Destroy extra maps since they no longer valid
-		__unbuild_usrxml_extra(h);
-
 		# Destroy modified users mapping since new changes will come
 		__clear_usrxml_modusers(h);
 
 		# Signal to run_usrxml_parser() and it's callees to create
 		# modified users mapping
 		USRXML__instance[h,"modified"] = 1;
+
+		# Signal if we have extra maps before and want to rebuild
+		# them in result_usrxml_parser()
+		USRXML__instance[h,"modified"] += !!USRXML__instance[h,"extra"];
+
+		# Destroy extra maps since they no longer valid
+		__unbuild_usrxml_extra(h);
 
 		# Reset order since data updated and needs to be revalidated
 		USRXML__instance[h,"order"] = USRXML__order_parse;
