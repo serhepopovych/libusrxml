@@ -167,7 +167,7 @@ function usrxml_dup_net(h, section, value, userid,    ret)
 			h,
 			USRXML__instance[h,"filename"],
 			USRXML__instance[h,"linenum"],
-			USRXML_usernames[userid] >"/dev/stderr"
+			USRXML_users[userid] >"/dev/stderr"
 	}
 	return ret;
 }
@@ -355,17 +355,17 @@ function init_usrxml_parser(    h)
 	# --------------------------------------
 	#
 	# When run_usrxml_parser() used after result_usrxml_parser() names of
-	# modified user entries are put to USRXML_modusernames[]:
+	# modified user entries are put to USRXML_modusers[]:
 	#
-	# nmodusers = USRXML_modusernames[h]
+	# nmodusers = USRXML_modusers[h]
 	# muserid = [0 .. nmodusers - 1]
-	# username = USRXML_modusernames[h,muserid]
-	# muserid  = USRXML_modusernames[h,username,"id"]
+	# username = USRXML_modusers[h,muserid]
+	# muserid = USRXML_modusers[h,username,"id"]
 	#
-	# nusers = USRXML_usernames[h]
+	# nusers = USRXML_users[h]
 	# userid = [0 .. nusers - 1]
-	# username = USRXML_usernames[h,userid]
-	# userid   = USRXML_userids[h,username]
+	# username = USRXML_users[h,userid]
+	# userid = USRXML_users[h,username,"id"]
 	# <user 'name'>
 	#
 	#   npipes = USRXML_userpipe[h,userid]
@@ -453,7 +453,7 @@ function init_usrxml_parser(    h)
 	# </user>
 
 	# Number of users
-	USRXML_usernames[h] = 0;
+	USRXML_users[h] = 0;
 
 	# Note that rest of USRXML_user*[] arrays
 	# initialized in usrxml__scope_user()
@@ -492,7 +492,7 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	zone_dir_bits["all","all"]	= 0x0f;
 
 	# user
-	n = USRXML_usernames[h];
+	n = USRXML_users[h];
 	for (u = 0; u < n; u++) {
 		i = h SUBSEP u;
 
@@ -539,20 +539,17 @@ function __delete_usrxml_user(h, userid,    n, m, i, j, p, o, val)
 	# h,userid
 	i = h SUBSEP userid;
 
-	val = USRXML_usernames[i];
-	delete USRXML_usernames[i];
+	val = USRXML_users[i];
+	delete USRXML_users[i];
 
-	# h,username
-	j = h SUBSEP val;
+	# h,username,"id"
+	j = h SUBSEP val SUBSEP "id";
 
-	delete USRXML_userids[j];
+	delete USRXML_users[j];
 
-	# h,username,"id" ("modified")
-	j = j SUBSEP "id";
-
-	val = USRXML_modusernames[j];
-	delete USRXML_modusernames[j];
-	delete USRXML_modusernames[h,val];
+	val = USRXML_modusers[j];
+	delete USRXML_modusers[j];
+	delete USRXML_modusers[h,val];
 
 	# pipe
 	m = USRXML_userpipe[i];
@@ -716,7 +713,7 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	delete USRXML__instance[h,"order"];
 
 	# user
-	n = USRXML_usernames[h];
+	n = USRXML_users[h];
 	for (u = 0; u < n; u++) {
 		# h,userid
 		i = h SUBSEP u;
@@ -753,7 +750,7 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 
 		__delete_usrxml_user(h, u);
 	}
-	delete USRXML_usernames[h];
+	delete USRXML_users[h];
 
 	delete USRXML__instance[h,"extra"];
 	delete USRXML_ifnames[h];
@@ -763,7 +760,7 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	delete USRXML_nats6[h];
 
 	delete USRXML__instance[h,"modified"];
-	delete USRXML_modusernames[h];
+	delete USRXML_modusers[h];
 
 	# Report errors by default
 	delete USRXML__instance[h,"verbose"];
@@ -799,29 +796,26 @@ function usrxml__scope_none(h, name, val,    n, m, i)
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		# h,username
-		n = h SUBSEP val;
+		# h,username,"id"
+		n = h SUBSEP val SUBSEP "id";
 
 		if (USRXML__instance[h,"modified"]) {
-			# h,username,"id"
-			m = n SUBSEP "id";
-
-			if (!(m in USRXML_modusernames)) {
-				i = USRXML_modusernames[h]++;
-				USRXML_modusernames[m] = i;
+			if (!(n in USRXML_modusers)) {
+				i = USRXML_modusers[h]++;
+				USRXML_modusers[n] = i;
 				i = h SUBSEP i;
-				USRXML_modusernames[i] = val;
+				USRXML_modusers[i] = val;
 			}
 		}
 
-		if (n in USRXML_userids) {
-			i = h SUBSEP USRXML_userids[n];
+		if (n in USRXML_users) {
+			i = h SUBSEP USRXML_users[n];
 		} else {
-			i = USRXML_usernames[h]++;
-			USRXML_userids[n] = i;
+			i = USRXML_users[h]++;
+			USRXML_users[n] = i;
 			i = h SUBSEP i;
+			USRXML_users[i] = val;
 
-			USRXML_usernames[i] = val;
 			USRXML_userpipe[i]  = 0;
 			USRXML_usernets[i]  = 0;
 			USRXML_usernets6[i] = 0;
@@ -845,7 +839,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 	i = USRXML__instance[h,"userid"];
 
 	if (name == "/user") {
-		if (val != "" && val != USRXML_usernames[i])
+		if (val != "" && val != USRXML_users[i])
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
@@ -1168,7 +1162,7 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 		__unbuild_usrxml_extra(h);
 
 		# Destroy modified users mapping since new changes will come
-		__clear_usrxml_modusernames(h);
+		__clear_usrxml_modusers(h);
 
 		# Signal to run_usrxml_parser() and it's callees to create
 		# modified users mapping
@@ -1259,7 +1253,7 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o, val)
 	USRXML_nats6[h] = 0;
 
 	# user
-	n = USRXML_usernames[h];
+	n = USRXML_users[h];
 	for (u = 0; u < n; u++) {
 		# h,userid
 		i = h SUBSEP u;
@@ -1403,31 +1397,31 @@ function unbuild_usrxml_extra(h)
 	__unbuild_usrxml_extra(h);
 }
 
-function __clear_usrxml_modusernames(h,    j, val)
+function __clear_usrxml_modusers(h,    j, val)
 {
 	if (USRXML__instance[h,"modified"]) {
 		# user
-		n = USRXML_modusernames[h];
+		n = USRXML_modusers[h];
 		for (u = 0; u < n; u++) {
 			# h,muserid
 			j = h SUBSEP u;
 
-			val = USRXML_modusernames[j];
-			delete USRXML_modusernames[j];
-			delete USRXML_modusernames[h,val,"id"];
+			val = USRXML_modusers[j];
+			delete USRXML_modusers[j];
+			delete USRXML_modusers[h,val,"id"];
 		}
-		delete USRXML_modusernames[h];
+		delete USRXML_modusers[h];
 
 		delete USRXML__instance[h,"modified"];
 	}
 }
 
-function clear_usrxml_modusernames(h)
+function clear_usrxml_modusers(h)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
 
-	__clear_usrxml_modusernames(h);
+	__clear_usrxml_modusers(h);
 }
 
 #
@@ -1445,13 +1439,13 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 
 	i = h SUBSEP userid;
 
-	if (!(i in USRXML_usernames))
+	if (!(i in USRXML_users))
 		return usrxml__seterrno(h, USRXML_E_NOENT);
 
 	if (file == "")
 		file = "/dev/stdout";
 
-	printf "<user %s>\n", USRXML_usernames[i] >>file;
+	printf "<user %s>\n", USRXML_users[i] >>file;
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
@@ -1549,7 +1543,7 @@ function print_usrxml_entries(h, file,    n, u, o, stdout)
 	if (file == "")
 		file = stdout;
 
-	n = USRXML_usernames[h];
+	n = USRXML_users[h];
 	for (u = 0; u < n; u++) {
 		o = print_usrxml_entry(h, u, file);
 		if (o != USRXML_E_NONE)
@@ -1579,13 +1573,13 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 
 	i = h SUBSEP userid;
 
-	if (!(i in USRXML_usernames))
+	if (!(i in USRXML_users))
 		return usrxml__seterrno(h, USRXML_E_NOENT);
 
 	if (file == "")
 		file = "/dev/stdout";
 
-	printf "<user %s>", USRXML_usernames[i] >>file;
+	printf "<user %s>", USRXML_users[i] >>file;
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
@@ -1680,7 +1674,7 @@ function print_usrxml_entries_oneline(h, file,    n, u, o, stdout)
 	if (file == "")
 		file = stdout;
 
-	n = USRXML_usernames[h];
+	n = USRXML_users[h];
 	for (u = 0; u < n; u++) {
 		o = print_usrxml_entry_oneline(h, u, file);
 		if (o != USRXML_E_NONE)
