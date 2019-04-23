@@ -9,7 +9,7 @@
 
 function is_valid_usrxml_handle(h)
 {
-	return USRXML__instance["h",h] == h;
+	return ("h",0 + h) in USRXML__instance;
 }
 
 function usrxml__alloc_handle(    h)
@@ -23,8 +23,9 @@ function usrxml__alloc_handle(    h)
 		h++;
 	} while (is_valid_usrxml_handle(h));
 
-	USRXML__instance["h",h] = h;
+	USRXML__instance["h",h] = 1;
 	USRXML__instance["h"] = h;
+	USRXML__instance["h","num"]++;
 
 	return h;
 }
@@ -33,7 +34,12 @@ function usrxml__free_handle(h)
 {
 	if (is_valid_usrxml_handle(h)) {
 		delete USRXML__instance["h",h];
-		USRXML__instance["h"] = h - 1;
+		if (--USRXML__instance["h","num"] <= 0) {
+			delete USRXML__instance["h","num"];
+			delete USRXML__instance["h"];
+		} else {
+			USRXML__instance["h"] = h - 1;
+		}
 	}
 }
 
