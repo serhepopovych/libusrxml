@@ -40,7 +40,7 @@ END{
 	## Print entries
 	##
 	if (!rc) {
-		n = USRXML_users[h];
+		n = USRXML_users[h,"num"];
 		for (u = 0; u < n; u++)
 			print_usrxml_entry(h, u);
 	}
