@@ -549,6 +549,47 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	return usrxml__seterrno(h, val);
 }
 
+function usrxml__map_add_val(h, val, map,    n, i)
+{
+	# h,val,"id"
+	n = h SUBSEP val SUBSEP "id";
+
+	if (n in map) {
+		i = h SUBSEP map[n];
+	} else {
+		i = map[h]++;
+		map[n] = i;
+		i = h SUBSEP i;
+		map[i] = val;
+	}
+
+	return i;
+}
+
+function usrxml__map_del_by_val(h, val, map,    n, id)
+{
+	# h,val,"id"
+	n = h SUBSEP val SUBSEP "id";
+
+	id = map[n];
+	delete map[n];
+	delete map[h,id];
+
+	return id;
+}
+
+function usrxml__map_del_by_id(h, id, map,    n, val)
+{
+	# h,id
+	n = h SUBSEP id;
+
+	val = map[n];
+	delete map[n];
+	delete map[h,val,"id"];
+
+	return val;
+}
+
 function usrxml__delete_map(h, i, map, umap,    m, j, p, val)
 {
 	m = umap[i];
@@ -564,17 +605,11 @@ function usrxml__delete_map(h, i, map, umap,    m, j, p, val)
 		delete umap[j,"mac"];
 		delete umap[j,"has_opts"];
 
-		# h,val
-		j = h SUBSEP val;
-
-		delete map[j];
-
-		# h,val,"id" ("extra")
-		j = j SUBSEP "id";
-
-		val = map[j];
-		delete map[j];
+		# duplicate detection map
 		delete map[h,val];
+
+		# "extra"
+		usrxml__map_del_by_val(h, val, map);
 	}
 	delete umap[i];
 }
@@ -585,16 +620,9 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 	i = h SUBSEP userid;
 
 	val = USRXML_users[i];
-	delete USRXML_users[i];
 
-	# h,username,"id"
-	j = h SUBSEP val SUBSEP "id";
-
-	delete USRXML_users[j];
-
-	val = USRXML_modusers[j];
-	delete USRXML_modusers[j];
-	delete USRXML_modusers[h,val];
+	usrxml__map_del_by_val(h, val, USRXML_users);
+	usrxml__map_del_by_val(h, val, USRXML_modusers);
 
 	# pipe
 	m = USRXML_userpipe[i];
@@ -636,12 +664,7 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 		delete USRXML_ifusers[j];
 	}
 
-	# h,userif,"id" ("extra")
-	j = j SUBSEP "id";
-
-	val = USRXML_ifnames[j]
-	delete USRXML_ifnames[j];
-	delete USRXML_ifnames[h,val];
+	usrxml__map_del_by_val(h, val, USRXML_ifnames);
 
 	# net
 	usrxml__delete_map(h, i, USRXML_nets, USRXML_usernets);
@@ -747,32 +770,20 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 # Parse and validate XML document.
 #
 
-function usrxml__scope_none(h, name, val,    n, m, i)
+function usrxml__scope_none(h, name, val,    n, i)
 {
 	if (name == "user") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		# h,username,"id"
-		n = h SUBSEP val SUBSEP "id";
+		if (USRXML__instance[h,"modified"])
+			usrxml__map_add_val(h, val, USRXML_modusers);
 
-		if (USRXML__instance[h,"modified"]) {
-			if (!(n in USRXML_modusers)) {
-				i = USRXML_modusers[h]++;
-				USRXML_modusers[n] = i;
-				i = h SUBSEP i;
-				USRXML_modusers[i] = val;
-			}
-		}
+		n = h SUBSEP USRXML_users[h];
 
-		if (n in USRXML_users) {
-			i = h SUBSEP USRXML_users[n];
-		} else {
-			i = USRXML_users[h]++;
-			USRXML_users[n] = i;
-			i = h SUBSEP i;
-			USRXML_users[i] = val;
-
+		i = usrxml__map_add_val(h, val, USRXML_users);
+		if (i == n) {
+			# New element allocated
 			USRXML_userpipe[i]  = 0;
 			USRXML_usernets[i]  = 0;
 			USRXML_usernets6[i] = 0;
@@ -1236,17 +1247,15 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o, val)
 		i = h SUBSEP u;
 
 		# if
-		m = h SUBSEP USRXML_userif[i];
+		val = USRXML_userif[i];
+
+		m = h SUBSEP val;
 		if (m in USRXML_ifusers) {
 			USRXML_ifusers[m] = USRXML_ifusers[m] " " u;
 		} else {
 			USRXML_ifusers[m] = u;
 
-			o = USRXML_ifnames[h]++;
-
-			val = USRXML_userif[i];
-			USRXML_ifnames[h,o] = val;
-			USRXML_ifnames[h,val,"id"] = o;
+			usrxml__map_add_val(h, val, USRXML_ifnames);
 		}
 
 		# net
@@ -1268,34 +1277,22 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o, val)
 	return usrxml__seterrno(h, USRXML_E_NONE);
 }
 
-function usrxml__unbuild_map(h, map,    m, j, p, val)
+function usrxml__unbuild_map(h, map,    m, p)
 {
 	m = map[h];
-	for (p = 0; p < m; p++) {
-		# h,id
-		j = h SUBSEP p;
-
-		val = map[j];
-		delete map[j];
-		delete map[h,val,"id"];
-	}
+	for (p = 0; p < m; p++)
+		usrxml__map_del_by_id(h, p, map);
 	delete map[h];
 }
 
-function usrxml__unbuild_extra(h,    m, j, p, val)
+function usrxml__unbuild_extra(h,    m, p, val)
 {
 	# Release extra maps allocated with build_usrxml_extra()
 	if (USRXML__instance[h,"extra"]) {
 		# if
 		m = USRXML_ifnames[h];
 		for (p = 0; p < m; p++) {
-			# h,ifid
-			j = h SUBSEP p;
-
-			val = USRXML_ifnames[j];
-			delete USRXML_ifnames[j];
-			delete USRXML_ifnames[h,val,"id"];
-
+			val = usrxml__map_del_by_id(h, p, USRXML_ifnames);
 			delete USRXML_ifusers[h,val];
 		}
 		delete USRXML_ifnames[h];
@@ -1324,19 +1321,13 @@ function unbuild_usrxml_extra(h)
 	usrxml__unbuild_extra(h);
 }
 
-function usrxml__clear_modusers(h,    j, val)
+function usrxml__clear_modusers(h,    n)
 {
 	if (USRXML__instance[h,"modified"]) {
 		# user
 		n = USRXML_modusers[h];
-		for (u = 0; u < n; u++) {
-			# h,muserid
-			j = h SUBSEP u;
-
-			val = USRXML_modusers[j];
-			delete USRXML_modusers[j];
-			delete USRXML_modusers[h,val,"id"];
-		}
+		for (u = 0; u < n; u++)
+			usrxml__map_del_by_id(h, u, USRXML_modusers);
 		delete USRXML_modusers[h];
 
 		delete USRXML__instance[h,"modified"];
