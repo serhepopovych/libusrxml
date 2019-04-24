@@ -351,7 +351,10 @@ function init_usrxml_parser(    h)
 	USRXML__instance[h,"netid"] = 0;
 	USRXML__instance[h,"net6id"] = 0;
 
-	# FILENAME might be unknown if called from BEGIN{} sections
+	# FILENAME might be empty (e.g. when called directly from BEGIN{})
+	if (FILENAME == "")
+		FILENAME = "/dev/stdin";
+
 	USRXML__instance[h,"filename"] = FILENAME;
 	USRXML__instance[h,"linenum"] = 0;
 
@@ -789,7 +792,7 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	delete USRXML__instance[h,"netid"];
 	delete USRXML__instance[h,"net6id"];
 
-	# FILENAME might be unknown if called from BEGIN{} sections
+	# File name and line number
 	delete USRXML__instance[h,"filename"];
 	delete USRXML__instance[h,"linenum"];
 
@@ -1188,6 +1191,8 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 		USRXML__instance[h,"order"] = USRXML__order_parse;
 	}
 
+	# When called from main block with multiple files on command line
+	# FILENAME is set each time to next file being processed
 	if (USRXML__instance[h,"filename"] != FILENAME) {
 		USRXML__instance[h,"filename"] = FILENAME;
 		USRXML__instance[h,"linenum"] = 0;
@@ -1705,24 +1710,29 @@ function print_usrxml_entries_oneline(h, file,    n, u, o, stdout)
 	return o;
 }
 
-function load_usrxml_file(_h, file,    h, line, rc, ret, stdin)
+function load_usrxml_file(_h, file,    h, line, rc, ret, s_fn, stdin)
 {
-	if (is_valid_usrxml_handle(_h)) {
-		h = _h;
-	} else {
-		h = init_usrxml_parser();
-		if (h < 0)
-			return h;
-		# Make sure that h != _h always
-		_h = -1;
-	}
-
 	stdin = "/dev/stdin";
 
 	if (file == "")
 		file = stdin;
 
-	while ((rc = (getline line <file)) > 0) {
+	s_fn = FILENAME;
+	FILENAME = file;
+
+	if (is_valid_usrxml_handle(_h)) {
+		h = _h;
+	} else {
+		h = init_usrxml_parser();
+		if (h < 0) {
+			FILENAME = s_fn;
+			return h;
+		}
+		# Make sure that h != _h always
+		_h = -1;
+	}
+
+	while ((rc = (getline line <FILENAME)) > 0) {
 		ret = run_usrxml_parser(h, line);
 		if (ret != USRXML_E_NONE)
 			break;
@@ -1737,13 +1747,16 @@ function load_usrxml_file(_h, file,    h, line, rc, ret, stdin)
 		# Commit result after each call so we can see
 		# differences between loaded files
 		ret = result_usrxml_parser(h);
-		if (ret == USRXML_E_NONE)
+		if (ret == USRXML_E_NONE) {
+			FILENAME = s_fn;
 			return h;
+		}
 	}
 
 	if (h != _h)
 		fini_usrxml_parser(h);
 
+	FILENAME = s_fn;
 	return ret;
 }
 
