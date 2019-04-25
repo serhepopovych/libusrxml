@@ -556,10 +556,10 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	return usrxml__seterrno(h, val);
 }
 
-function usrxml__map_add_val(h, val, map,    n, m, i, num)
+function usrxml__map_add_val(h, attr, map, val,    n, m, i, num)
 {
-	# h,val,"id"
-	n = h SUBSEP val SUBSEP "id";
+	# h,attr,"id"
+	n = h SUBSEP attr SUBSEP "id";
 
 	if (n in map) {
 		i = h SUBSEP map[n];
@@ -573,20 +573,29 @@ function usrxml__map_add_val(h, val, map,    n, m, i, num)
 			i = h SUBSEP m;
 		} while (i in map);
 		map[n] = m;
-		map[i] = val;
+		map[i] = attr;
 	}
+
+	if (val != SUBSEP)
+		map[h,attr] = val;
 
 	return i;
 }
 
-function usrxml__map_del_by_val(h, val, map,    n, id)
+function usrxml__map_add_attr(h, attr, map)
 {
-	# h,val,"id"
-	n = h SUBSEP val SUBSEP "id";
+	return usrxml__map_add_val(h, attr, map, SUBSEP);
+}
+
+function usrxml__map_del_by_attr(h, attr, map,    n, id, val)
+{
+	# h,attr,"id"
+	n = h SUBSEP attr SUBSEP "id";
 
 	id = map[n];
 	delete map[n];
 	delete map[h,id];
+	delete map[h,attr];
 
 	if (id < map[h])
 		map[h] = id;
@@ -596,21 +605,22 @@ function usrxml__map_del_by_val(h, val, map,    n, id)
 	return id;
 }
 
-function usrxml__map_del_by_id(h, id, map,    n, val)
+function usrxml__map_del_by_id(h, id, map,    n, attr)
 {
 	# h,id
 	n = h SUBSEP id;
 
-	val = map[n];
+	attr = map[n];
 	delete map[n];
-	delete map[h,val,"id"];
+	delete map[h,attr,"id"];
+	delete map[h,attr];
 
 	if (id < map[h])
 		map[h] = id;
 
 	# Not decrementing map[h,"num"]
 
-	return val;
+	return attr;
 }
 
 function usrxml__delete_map(h, i, map, umap,    m, j, p, val)
@@ -628,11 +638,8 @@ function usrxml__delete_map(h, i, map, umap,    m, j, p, val)
 		delete umap[j,"mac"];
 		delete umap[j,"has_opts"];
 
-		# duplicate detection map
-		delete map[h,val];
-
 		# "extra"
-		usrxml__map_del_by_val(h, val, map);
+		usrxml__map_del_by_attr(h, val, map);
 	}
 	delete umap[i];
 }
@@ -644,8 +651,8 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 
 	val = USRXML_users[i];
 
-	usrxml__map_del_by_val(h, val, USRXML_users);
-	usrxml__map_del_by_val(h, val, USRXML_modusers);
+	usrxml__map_del_by_attr(h, val, USRXML_users);
+	usrxml__map_del_by_attr(h, val, USRXML_modusers);
 
 	# pipe
 	m = USRXML_userpipe[i];
@@ -687,7 +694,7 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 		delete USRXML_ifusers[j];
 	}
 
-	usrxml__map_del_by_val(h, val, USRXML_ifnames);
+	usrxml__map_del_by_attr(h, val, USRXML_ifnames);
 
 	# net
 	usrxml__delete_map(h, i, USRXML_nets, USRXML_usernets);
@@ -811,9 +818,9 @@ function usrxml__scope_none(h, name, val,    n, i)
 			return usrxml_ept_val(h, name);
 
 		if (USRXML__instance[h,"modified"])
-			usrxml__map_add_val(h, val, USRXML_modusers);
+			usrxml__map_add_attr(h, val, USRXML_modusers);
 
-		i = usrxml__map_add_val(h, val, USRXML_users);
+		i = usrxml__map_add_attr(h, val, USRXML_users);
 		if (!(i in USRXML_userif)) {
 			# New element allocated
 			USRXML_userpipe[i]  = 0;
@@ -863,7 +870,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 
 		if ((h,val) in USRXML_nets)
 			return usrxml_dup_net(h, name, n, USRXML_nets[h,val]);
-		USRXML_nets[h,val] = i;
+		usrxml__map_add_val(h, val, USRXML_nets, i);
 
 		n = i SUBSEP USRXML_usernets[i]++;
 		USRXML_usernets[n] = val;
@@ -884,7 +891,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 
 		if ((h,val) in USRXML_nets6)
 			return usrxml_dup_net(h, name, n, USRXML_nets6[h,val]);
-		USRXML_nets6[h,val] = i;
+		usrxml__map_add_val(h, val, USRXML_nets6, i);
 
 		n = i SUBSEP USRXML_usernets6[i]++;
 		USRXML_usernets6[n] = val;
@@ -905,7 +912,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 
 		if ((h,val) in USRXML_nats)
 			return usrxml_dup_net(h, name, n, USRXML_nats[h,val]);
-		USRXML_nats[h,val] = i;
+		usrxml__map_add_val(h, val, USRXML_nats, i);
 
 		n = i SUBSEP USRXML_usernats[i]++;
 		USRXML_usernats[n] = val;
@@ -921,7 +928,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 
 		if ((h,val) in USRXML_nats6)
 			return usrxml_dup_net(h, name, n, USRXML_nats6[h,val]);
-		USRXML_nats6[h,val] = i;
+		usrxml__map_add_val(h, val, USRXML_nats6, i);
 
 		n = i SUBSEP USRXML_usernats6[i]++;
 		USRXML_usernats6[n] = val;
@@ -1299,7 +1306,7 @@ function build_usrxml_extra(h,    n, m, i, j, u, p, o, val)
 		} else {
 			USRXML_ifusers[m] = u;
 
-			usrxml__map_add_val(h, val, USRXML_ifnames);
+			usrxml__map_add_attr(h, val, USRXML_ifnames);
 		}
 
 		# net
