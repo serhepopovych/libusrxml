@@ -333,9 +333,6 @@ function init_usrxml_parser(    h)
 	USRXML__order_result = 2;
 	USRXML__instance[h,"order"] = USRXML__order_parse;
 
-	# Extra maps build by build_usrxml_extra()
-	USRXML__instance[h,"extra"] = 0;
-
 	# Report errors by default
 	USRXML__instance[h,"verbose"] = 1;
 
@@ -447,18 +444,44 @@ function init_usrxml_parser(    h)
 	# These are used to find duplicates at parse time
 	# -----------------------------------------------
 	#
+	# nifn = USRXML_ifnames[h,"num"]
+	# ifid = [0 .. nifn - 1]
+	# ifid = USRXML_ifnames[h,userif,"id"]
+	# userif = USRXML_ifnames[h,ifid]
+	# free ifid = USRXML_ifnames[h] + 1 || nifn++
+	# userid ...  = USRXML_ifusers[h,userif]
 	# <user 'name'>
 	#
+	#   nnets = USRXML_nets[h,"num"]
+	#   nid = [0 .. nnets - 1]
+	#   nid = USRXML_nets[h,net,"id"]
+	#   free nid = USRXML_nets[h] + 1 || nnets++
 	#   <net 'cidr'>
+	#     net = USRXML_nets[h,nid]
 	#     h,userid = USRXML_nets[h,net]
 	#
+	#   nnets6 = USRXML_nets6[h,"num"]
+	#   nid6 = [0 .. nnets6 - 1]
+	#   nid6 = USRXML_nets6[h,net6,"id"]
+	#   free nid6 = USRXML_nets6[h] + 1 || nnets6++
 	#   <net6 'cidr6'>
+	#     net6 = USRXML_nets6[h,nid6]
 	#     h,userid = USRXML_nets6[h,net6]
 	#
+	#   nnats = USRXML_nats[h,"num"]
+	#   tid = [0 .. nnats - 1]
+	#   tid = USRXML_nats[h,nat,"id"]
+	#   free tid = USRXML_nats[h] + 1 || nnats++
 	#   <nat 'cidr'>
+	#     nat = USRXML_nats[h,tid]
 	#     h,userid = USRXML_nats[h,nat]
 	#
+	#   nnats6 = USRXML_nats6[h,"num"]
+	#   tid6 = [0 .. nnats6 - 1]
+	#   tid6 = USRXML_nats6[h,nat6,"id"]
+	#   free tid6 = USRXML_nats6[h] + 1 || nnats6++
 	#   <nat6 'cidr6'>
+	#     nat6 = USRXML_nats6[h,tid6]
 	#     h,userid = USRXML_nats6[h,nat6]
 	#
 	# </user>
@@ -542,18 +565,14 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 
 			zones_dirs = or(zones_dirs, zd_bits);
 		}
+
+		usrxml__activate_user_by_id(h, u);
 	}
 
 	# Change API order
 	USRXML__instance[h,"order"] = USRXML__order_result;
 
-	# Build extra maps again if they exist before modification
-	if (USRXML__instance[h,"modified"] > 1)
-		val = build_usrxml_extra(h);
-	else
-		val = USRXML_E_NONE;
-
-	return usrxml__seterrno(h, val);
+	return usrxml__seterrno(h, USRXML_E_NONE);
 }
 
 function usrxml__map_add_val(h, attr, map, val,    n, m, i, num)
@@ -623,7 +642,85 @@ function usrxml__map_del_by_id(h, id, map,    n, attr)
 	return attr;
 }
 
-function usrxml__delete_map(h, i, map, umap,    m, j, p, val)
+function usrxml__map_add_attr4umap_val(h, i, map, umap,    m, p)
+{
+	# i = h,userid
+
+	m = umap[i];
+	for (p = 0; p < m; p++)
+		usrxml__map_add_val(h, umap[i,p], map, i);
+}
+
+function usrxml__map_del_umap_attr4map(h, i, map, umap,    m, p)
+{
+	# i = h,userid
+
+	m = umap[i];
+	for (p = 0; p < m; p++)
+		usrxml__map_del_by_attr(h, umap[i,p], map);
+}
+
+function usrxml__activate_user_by_id(h, userid,    m, i)
+{
+	# h,userid
+	i = h SUBSEP userid;
+
+	# if
+	val = USRXML_userif[i];
+
+	m = h SUBSEP val;
+	if (m in USRXML_ifusers) {
+		USRXML_ifusers[m] = USRXML_ifusers[m] " " userid;
+	} else {
+		USRXML_ifusers[m] = userid;
+
+		usrxml__map_add_attr(h, val, USRXML_ifnames);
+	}
+
+	# net
+	usrxml__map_add_attr4umap_val(h, i, USRXML_nets, USRXML_usernets);
+	# net6
+	usrxml__map_add_attr4umap_val(h, i, USRXML_nets6, USRXML_usernets6);
+	# nat
+	usrxml__map_add_attr4umap_val(h, i, USRXML_nats, USRXML_usernats);
+	# nat6
+	usrxml__map_add_attr4umap_val(h, i, USRXML_nats6, USRXML_usernats6);
+}
+
+function usrxml__deactivate_user_by_id(h, userid,    i, j, val)
+{
+	# h,userid
+	i = h SUBSEP userid;
+
+	# if
+	val = USRXML_userif[i];
+
+	# h,userif
+	j = h SUBSEP val;
+
+	m = USRXML_ifusers[j];
+
+	if (sub(" " val " ", " ", m) == 1 ||   # 1 x 3 == 1 3
+	    sub(val " ", "", m)      == 1 ||   # x 2 3 == 2 3
+	    sub(" " val, "", m)      == 1) {   # 1 2 x == 1 2
+		USRXML_ifusers[j] = m;
+	} else {
+		delete USRXML_ifusers[j];
+	}
+
+	usrxml__map_del_by_attr(h, val, USRXML_ifnames);
+
+	# net
+	usrxml__map_del_umap_attr4map(h, i, USRXML_nets, USRXML_usernets);
+	# net6
+	usrxml__map_del_umap_attr4map(h, i, USRXML_nets6, USRXML_usernets6);
+	# nat
+	usrxml__map_del_umap_attr4map(h, i, USRXML_nats, USRXML_usernats);
+	# nat6
+	usrxml__map_del_umap_attr4map(h, i, USRXML_nats6, USRXML_usernats6);
+}
+
+function usrxml__delete_umap(h, i, umap,    m, j, p, val)
 {
 	m = umap[i];
 	for (p = 0; p < m; p++) {
@@ -637,9 +734,6 @@ function usrxml__delete_map(h, i, map, umap,    m, j, p, val)
 		delete umap[j,"via"];
 		delete umap[j,"mac"];
 		delete umap[j,"has_opts"];
-
-		# "extra"
-		usrxml__map_del_by_attr(h, val, map);
 	}
 	delete umap[i];
 }
@@ -678,35 +772,18 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 	delete USRXML_userpipe[i];
 
 	# if
-	val = USRXML_userif[i];
+	usrxml__deactivate_user_by_id(h, userid);
+
 	delete USRXML_userif[i];
 
-	# h,userif ("extra")
-	j = h SUBSEP val;
-
-	m = USRXML_ifusers[j];
-
-	if (sub(" " val " ", " ", m) == 1 ||   # 1 x 3 == 1 3
-	    sub(val " ", "", m)      == 1 ||   # x 2 3 == 2 3
-	    sub(" " val, "", m)      == 1) {   # 1 2 x == 1 2
-		USRXML_ifusers[j] = m;
-	} else {
-		delete USRXML_ifusers[j];
-	}
-
-	usrxml__map_del_by_attr(h, val, USRXML_ifnames);
-
 	# net
-	usrxml__delete_map(h, i, USRXML_nets, USRXML_usernets);
-
+	usrxml__delete_umap(h, i, USRXML_usernets);
 	# net6
-	usrxml__delete_map(h, i, USRXML_nets6, USRXML_usernets6);
-
+	usrxml__delete_umap(h, i, USRXML_usernets6);
 	# nat
-	usrxml__delete_map(h, i, USRXML_nats, USRXML_usernats);
-
+	usrxml__delete_umap(h, i, USRXML_usernats);
 	# nat6
-	usrxml__delete_map(h, i, USRXML_nats6, USRXML_usernats6);
+	usrxml__delete_umap(h, i, USRXML_usernats6);
 }
 
 #
@@ -767,7 +844,6 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	delete USRXML_users[h,"num"];
 	delete USRXML_users[h];
 
-	delete USRXML__instance[h,"extra"];
 	delete USRXML_ifnames[h,"num"];
 	delete USRXML_ifnames[h];
 	delete USRXML_nets[h,"num"];
@@ -1172,13 +1248,6 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 		# modified users mapping
 		USRXML__instance[h,"modified"] = 1;
 
-		# Signal if we have extra maps before and want to rebuild
-		# them in result_usrxml_parser()
-		USRXML__instance[h,"modified"] += !!USRXML__instance[h,"extra"];
-
-		# Destroy extra maps since they no longer valid
-		usrxml__unbuild_extra(h);
-
 		# Reset order since data updated and needs to be revalidated
 		USRXML__instance[h,"order"] = USRXML__order_parse;
 	}
@@ -1212,164 +1281,6 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 	} while (val > 0);
 
 	return val;
-}
-
-function usrxml__build_map(h, i, map, umap,    m, j, p, o, val)
-{
-	# i = h,userid
-
-	o = map[h,"num"];
-	m = umap[i];
-	for (p = 0; p < m; p++) {
-		val = umap[i,p];
-		map[h,o] = val;
-		map[h,val,"id"] = o++;
-	}
-	map[h,"num"] = o;
-}
-
-function build_usrxml_extra(h,    n, m, i, j, u, p, o, val)
-{
-	o = usrxml_errno(h);
-	if (o != USRXML_E_NONE)
-		return o;
-
-	if (USRXML__instance[h,"order"] < USRXML__order_result)
-		return usrxml__seterrno(h, USRXML_E_API_ORDER);
-
-	# These are build when calling this helper
-	# ----------------------------------------
-	#
-	# nifn = USRXML_ifnames[h,"num"]
-	# ifid = [0 .. nifn - 1]
-	# ifid = USRXML_ifnames[h,userif,"id"]
-	# userif = USRXML_ifnames[h,ifid]
-	# free ifid = USRXML_ifnames[h] + 1 || nifn++
-	# userid ...  = USRXML_ifusers[h,userif]
-	# <user 'name'>
-	#
-	#   nnets = USRXML_nets[h,"num"]
-	#   nid = [0 .. nnets - 1]
-	#   nid = USRXML_nets[h,net,"id"]
-	#   free nid = USRXML_nets[h] + 1 || nnets++
-	#   <net 'cidr'>
-	#     net = USRXML_nets[h,nid]
-	#
-	#   nnets6 = USRXML_nets6[h,"num"]
-	#   nid6 = [0 .. nnets6 - 1]
-	#   nid6 = USRXML_nets6[h,net6,"id"]
-	#   free nid6 = USRXML_nets6[h] + 1 || nnets6++
-	#   <net6 'cidr6'>
-	#     net6 = USRXML_nets6[h,nid6]
-	#
-	#   nnats = USRXML_nats[h,"num"]
-	#   tid = [0 .. nnats - 1]
-	#   tid = USRXML_nats[h,nat,"id"]
-	#   free tid = USRXML_nats[h] + 1 || nnats++
-	#   <nat 'cidr'>
-	#     nat = USRXML_nats[h,tid]
-	#
-	#   nnats6 = USRXML_nats6[h,"num"]
-	#   tid6 = [0 .. nnats6 - 1]
-	#   tid6 = USRXML_nats6[h,nat6,"id"]
-	#   free tid6 = USRXML_nats6[h] + 1 || nnats6++
-	#   <nat6 'cidr6'>
-	#     nat6 = USRXML_nats6[h,tid6]
-	#
-	# </user>
-
-	# h,"num"
-	i = h SUBSEP "num";
-
-	USRXML_ifnames[i] = USRXML_ifnames[h] = 0;
-	USRXML_nets[i]    = USRXML_nets[h]    = 0;
-	USRXML_nets6[i]   = USRXML_nets6[h]   = 0;
-	USRXML_nats[i]    = USRXML_nats[h]    = 0;
-	USRXML_nats6[i]   = USRXML_nats6[h]   = 0;
-
-	# user
-	n = USRXML_users[i];
-	for (u = 0; u < n; u++) {
-		# h,userid
-		i = h SUBSEP u;
-
-		# Skip holes entries
-		if (!(i in USRXML_users))
-			continue;
-
-		# if
-		val = USRXML_userif[i];
-
-		m = h SUBSEP val;
-		if (m in USRXML_ifusers) {
-			USRXML_ifusers[m] = USRXML_ifusers[m] " " u;
-		} else {
-			USRXML_ifusers[m] = u;
-
-			usrxml__map_add_attr(h, val, USRXML_ifnames);
-		}
-
-		# net
-		usrxml__build_map(h, i, USRXML_nets, USRXML_usernets);
-
-		# net6
-		usrxml__build_map(h, i, USRXML_nets6, USRXML_usernets6);
-
-		# nat
-		usrxml__build_map(h, i, USRXML_nats, USRXML_usernats);
-
-		# nat6
-		usrxml__build_map(h, i, USRXML_nats6, USRXML_usernats6);
-	}
-
-	# Signal to fini_usrxml_parser() to release extra maps
-	USRXML__instance[h,"extra"] = 1;
-
-	return usrxml__seterrno(h, USRXML_E_NONE);
-}
-
-function usrxml__unbuild_map(h, map,    m, p)
-{
-	m = map[h];
-	for (p = 0; p < m; p++)
-		usrxml__map_del_by_id(h, p, map);
-	delete map[h];
-}
-
-function usrxml__unbuild_extra(h,    m, p, val)
-{
-	# Release extra maps allocated with build_usrxml_extra()
-	if (USRXML__instance[h,"extra"]) {
-		# if
-		m = USRXML_ifnames[h];
-		for (p = 0; p < m; p++) {
-			val = usrxml__map_del_by_id(h, p, USRXML_ifnames);
-			delete USRXML_ifusers[h,val];
-		}
-		delete USRXML_ifnames[h];
-
-		# net
-		usrxml__unbuild_map(h, USRXML_nets);
-
-		# net6
-		usrxml__unbuild_map(h, USRXML_nets6);
-
-		# nat
-		usrxml__unbuild_map(h, USRXML_nats);
-
-		# nat6
-		usrxml__unbuild_map(h, USRXML_nats6);
-
-		delete USRXML__instance[h,"extra"];
-	}
-}
-
-function unbuild_usrxml_extra(h)
-{
-	if (!is_valid_usrxml_handle(h))
-		return USRXML_E_HANDLE_INVALID;
-
-	usrxml__unbuild_extra(h);
 }
 
 function usrxml__clear_modusers(h,    n)
