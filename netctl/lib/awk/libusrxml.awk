@@ -398,6 +398,7 @@ function init_usrxml_parser(    h)
 	#
 	#   <if>
 	#     userif = USRXML_userif[h,userid]
+	#     staging_userif = USRXML_userif[h,userid,"staging"]
 	#
 	#   nunets = USRXML_usernets[h,userid]
 	#   netid = [0 .. nunets - 1]
@@ -448,8 +449,8 @@ function init_usrxml_parser(    h)
 	# ifid = [0 .. nifn - 1]
 	# ifid = USRXML_ifnames[h,userif,"id"]
 	# userif = USRXML_ifnames[h,ifid]
+	# userid ... = USRXML_ifnames[h,userif]
 	# free ifid = USRXML_ifnames[h] + 1 || nifn++
-	# userid ...  = USRXML_ifusers[h,userif]
 	# <user 'name'>
 	#
 	#   nnets = USRXML_nets[h,"num"]
@@ -537,8 +538,25 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 
 		val = "user" SUBSEP i;
 
-		if (USRXML_userif[i] == "")
-			return usrxml_section_missing_arg(h, "if", val);
+		# if
+		o = USRXML_userif[i];
+		m = USRXML_userif[i,"staging"];
+
+		if (m == o) {
+			if (m == "")
+				return usrxml_section_missing_arg(h, "if", val);
+		} else {
+			if (m != "") {
+				if (o != "")
+					usrxml__map_del_userif(h, u);
+				USRXML_userif[i] = m;
+				usrxml__map_add_userif(h, u);
+			}
+
+			delete USRXML_userif[i,"staging"];
+		}
+
+		# net, net6
 		if (!USRXML_usernets[i] && !USRXML_usernets6[i])
 			return usrxml_section_missing_arg(h, "net|net6", val);
 
@@ -565,8 +583,6 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 
 			zones_dirs = or(zones_dirs, zd_bits);
 		}
-
-		usrxml__activate_user_by_id(h, u);
 	}
 
 	# Change API order
@@ -660,22 +676,48 @@ function usrxml__map_del_umap_attr4map(h, i, map, umap,    m, p)
 		usrxml__map_del_by_attr(h, umap[i,p], map);
 }
 
-function usrxml__activate_user_by_id(h, userid,    m, i)
+function usrxml__map_add_userif(h, userid,    userif, val)
+{
+	userif = USRXML_userif[h,userid];
+
+	# h,userif
+	val = h SUBSEP userif;
+
+	if (val in USRXML_ifnames)
+		val = USRXML_ifnames[val] " " userid;
+	else
+		val = userid;
+
+	usrxml__map_add_val(h, userif, USRXML_ifnames, val);
+}
+
+function usrxml__map_del_userif(h, userid,    userif, val, m)
+{
+	userif = USRXML_userif[h,userid];
+
+	# h,userif
+	m = h SUBSEP userif;
+
+	if (m in USRXML_ifnames) {
+		val = USRXML_ifnames[m];
+
+		if (sub(" " userid " ", " ", val) == 1 ||   # 1 x 3 == 1 3
+		    sub(userid " ", "", val)      == 1 ||   # x 2 3 == 2 3
+		    sub(" " userid, "", val)      == 1) {   # 1 2 x == 1 2
+			USRXML_ifnames[m] = val;
+		} else {
+			usrxml__map_del_by_attr(h, userif, USRXML_ifnames);
+		}
+	}
+}
+
+function usrxml__activate_user_by_id(h, userid,    i)
 {
 	# h,userid
 	i = h SUBSEP userid;
 
 	# if
-	val = USRXML_userif[i];
-
-	m = h SUBSEP val;
-	if (m in USRXML_ifusers) {
-		USRXML_ifusers[m] = USRXML_ifusers[m] " " userid;
-	} else {
-		USRXML_ifusers[m] = userid;
-
-		usrxml__map_add_attr(h, val, USRXML_ifnames);
-	}
+	usrxml__map_add_userif(h, userid);
 
 	# net
 	usrxml__map_add_attr4umap_val(h, i, USRXML_nets, USRXML_usernets);
@@ -693,22 +735,7 @@ function usrxml__deactivate_user_by_id(h, userid,    i, j, val)
 	i = h SUBSEP userid;
 
 	# if
-	val = USRXML_userif[i];
-
-	# h,userif
-	j = h SUBSEP val;
-
-	m = USRXML_ifusers[j];
-
-	if (sub(" " val " ", " ", m) == 1 ||   # 1 x 3 == 1 3
-	    sub(val " ", "", m)      == 1 ||   # x 2 3 == 2 3
-	    sub(" " val, "", m)      == 1) {   # 1 2 x == 1 2
-		USRXML_ifusers[j] = m;
-	} else {
-		delete USRXML_ifusers[j];
-	}
-
-	usrxml__map_del_by_attr(h, val, USRXML_ifnames);
+	usrxml__map_del_userif(h, userid);
 
 	# net
 	usrxml__map_del_umap_attr4map(h, i, USRXML_nets, USRXML_usernets);
@@ -775,6 +802,7 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 	usrxml__deactivate_user_by_id(h, userid);
 
 	delete USRXML_userif[i];
+	delete USRXML_userif[i,"staging"];
 
 	# net
 	usrxml__delete_umap(h, i, USRXML_usernets);
@@ -900,6 +928,7 @@ function usrxml__scope_none(h, name, val,    n, i)
 		if (!(i in USRXML_userif)) {
 			# New element allocated
 			USRXML_userpipe[i]  = 0;
+			USRXML_userif[i]    = USRXML_userif[i,"staging"] = "";
 			USRXML_usernets[i]  = 0;
 			USRXML_usernets6[i] = 0;
 			USRXML_usernats[i]  = 0;
@@ -933,7 +962,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 		if (!usrxml_dev_valid_name(val))
 			return usrxml_inv_arg(h, name, val);
 
-		USRXML_userif[i] = val;
+		USRXML_userif[i,"staging"] = val;
 	} else if (name == "net") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
