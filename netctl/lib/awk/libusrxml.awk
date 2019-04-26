@@ -549,8 +549,7 @@ function init_usrxml_parser(    h)
 # Return XML document parsing result performing final validation steps.
 #
 
-function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
-			      n, m, i, j, u, p, val)
+function result_usrxml_parser(h)
 {
 	val = usrxml_errno(h);
 	if (val != USRXML_E_NONE)
@@ -563,45 +562,6 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	val = USRXML__instance[h,"scope"];
 	if (val != USRXML__scope_none)
 		return usrxml_scope_err(h, USRXML__scope2name[val]);
-
-	# user
-	n = USRXML_users[h,"num"];
-	for (u = 0; u < n; u++) {
-		# h,userid
-		i = h SUBSEP u;
-
-		# Skip holes entries
-		if (!(i in USRXML_users))
-			continue;
-
-		USRXML__instance[h,"userid"] = i;
-
-		# pipe
-		zones_dirs = 0;
-
-		m = USRXML_userpipe[i];
-		for (p = 0; p < m; p++) {
-			j = i SUBSEP p;
-
-			val = "pipe" SUBSEP j;
-
-			if (!((j,"zone") in USRXML_userpipe))
-				return usrxml_section_missing_arg(h, "zone", val);
-			if (!((j,"dir") in USRXML_userpipe))
-				return usrxml_section_missing_arg(h, "dir", val);
-			if (!((j,"bw") in USRXML_userpipe))
-				return usrxml_section_missing_arg(h, "bw", val);
-
-			zd_bits = zone_dir_bits[USRXML_userpipe[j,"zone"],
-						USRXML_userpipe[j,"dir"]];
-			if (and(zones_dirs, zd_bits))
-				return usrxml_section_inv_arg(h, "pipe", "zone|dir", val);
-
-			zones_dirs = or(zones_dirs, zd_bits);
-		}
-
-		usrxml__activate_user_by_id(h, u);
-	}
 
 	# Change API order
 	USRXML__instance[h,"order"] = USRXML__order_result;
@@ -783,8 +743,38 @@ function usrxml__map_del_userif(h, userid,    m, o, val)
 	}
 }
 
-function usrxml__activate_user_by_id(h, userid,    val)
+function usrxml__activate_user_by_id(h, userid,    m, i, j, p, val, zones_dirs, zd_bits)
 {
+	# h,userid
+	i = h SUBSEP userid;
+
+	USRXML__instance[h,"userid"] = i;
+
+	# pipe
+	zones_dirs = 0;
+
+	m = USRXML_userpipe[i];
+	for (p = 0; p < m; p++) {
+		# h,userid,pipeid
+		j = i SUBSEP p;
+
+		val = "pipe" SUBSEP j;
+
+		if (!((j,"zone") in USRXML_userpipe))
+			return usrxml_section_missing_arg(h, "zone", val);
+		if (!((j,"dir") in USRXML_userpipe))
+			return usrxml_section_missing_arg(h, "dir", val);
+		if (!((j,"bw") in USRXML_userpipe))
+			return usrxml_section_missing_arg(h, "bw", val);
+
+		zd_bits = zone_dir_bits[USRXML_userpipe[j,"zone"],
+					USRXML_userpipe[j,"dir"]];
+		if (and(zones_dirs, zd_bits))
+			return usrxml_section_inv_arg(h, "pipe", "zone|dir", val);
+
+		zones_dirs = or(zones_dirs, zd_bits);
+	}
+
 	# if
 	val = usrxml__map_add_userif(h, userid);
 	if (val != USRXML_E_NONE)
@@ -793,7 +783,7 @@ function usrxml__activate_user_by_id(h, userid,    val)
 	# net, net6
 	if (!USRXML_usernets[h,userid,"num"] &&
 	    !USRXML_usernets6[h,userid,"num"]) {
-		val = "user" SUBSEP h SUBSEP userid;
+		val = "user" SUBSEP i;
 		return usrxml_section_missing_arg(h, "net|net6", val);
 	}
 
@@ -1050,8 +1040,13 @@ function usrxml__scope_user(h, name, val,    n, i)
 	i = USRXML__instance[h,"userid"];
 
 	if (name == "/user") {
-		if (val != "" && val != USRXML_users[i])
+		n = USRXML_users[i];
+		if (val != "" && val != n)
 			return usrxml_inv_arg(h, name, val);
+
+		n = usrxml__activate_user_by_id(h, USRXML_users[h,n,"id"]);
+		if (n != USRXML_E_NONE)
+			return n;
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 	} else if (name == "if") {
