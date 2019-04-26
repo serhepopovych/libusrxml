@@ -30,17 +30,23 @@ function usrxml__alloc_handle(    h)
 	return h;
 }
 
-function usrxml__free_handle(h)
+function usrxml__free_handle(h,    n)
 {
-	if (is_valid_usrxml_handle(h)) {
-		delete USRXML__instance["h",h];
-		if (--USRXML__instance["h","num"] <= 0) {
-			delete USRXML__instance["h","num"];
-			delete USRXML__instance["h"];
-		} else {
-			USRXML__instance["h"] = h - 1;
-		}
+	if (!is_valid_usrxml_handle(h))
+		return -1;
+
+	delete USRXML__instance["h",h];
+
+	n = --USRXML__instance["h","num"];
+	if (n <= 0) {
+		delete USRXML__instance["h","num"];
+		delete USRXML__instance["h"];
+		n = 0;
+	} else {
+		USRXML__instance["h"] = h - 1;
 	}
+
+	return n;
 }
 
 #
@@ -913,6 +919,22 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 # This is usually called from END{} section.
 #
 
+function release_usrxml_consts()
+{
+	## Constants (internal, arrays get cleaned)
+
+	delete USRXML__scope2name;
+
+	# Valid "zone" values
+	delete USRXML__zone;
+
+	# Valid "dir" values
+	delete USRXML__dir;
+
+	# Zone and direction names to mask mapping
+	delete zone_dir_bits;
+}
+
 function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 {
 	if (!is_valid_usrxml_handle(h))
@@ -982,7 +1004,8 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	delete USRXML__instance[h,"filename"];
 	delete USRXML__instance[h,"linenum"];
 
-	usrxml__free_handle(h);
+	if (usrxml__free_handle(h) == 0)
+		release_usrxml_consts();
 
 	return USRXML_E_NONE;
 }
