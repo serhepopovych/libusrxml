@@ -285,7 +285,7 @@ function usrxml_dev_valid_name(name)
 # Returns parser instance handle that may be passed to others.
 #
 
-function init_usrxml_parser(    h)
+function declare_usrxml_consts()
 {
 	## Constants (public)
 
@@ -305,11 +305,6 @@ function init_usrxml_parser(    h)
 	USRXML_E_GETLINE        = -204;
 	# entry
 	USRXML_E_NOENT	= -301;
-
-	# Establish next (first) instance
-	h = usrxml__alloc_handle();
-	if (h < 0)
-		return h;
 
 	## Constants (internal, arrays get cleaned )
 
@@ -338,14 +333,39 @@ function init_usrxml_parser(    h)
 	USRXML__dir["out"]	= 1;
 	USRXML__dir["all"]	= 1;
 
+	# Library public functions call order
+	USRXML__order_none	= 0;
+	USRXML__order_parse	= 1
+	USRXML__order_result	= 2;
+
+	# Zone and direction names to mask mapping
+	zone_dir_bits["world","in"]	= 0x01;
+	zone_dir_bits["world","out"]	= 0x02;
+	zone_dir_bits["world","all"]	= 0x03;
+	zone_dir_bits["local","in"]	= 0x04;
+	zone_dir_bits["local","out"]	= 0x08;
+	zone_dir_bits["local","all"]	= 0x0c;
+	zone_dir_bits["all","in"]	= 0x05;
+	zone_dir_bits["all","out"]	= 0x0a;
+	zone_dir_bits["all","all"]	= 0x0f;
+}
+
+function init_usrxml_parser(    h)
+{
+	# Declare constants only once
+	if (USRXML__instance["h","num"] == 0)
+		declare_usrxml_consts();
+
+	# Establish next (first) instance
+	h = usrxml__alloc_handle();
+	if (h < 0)
+		return h;
+
 	## Variables
 
 	# USRXML__instance[] internal information about parser instance
 
-	# Library public functions call order
-	USRXML__order_none   = 0;
-	USRXML__order_parse  = 1
-	USRXML__order_result = 2;
+	# Parse document first
 	USRXML__instance[h,"order"] = USRXML__order_parse;
 
 	# Report errors by default
@@ -537,17 +557,6 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 	val = USRXML__instance[h,"scope"];
 	if (val != USRXML__scope_none)
 		return usrxml_scope_err(h, USRXML__scope2name[val]);
-
-	# Zone and direction names to mask mapping
-	zone_dir_bits["world","in"]	= 0x01;
-	zone_dir_bits["world","out"]	= 0x02;
-	zone_dir_bits["world","all"]	= 0x03;
-	zone_dir_bits["local","in"]	= 0x04;
-	zone_dir_bits["local","out"]	= 0x08;
-	zone_dir_bits["local","all"]	= 0x0c;
-	zone_dir_bits["all","in"]	= 0x05;
-	zone_dir_bits["all","out"]	= 0x0a;
-	zone_dir_bits["all","all"]	= 0x0f;
 
 	# user
 	n = USRXML_users[h,"num"];
