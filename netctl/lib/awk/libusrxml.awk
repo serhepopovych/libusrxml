@@ -342,7 +342,6 @@ function declare_usrxml_consts()
 	# Library public functions call order
 	USRXML__order_none	= 0;
 	USRXML__order_parse	= 1
-	USRXML__order_result	= 2;
 
 	# Zone and direction names to mask mapping
 	zone_dir_bits["world","in"]	= 0x01;
@@ -400,15 +399,6 @@ function init_usrxml_parser(    h)
 
 	# Document format and parameters mapping
 	# --------------------------------------
-	#
-	# When run_usrxml_parser() used after result_usrxml_parser() names of
-	# modified user entries are put to USRXML_modusers[]:
-	#
-	# nmodusers = USRXML_modusers[h,"num"]
-	# muserid = [0 .. nmodusers - 1]
-	# username = USRXML_modusers[h,muserid]
-	# muserid = USRXML_modusers[h,username,"id"]
-	# free muserid = USRXML_modusers[h] + 1 || nmodusers++
 	#
 	# nusers = USRXML_users[h,"num"]
 	# userid = [0 .. nusers - 1]
@@ -548,26 +538,6 @@ function init_usrxml_parser(    h)
 #
 # Return XML document parsing result performing final validation steps.
 #
-
-function result_usrxml_parser(h)
-{
-	val = usrxml_errno(h);
-	if (val != USRXML_E_NONE)
-		return val;
-
-	if (USRXML__instance[h,"order"] != USRXML__order_parse)
-		return usrxml__seterrno(h, USRXML_E_API_ORDER);
-
-	# Check for open sections
-	val = USRXML__instance[h,"scope"];
-	if (val != USRXML__scope_none)
-		return usrxml_scope_err(h, USRXML__scope2name[val]);
-
-	# Change API order
-	USRXML__instance[h,"order"] = USRXML__order_result;
-
-	return usrxml__seterrno(h, USRXML_E_NONE);
-}
 
 function usrxml__map_add_val(h, attr, map, val,    n, m, i, num)
 {
@@ -863,7 +833,6 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 	val = USRXML_users[i];
 
 	usrxml__map_del_by_attr(h, val, USRXML_users);
-	usrxml__map_del_by_attr(h, val, USRXML_modusers);
 
 	# pipe
 	m = USRXML_userpipe[i];
@@ -971,10 +940,6 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 	delete USRXML_nats6[h,"num"];
 	delete USRXML_nats6[h];
 
-	delete USRXML__instance[h,"modified"];
-	delete USRXML_modusers[h,"num"];
-	delete USRXML_modusers[h];
-
 	# Report errors by default
 	delete USRXML__instance[h,"verbose"];
 
@@ -1009,9 +974,6 @@ function usrxml__scope_none(h, name, val,    n, i)
 	if (name == "user") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
-
-		if (USRXML__instance[h,"modified"])
-			usrxml__map_add_attr(h, val, USRXML_modusers);
 
 		i = usrxml__map_add_attr(h, val, USRXML_users);
 		if (!(i in USRXML_userif)) {
@@ -1049,6 +1011,9 @@ function usrxml__scope_user(h, name, val,    n, i)
 			return n;
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
+
+		# We can't return > 0 here as this will collide with parse retry
+		return i;
 	} else if (name == "if") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1347,17 +1312,8 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 	if (val < USRXML__order_parse)
 		return usrxml__seterrno(h, USRXML_E_API_ORDER);
 
-	if (val > USRXML__order_parse) {
-		# Destroy modified users mapping since new changes will come
-		usrxml__clear_modusers(h);
-
-		# Signal to run_usrxml_parser() and it's callees to create
-		# modified users mapping
-		USRXML__instance[h,"modified"] = 1;
-
-		# Reset order since data updated and needs to be revalidated
+	if (val > USRXML__order_parse)
 		USRXML__instance[h,"order"] = USRXML__order_parse;
-	}
 
 	# When called from main block with multiple files on command line
 	# FILENAME is set each time to next file being processed
@@ -1385,36 +1341,13 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 
 		fn = "usrxml__scope_" USRXML__scope2name[val];
 		val = @fn(h, a[1], a[2]);
+
+		# userid
+		if (sub(h SUBSEP, "", val) == 1)
+			return 1 + val;
 	} while (val > 0);
 
 	return val;
-}
-
-function usrxml__clear_modusers(h,    n)
-{
-	if (USRXML__instance[h,"modified"]) {
-		# user
-		n = USRXML_modusers[h,"num"];
-		for (u = 0; u < n; u++) {
-			# Skip holes entries
-			if (!((h,u) in USRXML_modusers))
-				continue;
-
-			usrxml__map_del_by_id(h, u, USRXML_modusers);
-		}
-		delete USRXML_modusers[h,"num"];
-		delete USRXML_modusers[h];
-
-		delete USRXML__instance[h,"modified"];
-	}
-}
-
-function clear_usrxml_modusers(h)
-{
-	if (!is_valid_usrxml_handle(h))
-		return USRXML_E_HANDLE_INVALID;
-
-	usrxml__clear_modusers(h);
 }
 
 #
@@ -1426,9 +1359,6 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
 		return o;
-
-	if (USRXML__instance[h,"order"] < USRXML__order_result)
-		return usrxml__seterrno(h, USRXML_E_API_ORDER);
 
 	i = h SUBSEP userid;
 
@@ -1591,9 +1521,6 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
 		return o;
-
-	if (USRXML__instance[h,"order"] < USRXML__order_result)
-		return usrxml__seterrno(h, USRXML_E_API_ORDER);
 
 	i = h SUBSEP userid;
 
@@ -1768,7 +1695,7 @@ function load_usrxml_file(_h, file,    h, line, rc, ret, s_fn, stdin)
 
 	while ((rc = (getline line <FILENAME)) > 0) {
 		ret = run_usrxml_parser(h, line);
-		if (ret != USRXML_E_NONE)
+		if (ret < 0)
 			break;
 	}
 
@@ -1778,17 +1705,18 @@ function load_usrxml_file(_h, file,    h, line, rc, ret, s_fn, stdin)
 	if (rc < 0) {
 		ret = usrxml__seterrno(USRXML_E_GETLINE);
 	} else if (ret == USRXML_E_NONE) {
-		# Commit result after each call so we can see
-		# differences between loaded files
-		ret = result_usrxml_parser(h);
-		if (ret == USRXML_E_NONE) {
-			FILENAME = s_fn;
-			return h;
-		}
+		# Check for open sections
+		rc = USRXML__instance[h,"scope"];
+		if (rc != USRXML__scope_none)
+			ret = usrxml_scope_err(h, USRXML__scope2name[rc]);
 	}
 
-	if (h != _h)
-		fini_usrxml_parser(h);
+	if (ret < 0) {
+		if (h != _h)
+			fini_usrxml_parser(h);
+	} else {
+		ret = h;
+	}
 
 	FILENAME = s_fn;
 	return ret;
