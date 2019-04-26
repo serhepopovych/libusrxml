@@ -161,7 +161,7 @@ function usrxml_dup_arg(h, section)
 	return usrxml__seterrno(h, USRXML_E_DUP);
 }
 
-function usrxml_dup_net(h, section, value, userid,    ret)
+function usrxml_dup_attr(h, section, value, userid,    ret)
 {
 	if (userid == USRXML__instance[h,"userid"])
 		return usrxml__seterrno(h, USRXML_E_NONE);
@@ -243,6 +243,21 @@ function usrxml_section_inv_arg(h, _section, value, key,    section)
 	section["value"] = value;
 
 	return usrxml_section_fn_arg(h, section, key, "usrxml__inv_arg");
+}
+
+function usrxml__dup_attr(h, section)
+{
+	return usrxml_dup_attr(h, section["name"],
+			       section["value"], section["userid"]);
+}
+
+function usrxml_section_dup_attr(h, _section, value, userid, key,    section)
+{
+	section["name"]   = _section;
+	section["value"]  = value;
+	section["userid"] = userid;
+
+	return usrxml_section_fn_arg(h, section, key, "usrxml__dup_attr");
 }
 
 function usrxml_section_missing_arg(h, section, key)
@@ -400,8 +415,10 @@ function init_usrxml_parser(    h)
 	#     userif = USRXML_userif[h,userid]
 	#     staging_userif = USRXML_userif[h,userid,"staging"]
 	#
-	#   nunets = USRXML_usernets[h,userid]
+	#   nunets = USRXML_usernets[h,userid,"num"]
 	#   netid = [0 .. nunets - 1]
+	#   netid = USRXML_usernets[h,net,"id"]
+	#   free netid = USRXML_usernets[h] + 1 || nunets++
 	#   <net 'cidr'>
 	#     net = USRXML_usernets[h,userid,netid]
 	# [
@@ -415,8 +432,10 @@ function init_usrxml_parser(    h)
 	#   </net>
 	# ]
 	#
-	#   nunets6 = USRXML_usernets6[h,userid]
+	#   nunets6 = USRXML_usernets6[h,userid,"num"]
 	#   netid6 = [0 .. nunets6 - 1]
+	#   netid6 = USRXML_usernets6[h,net6,"id"]
+	#   free netid6 = USRXML_usernets6[h] + 1 || nunets6++
 	#   <net6 'cidr6'>
 	#     net6 = USRXML_usernets6[h,userid,netid6]
 	# [
@@ -430,13 +449,17 @@ function init_usrxml_parser(    h)
 	#   </net6>
 	# ]
 	#
-	#   nunats = USRXML_usernats[h,userid]
+	#   nunats = USRXML_usernats[h,userid,"num"]
 	#   natid = [0 .. nunats - 1]
+	#   natid = USRXML_usernats[h,nat,"id"]
+	#   free natid = USRXML_usernats[h] + 1 || nunats++
 	#   <nat 'cidr'>
 	#     nat = USRXML_usernats[h,userid,natid]
 	#
-	#   nunats6 = USRXML_usernats6[h,userid]
+	#   nunats6 = USRXML_usernats6[h,userid,"num"]
 	#   natid6 = [0 .. nunats6 - 1]
+	#   natid6 = USRXML_usernats6[h,nat6,"id"]
+	#   free natid6 = USRXML_usernats6[h] + 1 || nunats6++
 	#   <nat6 'cidr6'>
 	#     nat6 = USRXML_usernats6[h,userid,natid6]
 	#
@@ -536,33 +559,11 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 		if (!(i in USRXML_users))
 			continue;
 
-		val = "user" SUBSEP i;
-
-		# if
-		o = USRXML_userif[i];
-		m = USRXML_userif[i,"staging"];
-
-		if (m == o) {
-			if (m == "")
-				return usrxml_section_missing_arg(h, "if", val);
-		} else {
-			if (m != "") {
-				if (o != "")
-					usrxml__map_del_userif(h, u);
-				USRXML_userif[i] = m;
-				usrxml__map_add_userif(h, u);
-			}
-
-			delete USRXML_userif[i,"staging"];
-		}
-
-		# net, net6
-		if (!USRXML_usernets[i] && !USRXML_usernets6[i])
-			return usrxml_section_missing_arg(h, "net|net6", val);
-
-		zones_dirs = 0;
+		USRXML__instance[h,"userid"] = i;
 
 		# pipe
+		zones_dirs = 0;
+
 		m = USRXML_userpipe[i];
 		for (p = 0; p < m; p++) {
 			j = i SUBSEP p;
@@ -583,6 +584,8 @@ function result_usrxml_parser(h,    zone_dir_bits, zones_dirs, zd_bits,
 
 			zones_dirs = or(zones_dirs, zd_bits);
 		}
+
+		usrxml__activate_user_by_id(h, u);
 	}
 
 	# Change API order
@@ -658,45 +661,99 @@ function usrxml__map_del_by_id(h, id, map,    n, attr)
 	return attr;
 }
 
-function usrxml__map_add_attr4umap_val(h, i, map, umap,    m, p)
+function usrxml__map_add_umap_attr2map(h, userid, map, umap, name,    m, i, j, p, val)
 {
-	# i = h,userid
+	# h,userid
+	i = h SUBSEP userid;
 
-	m = umap[i];
-	for (p = 0; p < m; p++)
-		usrxml__map_add_val(h, umap[i,p], map, i);
+	m = umap[i,"num"];
+	for (p = 0; p < m; p++) {
+		# h,userid,id
+		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in umap))
+			continue;
+
+		val = umap[j];
+
+		if (!((h,val) in map)) {
+			usrxml__map_add_val(h, val, map, i);
+			continue;
+		}
+
+		# name,h,userid,id
+		j = name SUBSEP j;
+
+		# Note that USRXML__instance[h,"userid"] must be set
+		val = usrxml_section_dup_attr(h, name, val, map[h,val], j);
+		if (val != USRXML_E_NONE)
+			return val;
+	}
+
+	return USRXML_E_NONE;
 }
 
-function usrxml__map_del_umap_attr4map(h, i, map, umap,    m, p)
+function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p)
 {
-	# i = h,userid
+	# h,userid
+	i = h SUBSEP userid;
 
-	m = umap[i];
-	for (p = 0; p < m; p++)
-		usrxml__map_del_by_attr(h, umap[i,p], map);
+	m = umap[i,"num"];
+	for (p = 0; p < m; p++) {
+		# h,userid,id
+		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in umap))
+			continue;
+
+		usrxml__map_del_by_attr(h, umap[j], map);
+	}
 }
 
-function usrxml__map_add_userif(h, userid,    userif, val)
+function usrxml__map_add_userif(h, userid,    m, o, val)
 {
-	userif = USRXML_userif[h,userid];
+	# h,userid
+	i = h SUBSEP userid;
+
+	o = USRXML_userif[i];
+	m = USRXML_userif[i,"staging"];
+
+	if (m == o) {
+		if (m == "") {
+			val = "user" SUBSEP i;
+			return usrxml_section_missing_arg(h, "if", val);
+		}
+	} else {
+		if (m != "") {
+			if (o != "")
+				usrxml__map_del_userif(h, userid);
+			USRXML_userif[i] = m;
+
+			# h,userif
+			val = h SUBSEP m;
+
+			if (val in USRXML_ifnames)
+				val = USRXML_ifnames[val] " " userid;
+			else
+				val = userid;
+
+			usrxml__map_add_val(h, m, USRXML_ifnames, val);
+		}
+
+		delete USRXML_userif[i,"staging"];
+	}
+
+	return USRXML_E_NONE;
+}
+
+function usrxml__map_del_userif(h, userid,    m, o, val)
+{
+	o = USRXML_userif[h,userid];
 
 	# h,userif
-	val = h SUBSEP userif;
-
-	if (val in USRXML_ifnames)
-		val = USRXML_ifnames[val] " " userid;
-	else
-		val = userid;
-
-	usrxml__map_add_val(h, userif, USRXML_ifnames, val);
-}
-
-function usrxml__map_del_userif(h, userid,    userif, val, m)
-{
-	userif = USRXML_userif[h,userid];
-
-	# h,userif
-	m = h SUBSEP userif;
+	m = h SUBSEP o;
 
 	if (m in USRXML_ifnames) {
 		val = USRXML_ifnames[m];
@@ -706,62 +763,90 @@ function usrxml__map_del_userif(h, userid,    userif, val, m)
 		    sub(" " userid, "", val)      == 1) {   # 1 2 x == 1 2
 			USRXML_ifnames[m] = val;
 		} else {
-			usrxml__map_del_by_attr(h, userif, USRXML_ifnames);
+			usrxml__map_del_by_attr(h, o, USRXML_ifnames);
 		}
 	}
 }
 
-function usrxml__activate_user_by_id(h, userid,    i)
+function usrxml__activate_user_by_id(h, userid,    val)
 {
-	# h,userid
-	i = h SUBSEP userid;
-
 	# if
-	usrxml__map_add_userif(h, userid);
+	val = usrxml__map_add_userif(h, userid);
+	if (val != USRXML_E_NONE)
+		return val;
+
+	# net, net6
+	if (!USRXML_usernets[h,userid,"num"] &&
+	    !USRXML_usernets6[h,userid,"num"]) {
+		val = "user" SUBSEP h SUBSEP userid;
+		return usrxml_section_missing_arg(h, "net|net6", val);
+	}
 
 	# net
-	usrxml__map_add_attr4umap_val(h, i, USRXML_nets, USRXML_usernets);
+	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
+					    USRXML_usernets, "net");
+	if (val != USRXML_E_NONE)
+		return val;
+
 	# net6
-	usrxml__map_add_attr4umap_val(h, i, USRXML_nets6, USRXML_usernets6);
+	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets6,
+					    USRXML_usernets6, "net6");
+	if (val != USRXML_E_NONE)
+		return val;
+
 	# nat
-	usrxml__map_add_attr4umap_val(h, i, USRXML_nats, USRXML_usernats);
+	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats,
+					    USRXML_usernats, "nat");
+	if (val != USRXML_E_NONE)
+		return val;
+
 	# nat6
-	usrxml__map_add_attr4umap_val(h, i, USRXML_nats6, USRXML_usernats6);
+	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats6,
+					    USRXML_usernats6, "nat6");
+	if (val != USRXML_E_NONE)
+		return val;
+
+	return USRXML_E_NONE;
 }
 
-function usrxml__deactivate_user_by_id(h, userid,    i, j, val)
+function usrxml__deactivate_user_by_id(h, userid)
 {
-	# h,userid
-	i = h SUBSEP userid;
-
 	# if
 	usrxml__map_del_userif(h, userid);
-
 	# net
-	usrxml__map_del_umap_attr4map(h, i, USRXML_nets, USRXML_usernets);
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
 	# net6
-	usrxml__map_del_umap_attr4map(h, i, USRXML_nets6, USRXML_usernets6);
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets6, USRXML_usernets6);
 	# nat
-	usrxml__map_del_umap_attr4map(h, i, USRXML_nats, USRXML_usernats);
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats, USRXML_usernats);
 	# nat6
-	usrxml__map_del_umap_attr4map(h, i, USRXML_nats6, USRXML_usernats6);
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
 }
 
-function usrxml__delete_umap(h, i, umap,    m, j, p, val)
+function usrxml__delete_umap(h, i, umap, name,    m, j, p, val)
 {
-	m = umap[i];
+	# i = h,userid
+
+	m = umap[i,"num"];
 	for (p = 0; p < m; p++) {
 		# h,userid,id
 		j = i SUBSEP p;
 
-		val = umap[j];
-		delete umap[j];
+		# Skip holes entries
+		if (!(j in umap))
+			continue;
+
 		# These are "net" and "net6" specific
 		delete umap[j,"src"];
 		delete umap[j,"via"];
 		delete umap[j,"mac"];
 		delete umap[j,"has_opts"];
+
+		usrxml__map_del_by_id(i, p, umap);
+
+		usrxml_section_delete_fileline(h, name SUBSEP j);
 	}
+	delete umap[i,"num"];
 	delete umap[i];
 }
 
@@ -805,13 +890,13 @@ function usrxml__delete_user(h, userid,    n, m, i, j, p, o, val)
 	delete USRXML_userif[i,"staging"];
 
 	# net
-	usrxml__delete_umap(h, i, USRXML_usernets);
+	usrxml__delete_umap(h, i, USRXML_usernets, "net");
 	# net6
-	usrxml__delete_umap(h, i, USRXML_usernets6);
+	usrxml__delete_umap(h, i, USRXML_usernets6, "net6");
 	# nat
-	usrxml__delete_umap(h, i, USRXML_usernats);
+	usrxml__delete_umap(h, i, USRXML_usernats, "nat");
 	# nat6
-	usrxml__delete_umap(h, i, USRXML_usernats6);
+	usrxml__delete_umap(h, i, USRXML_usernats6, "nat6");
 }
 
 #
@@ -847,24 +932,6 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 
 			usrxml_section_delete_fileline(h, "pipe" SUBSEP j);
 			usrxml_section_delete_fileline(h, "qdisc" SUBSEP j);
-		}
-
-		# net
-		m = USRXML_usernets[i];
-		for (p = 0; p < m; p++) {
-			# h,userid,netid
-			j = i SUBSEP p;
-
-			usrxml_section_delete_fileline(h, "net" SUBSEP j);
-		}
-
-		# net6
-		m = USRXML_usernets6[i];
-		for (p = 0; p < m; p++) {
-			# h,userid,net6id
-			j = i SUBSEP p;
-
-			usrxml_section_delete_fileline(h, "net6" SUBSEP j);
 		}
 
 		usrxml__delete_user(h, u);
@@ -929,10 +996,10 @@ function usrxml__scope_none(h, name, val,    n, i)
 			# New element allocated
 			USRXML_userpipe[i]  = 0;
 			USRXML_userif[i]    = USRXML_userif[i,"staging"] = "";
-			USRXML_usernets[i]  = 0;
-			USRXML_usernets6[i] = 0;
-			USRXML_usernats[i]  = 0;
-			USRXML_usernats6[i] = 0;
+			USRXML_usernets[i]  = USRXML_usernets[i,"num"]   = 0;
+			USRXML_usernets6[i] = USRXML_usernets6[i,"num"]  = 0;
+			USRXML_usernats[i]  = USRXML_usernats[i,"num"]   = 0;
+			USRXML_usernats6[i] = USRXML_usernats6[i,"num"]  = 0;
 		}
 
 		USRXML__instance[h,"userid"] = i;
@@ -973,12 +1040,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		if ((h,val) in USRXML_nets)
-			return usrxml_dup_net(h, name, n, USRXML_nets[h,val]);
-		usrxml__map_add_val(h, val, USRXML_nets, i);
-
-		n = i SUBSEP USRXML_usernets[i]++;
-		USRXML_usernets[n] = val;
+		n = usrxml__map_add_attr(i, val, USRXML_usernets);
 
 		USRXML__instance[h,"netid"] = n;
 		USRXML__instance[h,"scope"] = USRXML__scope_net;
@@ -994,12 +1056,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		if ((h,val) in USRXML_nets6)
-			return usrxml_dup_net(h, name, n, USRXML_nets6[h,val]);
-		usrxml__map_add_val(h, val, USRXML_nets6, i);
-
-		n = i SUBSEP USRXML_usernets6[i]++;
-		USRXML_usernets6[n] = val;
+		n = usrxml__map_add_attr(i, val, USRXML_usernets6);
 
 		USRXML__instance[h,"net6id"] = n;
 		USRXML__instance[h,"scope"] = USRXML__scope_net6;
@@ -1015,12 +1072,9 @@ function usrxml__scope_user(h, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		if ((h,val) in USRXML_nats)
-			return usrxml_dup_net(h, name, n, USRXML_nats[h,val]);
-		usrxml__map_add_val(h, val, USRXML_nats, i);
+		n = usrxml__map_add_attr(i, val, USRXML_usernats);
 
-		n = i SUBSEP USRXML_usernats[i]++;
-		USRXML_usernats[n] = val;
+		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else if (name == "nat6") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1031,12 +1085,9 @@ function usrxml__scope_user(h, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		if ((h,val) in USRXML_nats6)
-			return usrxml_dup_net(h, name, n, USRXML_nats6[h,val]);
-		usrxml__map_add_val(h, val, USRXML_nats6, i);
+		n = usrxml__map_add_attr(i, val, USRXML_usernats6);
 
-		n = i SUBSEP USRXML_usernats6[i]++;
-		USRXML_usernats6[n] = val;
+		usrxml_section_record_fileline(h, name SUBSEP n);
 	} else if (name == "pipe") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1364,6 +1415,7 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
+		# h,userid,pipeid
 		j = i SUBSEP p;
 
 		printf "\t<pipe %d>\n" \
@@ -1393,9 +1445,14 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 
 	printf "\t<if %s>\n", USRXML_userif[i] >>file;
 
-	n = USRXML_usernets[i];
+	n = USRXML_usernets[i,"num"];
 	for (p = 0; p < n; p++) {
+		# h,userid,netid
 		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in USRXML_usernets))
+			continue;
 
 		printf "\t<net %s>\n", USRXML_usernets[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets) {
@@ -1412,9 +1469,14 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 		}
 	}
 
-	n = USRXML_usernets6[i];
+	n = USRXML_usernets6[i,"num"];
 	for (p = 0; p < n; p++) {
+		# h,userid,net6id
 		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in USRXML_usernets6))
+			continue;
 
 		printf "\t<net6 %s>\n", USRXML_usernets6[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets6) {
@@ -1431,13 +1493,29 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, u, p, o)
 		}
 	}
 
-	n = USRXML_usernats[i];
-	for (p = 0; p < n; p++)
-		printf "\t<nat %s>\n", USRXML_usernats[i,p] >>file;
+	n = USRXML_usernats[i,"num"];
+	for (p = 0; p < n; p++) {
+		# h,userid,natid
+		j = i SUBSEP p;
 
-	n = USRXML_usernats6[i];
-	for (p = 0; p < n; p++)
-		printf "\t<nat6 %s>\n", USRXML_usernats6[i,p] >>file;
+		# Skip holes entries
+		if (!(j in USRXML_usernats))
+			continue;
+
+		printf "\t<nat %s>\n", USRXML_usernats[j] >>file;
+	}
+
+	n = USRXML_usernats6[i,"num"];
+	for (p = 0; p < n; p++) {
+		# h,userid,nat6id
+		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in USRXML_usernats6))
+			continue;
+
+		printf "\t<nat6 %s>\n", USRXML_usernats6[j] >>file;
+	}
 
 	print "</user>\n" >>file;
 
@@ -1502,6 +1580,7 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
+		# h,userid,pipeid
 		j = i SUBSEP p;
 
 		printf "<pipe %d><zone %s><dir %s><bw %sKb>",
@@ -1528,9 +1607,14 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 
 	printf "<if %s>", USRXML_userif[i] >>file;
 
-	n = USRXML_usernets[i];
+	n = USRXML_usernets[i,"num"];
 	for (p = 0; p < n; p++) {
+		# h,userid,netid
 		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in USRXML_usernets))
+			continue;
 
 		printf "<net %s>", USRXML_usernets[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets) {
@@ -1547,9 +1631,14 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 		}
 	}
 
-	n = USRXML_usernets6[i];
+	n = USRXML_usernets6[i,"num"];
 	for (p = 0; p < n; p++) {
+		# h,userid,net6id
 		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in USRXML_usernets6))
+			continue;
 
 		printf "<net6 %s>", USRXML_usernets6[j] >>file;
 		if ((j,"has_opts") in USRXML_usernets6) {
@@ -1566,13 +1655,29 @@ function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, u, p, o)
 		}
 	}
 
-	n = USRXML_usernats[i];
-	for (p = 0; p < n; p++)
-		printf "<nat %s>", USRXML_usernats[i,p] >>file;
+	n = USRXML_usernats[i,"num"];
+	for (p = 0; p < n; p++) {
+		# h,userid,natid
+		j = i SUBSEP p;
 
-	n = USRXML_usernats6[i];
-	for (p = 0; p < n; p++)
-		printf "<nat6 %s>", USRXML_usernats6[i,p] >>file;
+		# Skip holes entries
+		if (!(j in USRXML_usernats))
+			continue;
+
+		printf "<nat %s>", USRXML_usernats[j] >>file;
+	}
+
+	n = USRXML_usernats6[i,"num"];
+	for (p = 0; p < n; p++) {
+		# h,userid,nat6id
+		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in USRXML_usernats6))
+			continue;
+
+		printf "<nat6 %s>", USRXML_usernats6[j] >>file;
+	}
 
 	print "</user>" >>file;
 
