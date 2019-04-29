@@ -1302,7 +1302,7 @@ function usrxml__scope_net6(h, name, val,    n, o, net6)
 	return USRXML_E_NONE;
 }
 
-function run_usrxml_parser(h, line,    a, nfields, fn, val)
+function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
 {
 	val = usrxml_errno(h);
 	if (val != USRXML_E_NONE)
@@ -1343,8 +1343,13 @@ function run_usrxml_parser(h, line,    a, nfields, fn, val)
 		val = @fn(h, a[1], a[2]);
 
 		# userid
-		if (sub(h SUBSEP, "", val) == 1)
-			return 1 + val;
+		if (sub(h SUBSEP, "", val) == 1) {
+			# Make sure we always return value > 0
+			val++;
+			if (cb != "")
+				val = @cb(h, val, data);
+			break;
+		}
 	} while (val > 0);
 
 	return val;
@@ -1671,7 +1676,7 @@ function print_usrxml_entries_oneline(h, file,    n, u, o, stdout)
 	return o;
 }
 
-function load_usrxml_file(_h, file,    h, line, rc, ret, s_fn, stdin)
+function load_usrxml_file(_h, file, cb, data,    h, line, rc, ret, s_fn, stdin)
 {
 	stdin = "/dev/stdin";
 
@@ -1694,7 +1699,7 @@ function load_usrxml_file(_h, file,    h, line, rc, ret, s_fn, stdin)
 	}
 
 	while ((rc = (getline line <FILENAME)) > 0) {
-		ret = run_usrxml_parser(h, line);
+		ret = run_usrxml_parser(h, line, cb, data);
 		if (ret < 0)
 			break;
 	}
