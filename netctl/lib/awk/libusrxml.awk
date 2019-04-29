@@ -606,6 +606,31 @@ function usrxml__map_del_by_id(h, id, map,    n, attr)
 	return attr;
 }
 
+function usrxml__map_copy(dh, dmap, sh, smap,    n, p, attr)
+{
+	# Not touching if source is empty
+	if (!((sh,"num") in smap))
+		return;
+
+	n = smap[sh,"num"];
+	if (!n)
+		return;
+
+	dmap[dh,"num"] = n;
+	dmap[dh] = smap[sh];
+
+	for (p = 0; p < n; p++) {
+		# Skip holes entries
+		if (!((sh,p) in smap))
+			continue;
+
+		attr = dmap[dh,p] = smap[sh,p];
+		dmap[dh,attr,"id"] = p;         # optimization
+		if ((sh,attr) in smap)
+			dmap[dh,attr] = smap[sh,attr];
+	}
+}
+
 function usrxml__map_add_umap_attr2map(h, userid, map, umap, name,    m, i, j, p, val)
 {
 	# h,userid
@@ -831,12 +856,99 @@ function usrxml__deactivate_user_by_id(h, userid,    i, val)
 	return USRXML_E_NONE;
 }
 
-function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, val)
+function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
+{
+	usrxml__map_copy(i_dst, umap, i_src, umap);
+
+	n = umap[i_src,"num"];
+	for (p = 0; p < n; p++) {
+		# h,userid,netid
+		j_src = i_src SUBSEP p;
+
+		# Skip holes entries
+		if (!(j_src in umap))
+			continue;
+
+		if ((j_src,"has_opts") in umap) {
+			# h,userid,subid,netid
+			j_dst = i_dst SUBSEP p;
+
+			umap[j_dst,"has_opts"] = umap[j_src,"has_opts"];
+
+			if ((j_src,"src") in umap)
+				umap[j_dst,"src"] = umap[j_src,"src"];
+			if ((j_src,"via") in umap)
+				umap[j_dst,"via"] = umap[j_src,"via"];
+			if ((j_src,"mac") in umap)
+				umap[j_dst,"mac"] = umap[j_src,"mac"];
+		}
+	}
+}
+
+function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst, j_src)
+{
+	if (dh == sh)
+		return;
+
+	# sh,userid
+	i_src = sh SUBSEP USRXML_users[sh,username,"id"];
+
+	# user
+	i_dst = usrxml__map_add_attr(dh, USRXML_users[i_src], USRXML_users);
+
+	if ((i_src,"inactive") in USRXML_users)
+		USRXML_users[i_dst,"inactive"] = USRXML_users[i_src,"inactive"];
+
+	# pipe
+	n = USRXML_userpipe[i_src];
+	USRXML_userpipe[i_dst] = n;
+
+	for (p = 0; p < n; p++) {
+		# sh,userid,pipeid
+		j_src = i_src SUBSEP p;
+		# dh,userid,pipeid
+		j_dst = i_dst SUBSEP p;
+
+		USRXML_userpipe[j_dst] = USRXML_userpipe[j_src];
+		USRXML_userpipe[j_dst,"zone"] = USRXML_userpipe[j_src,"zone"];
+		USRXML_userpipe[j_dst,"dir"] = USRXML_userpipe[j_src,"dir"];
+		USRXML_userpipe[j_dst,"bw"] = USRXML_userpipe[j_src,"bw"];
+
+		o = USRXML_userpipe[j_src,"qdisc"];
+		USRXML_userpipe[j_dst,"qdisc"] = o;
+
+		if (o != "") {
+			# sh,userid,pipeid,"opts"
+			j_src = j_src SUBSEP "opts";
+			# dh,userid,pipeid,"opts"
+			j_dst = j_dst SUBSEP "opts";
+
+			m = USRXML_userpipe[j_src];
+			USRXML_userpipe[j_dst] = m;
+
+			for (o = 0; o < m; o++)
+				USRXML_userpipe[j_dst,o] = USRXML_userpipe[j_src,o];
+		}
+	}
+
+	# if
+	USRXML_userif[i_dst] = USRXML_userif[i_src];
+
+	# net
+	usrxml__copy_user_net(i_dst, i_src, USRXML_usernets);
+	# net6
+	usrxml__copy_user_net(i_dst, i_src, USRXML_usernets6);
+
+	# nat
+	usrxml__map_copy(i_dst, USRXML_usernats, i_src, USRXML_usernats);
+	# nat6
+	usrxml__map_copy(i_dst, USRXML_usernats6, i_src, USRXML_usernats6);
+}
+
+function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 {
 	# h,userid
 	i = h SUBSEP userid;
-
-	usrxml__map_del_umap_attr4map(h, userid, map, umap);
 
 	m = umap[i,"num"];
 	for (p = 0; p < m; p++) {
@@ -855,20 +967,24 @@ function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, val)
 
 		usrxml__map_del_by_id(i, p, umap);
 
-		usrxml_section_delete_fileline(h, name SUBSEP j);
+		if (name != "")
+			usrxml_section_delete_fileline(h, name SUBSEP j);
 	}
 	delete umap[i,"num"];
 	delete umap[i];
 }
 
-function usrxml__delete_user_by_id(h, userid,    n, m, i, j, p, o, val)
+function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, name, val)
 {
+	if (subid != "")
+		h = h SUBSEP subid;
+
+	userid = USRXML_users[h,username,"id"];
+
 	# h,userid
 	i = h SUBSEP userid;
 
-	val = USRXML_users[i];
-
-	usrxml__map_del_by_attr(h, val, USRXML_users);
+	usrxml__map_del_by_attr(h, username, USRXML_users);
 
 	delete USRXML_users[i,"inactive"];
 
@@ -896,18 +1012,85 @@ function usrxml__delete_user_by_id(h, userid,    n, m, i, j, p, o, val)
 	delete USRXML_userpipe[i];
 
 	# if
-	usrxml__map_del_userif(h, userid);
-
 	delete USRXML_userif[i];
 
 	# net
-	usrxml__delete_maps(h, userid, USRXML_nets, USRXML_usernets, "net");
+	name = (subid != "") ? "" : "net";
+	usrxml__delete_maps(h, userid, USRXML_nets, USRXML_usernets, name);
+
 	# net6
-	usrxml__delete_maps(h, userid, USRXML_nets6, USRXML_usernets6, "net6");
+	name = (subid != "") ? "" : "net6";
+	usrxml__delete_maps(h, userid, USRXML_nets6, USRXML_usernets6, name);
+
 	# nat
-	usrxml__delete_maps(h, userid, USRXML_nats, USRXML_usernats, "nat");
+	name = (subid != "") ? "" : "nat";
+	usrxml__delete_maps(h, userid, USRXML_nats, USRXML_usernats, name);
+
 	# nat6
-	usrxml__delete_maps(h, userid, USRXML_nats6, USRXML_usernats6, "nat6");
+	name = (subid != "") ? "" : "nat6";
+	usrxml__delete_maps(h, userid, USRXML_nats6, USRXML_usernats6, name);
+}
+
+function usrxml__delete_user_by_id(h, userid)
+{
+	# if
+	usrxml__map_del_userif(h, userid);
+
+	# net
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
+	# net6
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets6, USRXML_usernets6);
+	# nat
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats, USRXML_usernats);
+	# nat6
+	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
+
+	usrxml__delete_user(h, USRXML_users[h,userid], "");
+}
+
+function usrxml__username(h, username,    userid)
+{
+	if (username != "")
+		return username;
+
+	userid = USRXML__instance[h,"userid"];
+	if (userid != "" && (userid in USRXML_users))
+		username = USRXML_users[userid];
+
+	return username;
+}
+
+function usrxml__save_user(h, username)
+{
+	usrxml__copy_user(h SUBSEP "orig", h, username);
+}
+
+function usrxml__restore_user(h, username,    userid)
+{
+	username = usrxml__username(h, username);
+	if (username == "")
+		return;
+
+	userid = USRXML_users[h,username,"id"];
+
+	usrxml__delete_user_by_id(h, userid);
+
+	if ((h,"orig",userid) in USRXML_users) {
+		usrxml__copy_user(h, h SUBSEP "orig", username);
+		usrxml__delete_user(h, username, "orig");
+
+		if (!((h,userid,"inactive") in USRXML_users))
+			usrxml__activate_user_by_id(h, userid);
+	}
+}
+
+function usrxml__cleanup_user(h, username)
+{
+	username = usrxml__username(h, username);
+	if (username == "")
+		return;
+
+	usrxml__delete_user(h, username, "orig");
 }
 
 #
@@ -938,6 +1121,9 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 
 	# Disable library functions at all levels
 	delete USRXML__instance[h,"order"];
+
+	# Cleanup saved user if exists
+	usrxml__cleanup_user(h, "");
 
 	# user
 	n = USRXML_users[h,"num"];
@@ -1013,7 +1199,9 @@ function usrxml__scope_none(h, name, val,    n, i)
 			return usrxml_ept_val(h, name);
 
 		i = usrxml__map_add_attr(h, val, USRXML_users);
-		if (!(i in USRXML_userif)) {
+		if (i in USRXML_userif) {
+			usrxml__save_user(h, val);
+		} else {
 			# New element allocated
 			USRXML_userpipe[i]  = 0;
 			USRXML_userif[i]    = USRXML_userif[i,"staging"] = "";
@@ -1404,6 +1592,11 @@ function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
 			break;
 		}
 	} while (val > 0);
+
+	if (val < 0)
+		usrxml__restore_user(h, "");
+	else if (val > 0)
+		usrxml__cleanup_user(h, "");
 
 	return val;
 }
