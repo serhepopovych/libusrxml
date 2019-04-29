@@ -557,6 +557,7 @@ function usrxml__map_add_val(h, attr, map, val,    n, m, i, num)
 		} while (i in map);
 		map[n] = m;
 		map[i] = attr;
+		map[h,"cnt"]++;
 	}
 
 	if (val != SUBSEP)
@@ -580,29 +581,24 @@ function usrxml__map_del_by_attr(h, attr, map,    n, id, val)
 	delete map[h,id];
 	delete map[h,attr];
 
-	if (id < map[h])
-		map[h] = id;
-
 	# Not decrementing map[h,"num"]
+
+	if (--map[h,"cnt"] <= 0) {
+		delete map[h,"cnt"];
+		delete map[h,"num"];
+		delete map[h];
+	} else {
+		if (id < map[h])
+			map[h] = id;
+	}
 
 	return id;
 }
 
-function usrxml__map_del_by_id(h, id, map,    n, attr)
+function usrxml__map_del_by_id(h, id, map,    attr)
 {
-	# h,id
-	n = h SUBSEP id;
-
-	attr = map[n];
-	delete map[n];
-	delete map[h,attr,"id"];
-	delete map[h,attr];
-
-	if (id < map[h])
-		map[h] = id;
-
-	# Not decrementing map[h,"num"]
-
+	attr = map[h,id];
+	usrxml__map_del_by_attr(h, attr, map);
 	return attr;
 }
 
@@ -970,8 +966,8 @@ function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 		if (name != "")
 			usrxml_section_delete_fileline(h, name SUBSEP j);
 	}
+	# Remove in case of umap[i,"num"] is not defined (e.g. no <net6> tags)
 	delete umap[i,"num"];
-	delete umap[i];
 }
 
 function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, name, val)
@@ -1150,18 +1146,6 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 		usrxml__delete_user_by_id(h, u);
 	}
 	delete USRXML_users[h,"num"];
-	delete USRXML_users[h];
-
-	delete USRXML_ifnames[h,"num"];
-	delete USRXML_ifnames[h];
-	delete USRXML_nets[h,"num"];
-	delete USRXML_nets[h];
-	delete USRXML_nets6[h,"num"];
-	delete USRXML_nets6[h];
-	delete USRXML_nats[h,"num"];
-	delete USRXML_nats[h];
-	delete USRXML_nats6[h,"num"];
-	delete USRXML_nats6[h];
 
 	# Report errors by default
 	delete USRXML__instance[h,"verbose"];
@@ -1203,12 +1187,7 @@ function usrxml__scope_none(h, name, val,    n, i)
 			usrxml__save_user(h, val);
 		} else {
 			# New element allocated
-			USRXML_userpipe[i]  = 0;
-			USRXML_userif[i]    = USRXML_userif[i,"staging"] = "";
-			USRXML_usernets[i]  = USRXML_usernets[i,"num"]   = 0;
-			USRXML_usernets6[i] = USRXML_usernets6[i,"num"]  = 0;
-			USRXML_usernats[i]  = USRXML_usernats[i,"num"]   = 0;
-			USRXML_usernats6[i] = USRXML_usernats6[i,"num"]  = 0;
+			USRXML_userif[i] = USRXML_userif[i,"staging"] = "";
 		}
 
 		USRXML__instance[h,"userid"] = i;
