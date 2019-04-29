@@ -775,12 +775,6 @@ function usrxml__activate_user_by_id(h, userid,    i, val)
 	if (val != USRXML_E_NONE)
 		return val;
 
-	# net, net6
-	if (!USRXML_usernets[i,"num"] && !USRXML_usernets6[i,"num"]) {
-		val = "user" SUBSEP i;
-		return usrxml_section_missing_arg(h, "net|net6", val);
-	}
-
 	# net
 	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
 					    USRXML_usernets, "net");
@@ -824,12 +818,6 @@ function usrxml__deactivate_user_by_id(h, userid,    i, val)
 	val = usrxml__validate_pipe(i);
 	if (val != USRXML_E_NONE)
 		return val;
-
-	# net, net6
-	if (!USRXML_usernets[i,"num"] && !USRXML_usernets6[i,"num"]) {
-		val = "user" SUBSEP i;
-		return usrxml_section_missing_arg(h, "net|net6", val);
-	}
 
 	# net
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
