@@ -1581,10 +1581,37 @@ function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
 }
 
 #
-# Print users entry in xml format
+# Print users entry in oneline usrxml format
 #
 
-function print_usrxml_entry(h, userid, file,    n, m, i, j, p, o)
+function usrxml__print_maps(i, umap, name, file, s1, s2,    n, j, p)
+{
+	n = umap[i,"num"];
+	for (p = 0; p < n; p++) {
+		# h,userid,netid
+		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in umap))
+			continue;
+
+		printf s1 "<%s %s>" s2, name, umap[j] >>file;
+		if ((j,"has_opts") in umap) {
+			if ((j,"src") in umap)
+				printf s1 s1 "<src %s>" s2,
+					umap[j,"src"] >>file;
+			if ((j,"via") in umap)
+				printf s1 s1 "<via %s>" s2,
+					umap[j,"via"] >>file;
+			if ((j,"mac") in umap)
+				printf s1 s1 "<mac %s>" s2,
+					umap[j,"mac"] >>file;
+			printf s1 "</%s>" s2, name;
+		}
+	}
+}
+
+function print_usrxml_entry_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -1598,20 +1625,23 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, p, o)
 	if (file == "")
 		file = "/dev/stdout";
 
-	printf "<user %s>\n", USRXML_users[i] >>file;
+	# user
+	printf "<user %s>" s2, USRXML_users[i] >>file;
 
+	# inactive
 	if ((i,"inactive") in USRXML_users)
-		printf "\t<inactive yes>\n" >>file;
+		printf s1 "<inactive yes>" s2 >>file;
 
+	# pipe
 	n = USRXML_userpipe[i];
 	for (p = 0; p < n; p++) {
 		# h,userid,pipeid
 		j = i SUBSEP p;
 
-		printf "\t<pipe %d>\n" \
-		       "\t\t<zone %s>\n" \
-		       "\t\t<dir %s>\n" \
-		       "\t\t<bw %sKb>\n",
+		printf s1 "<pipe %d>" s2 \
+		       s1 s1 "<zone %s>" s2 \
+		       s1 s1 "<dir %s>" s2 \
+		       s1 s1 "<bw %sKb>" s2,
 			USRXML_userpipe[j],
 			USRXML_userpipe[j,"zone"],
 			USRXML_userpipe[j,"dir"],
@@ -1619,95 +1649,33 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, p, o)
 
 		o = USRXML_userpipe[j,"qdisc"];
 		if (o != "") {
-			printf "\t\t<qdisc %s>\n", o >>file;
+			printf s1 s1 "<qdisc %s>" s2, o >>file;
 
 			j = j SUBSEP "opts";
 			m = USRXML_userpipe[j];
 			for (o = 0; o < m; o++)
-				printf "\t\t\t<opts %s>\n",
+				printf s1 s1 s1 "<opts %s>" s2,
 					USRXML_userpipe[j,o] >>file;
 
-			printf "\t\t</qdisc>\n" >>file;
+			printf s1 s1 "</qdisc>" s2 >>file;
 		}
 
-		printf "\t</pipe>\n" >>file;
+		printf s1 "</pipe>" s2 >>file;
 	}
 
-	printf "\t<if %s>\n", USRXML_userif[i] >>file;
+	# if
+	printf s1 "<if %s>" s2, USRXML_userif[i] >>file;
 
-	n = USRXML_usernets[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,netid
-		j = i SUBSEP p;
+	# net
+	usrxml__print_maps(i, USRXML_usernets, "net", file, s1, s2);
+	# net6
+	usrxml__print_maps(i, USRXML_usernets6, "net6", file, s1, s2);
+	# nat
+	usrxml__print_maps(i, USRXML_usernats, "nat", file, s1, s2);
+	# nat6
+	usrxml__print_maps(i, USRXML_usernats6, "nat6", file, s1, s2);
 
-		# Skip holes entries
-		if (!(j in USRXML_usernets))
-			continue;
-
-		printf "\t<net %s>\n", USRXML_usernets[j] >>file;
-		if ((j,"has_opts") in USRXML_usernets) {
-			if ((j,"src") in USRXML_usernets)
-				printf "\t\t<src %s>\n",
-					USRXML_usernets[j,"src"] >>file;
-			if ((j,"via") in USRXML_usernets)
-				printf "\t\t<via %s>\n",
-					USRXML_usernets[j,"via"] >>file;
-			if ((j,"mac") in USRXML_usernets)
-				printf "\t\t<mac %s>\n",
-					USRXML_usernets[j,"mac"] >>file;
-			printf "\t</net>\n";
-		}
-	}
-
-	n = USRXML_usernets6[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,net6id
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in USRXML_usernets6))
-			continue;
-
-		printf "\t<net6 %s>\n", USRXML_usernets6[j] >>file;
-		if ((j,"has_opts") in USRXML_usernets6) {
-			if ((j,"src") in USRXML_usernets6)
-				printf "\t\t<src %s>\n",
-					USRXML_usernets6[j,"src"] >>file;
-			if ((j,"via") in USRXML_usernets6)
-				printf "\t\t<via %s>\n",
-					USRXML_usernets6[j,"via"] >>file;
-			if ((j,"mac") in USRXML_usernets6)
-				printf "\t\t<mac %s>\n",
-					USRXML_usernets6[j,"mac"] >>file;
-			printf "\t</net>\n" >>file;
-		}
-	}
-
-	n = USRXML_usernats[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,natid
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in USRXML_usernats))
-			continue;
-
-		printf "\t<nat %s>\n", USRXML_usernats[j] >>file;
-	}
-
-	n = USRXML_usernats6[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,nat6id
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in USRXML_usernats6))
-			continue;
-
-		printf "\t<nat6 %s>\n", USRXML_usernats6[j] >>file;
-	}
-
-	print "</user>\n" >>file;
+	print "</user>" s2 >>file;
 
 	# Callers should flush output buffers using fflush(file) to ensure
 	# all pending data is written to a file or named pipe before quit.
@@ -1715,7 +1683,7 @@ function print_usrxml_entry(h, userid, file,    n, m, i, j, p, o)
 	return usrxml__seterrno(h, USRXML_E_NONE);
 }
 
-function print_usrxml_entries(h, file,    n, u, o, stdout)
+function print_usrxml_entries_oneline(h, file, fn,    n, u, o, stdout)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -1726,13 +1694,16 @@ function print_usrxml_entries(h, file,    n, u, o, stdout)
 	if (file == "")
 		file = stdout;
 
+	if (fn == "")
+		fn = "print_usrxml_entry_oneline";
+
 	n = USRXML_users[h,"num"];
 	for (u = 0; u < n; u++) {
 		# Skip holes entries
 		if (!((h,u) in USRXML_users))
 			continue;
 
-		o = print_usrxml_entry(h, u, file);
+		o = @fn(h, u, file);
 		if (o != USRXML_E_NONE)
 			break;
 	}
@@ -1746,166 +1717,22 @@ function print_usrxml_entries(h, file,    n, u, o, stdout)
 }
 
 #
-# Print users entry in one line xml format
+# Print users entry in usrxml format
 #
 
-function print_usrxml_entry_oneline(h, userid, file,    n, m, i, j, p, o)
+function print_usrxml_entry(h, userid, file)
 {
-	o = usrxml_errno(h);
-	if (o != USRXML_E_NONE)
-		return o;
-
-	i = h SUBSEP userid;
-
-	if (!(i in USRXML_users))
-		return usrxml__seterrno(h, USRXML_E_NOENT);
-
-	if (file == "")
-		file = "/dev/stdout";
-
-	printf "<user %s>", USRXML_users[i] >>file;
-
-	if ((i,"inactive") in USRXML_users)
-		printf "<inactive yes>" >>file;
-
-	n = USRXML_userpipe[i];
-	for (p = 0; p < n; p++) {
-		# h,userid,pipeid
-		j = i SUBSEP p;
-
-		printf "<pipe %d><zone %s><dir %s><bw %sKb>",
-			USRXML_userpipe[j],
-			USRXML_userpipe[j,"zone"],
-			USRXML_userpipe[j,"dir"],
-			USRXML_userpipe[j,"bw"] >>file;
-
-		o = USRXML_userpipe[j,"qdisc"];
-		if (o != "") {
-			printf "<qdisc %s>", o >>file;
-
-			j = j SUBSEP "opts";
-			m = USRXML_userpipe[j];
-			for (o = 0; o < m; o++)
-				printf "<opts %s>",
-					USRXML_userpipe[j,o] >>file;
-
-			printf "</qdisc>" >>file;
-		}
-
-		printf "</pipe>" >>file;
-	}
-
-	printf "<if %s>", USRXML_userif[i] >>file;
-
-	n = USRXML_usernets[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,netid
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in USRXML_usernets))
-			continue;
-
-		printf "<net %s>", USRXML_usernets[j] >>file;
-		if ((j,"has_opts") in USRXML_usernets) {
-			if ((j,"src") in USRXML_usernets)
-				printf "<src %s>",
-					USRXML_usernets[j,"src"] >>file;
-			if ((j,"via") in USRXML_usernets)
-				printf "<via %s>",
-					USRXML_usernets[j,"via"] >>file;
-			if ((j,"mac") in USRXML_usernets)
-				printf "<mac %s>",
-					USRXML_usernets[j,"mac"] >>file;
-			printf "</net>" >>file;
-		}
-	}
-
-	n = USRXML_usernets6[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,net6id
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in USRXML_usernets6))
-			continue;
-
-		printf "<net6 %s>", USRXML_usernets6[j] >>file;
-		if ((j,"has_opts") in USRXML_usernets6) {
-			if ((j,"src") in USRXML_usernets6)
-				printf "<src %s>",
-					USRXML_usernets6[j,"src"] >>file;
-			if ((j,"via") in USRXML_usernets6)
-				printf "<via %s>",
-					USRXML_usernets6[j,"via"] >>file;
-			if ((j,"mac") in USRXML_usernets6)
-				printf "<mac %s>",
-					USRXML_usernets6[j,"mac"] >>file;
-			printf "</net6>" >>file;
-		}
-	}
-
-	n = USRXML_usernats[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,natid
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in USRXML_usernats))
-			continue;
-
-		printf "<nat %s>", USRXML_usernats[j] >>file;
-	}
-
-	n = USRXML_usernats6[i,"num"];
-	for (p = 0; p < n; p++) {
-		# h,userid,nat6id
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in USRXML_usernats6))
-			continue;
-
-		printf "<nat6 %s>", USRXML_usernats6[j] >>file;
-	}
-
-	print "</user>" >>file;
-
-	# Callers should flush output buffers using fflush(file) to ensure
-	# all pending data is written to a file or named pipe before quit.
-
-	return usrxml__seterrno(h, USRXML_E_NONE);
+	return print_usrxml_entry_oneline(h, userid, file, "\t", "\n");
 }
 
-function print_usrxml_entries_oneline(h, file,    n, u, o, stdout)
+function print_usrxml_entries(h, file)
 {
-	o = usrxml_errno(h);
-	if (o != USRXML_E_NONE)
-		return o;
-
-	stdout = "/dev/stdout"
-
-	if (file == "")
-		file = stdout;
-
-	n = USRXML_users[h,"num"];
-	for (u = 0; u < n; u++) {
-		# Skip holes entries
-		if (!((h,u) in USRXML_users))
-			continue;
-
-		o = print_usrxml_entry_oneline(h, u, file);
-		if (o != USRXML_E_NONE)
-			break;
-	}
-
-	fflush(file);
-
-	if (file != stdout)
-		close(file);
-
-	return o;
+	return print_usrxml_entries_oneline(h, file, "print_usrxml_entry");
 }
+
+#
+# Load/store batch from file/pipe/stdin
+#
 
 function load_usrxml_file(_h, file, cb, data,    h, line, rc, ret, s_fn, stdin)
 {
