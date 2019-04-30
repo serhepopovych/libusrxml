@@ -1182,7 +1182,7 @@ function fini_usrxml_parser(h,    n, u)
 # Parse and validate XML document.
 #
 
-function usrxml__scope_error(h, name, val)
+function usrxml__scope_error(h, sign, name, val)
 {
 	# Skip all lines until new user entry on error
 
@@ -1196,7 +1196,7 @@ function usrxml__scope_error(h, name, val)
 	return USRXML_E_EATLINE;
 }
 
-function usrxml__scope_none(h, name, val,    n, i)
+function usrxml__scope_none(h, sign, name, val,    n, i)
 {
 	if (name == "user") {
 		if (val == "")
@@ -1221,7 +1221,7 @@ function usrxml__scope_none(h, name, val,    n, i)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_user(h, name, val,    n, i)
+function usrxml__scope_user(h, sign, name, val,    n, i)
 {
 	i = USRXML__instance[h,"userid"];
 
@@ -1350,7 +1350,7 @@ function usrxml__scope_user(h, name, val,    n, i)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_pipe(h, name, val,    n)
+function usrxml__scope_pipe(h, sign, name, val,    n)
 {
 	n = USRXML__instance[h,"pipeid"];
 
@@ -1401,7 +1401,7 @@ function usrxml__scope_pipe(h, name, val,    n)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_qdisc(h, name, val,    n, o)
+function usrxml__scope_qdisc(h, sign, name, val,    n, o)
 {
 	n = USRXML__instance[h,"pipeid"];
 
@@ -1420,7 +1420,7 @@ function usrxml__scope_qdisc(h, name, val,    n, o)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_net(h, name, val,    n, o, net)
+function usrxml__scope_net(h, sign, name, val,    n, o, net)
 {
 	n = USRXML__instance[h,"netid"];
 	net = USRXML_usernets[n];
@@ -1481,7 +1481,7 @@ function usrxml__scope_net(h, name, val,    n, o, net)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_net6(h, name, val,    n, o, net6)
+function usrxml__scope_net6(h, sign, name, val,    n, o, net6)
 {
 	n = USRXML__instance[h,"net6id"];
 	net6 = USRXML_usernets6[n];
@@ -1542,7 +1542,7 @@ function usrxml__scope_net6(h, name, val,    n, o, net6)
 	return USRXML_E_NONE;
 }
 
-function run_usrxml_parser(h, line, cb, data,    a, n, fn, val, s_rs, s_rl)
+function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret, s_rs, s_rl)
 {
 	val = usrxml_errno(h);
 	if (val != USRXML_E_NONE)
@@ -1570,7 +1570,7 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, val, s_rs, s_rl)
 	s_rs = RSTART;
 	s_rl = RLENGTH;
 
-	n = match(line, "^[[:space:]]*<(/?[[:alpha:]_][[:alnum:]_]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
+	n = match(line, "^[[:space:]]*<(|[/+-])([[:alpha:]_][[:alnum:]_]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
 
 	RSTART = s_rs;
 	RLENGTH = s_rl;
@@ -1578,41 +1578,51 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, val, s_rs, s_rl)
 	if (!n)
 		return usrxml_syntax_err(h);
 
-	sub("[[:space:]]+", "", a[2]);
+	sign = a[1];
+	name = a[2];
+	val  = a[3];
 
-	# name = a[1]
-	# val  = a[2]
+	if (sign == "/") {        # close
+		name = sign name;
+		sign = 0;
+	} else if (sign == "-") { # del
+		sign = -1;
+	} else { # sign == "+"    # add
+		sign = 1;
+	}
+
+	sub("[[:space:]]+", "", val);
 
 	do {
-		val = USRXML__instance[h,"scope"];
+		n = USRXML__instance[h,"scope"];
 
-		fn = "usrxml__scope_" USRXML__scope2name[val];
-		val = @fn(h, a[1], a[2]);
+		fn = "usrxml__scope_" USRXML__scope2name[n];
+		ret = @fn(h, sign, name, val);
 
 		# userid
-		if (sub(h SUBSEP, "", val) == 1) {
+		if (sub(h SUBSEP, "", ret) == 1) {
 			# Make sure we always return value > 0
 			if (cb != "")
-				val = @cb(h, val, data);
+				ret = @cb(h, ret, data);
 			else
-				val++;
+				ret++;
 			break;
 		}
 		# Parse error in the middle of operation: skip lines until valid
-		if (val < 0) {
-			if (val == USRXML_E_EATLINE)
+		if (ret < 0) {
+			if (ret == USRXML_E_EATLINE)
 				return USRXML_E_NONE;
 			USRXML__instance[h,"scope"] = USRXML__scope_error;
 			break;
 		}
-	} while (val > 0);
+	} while (ret > 0);
 
-	if (val < 0)
+	if (ret < 0)
 		usrxml__restore_user(h, "");
-	else if (val > 0)
+	else if (ret > 0)
 		usrxml__cleanup_user(h, "");
 
-	return val;
+	return ret;
 }
 
 #
