@@ -1542,7 +1542,7 @@ function usrxml__scope_net6(h, name, val,    n, o, net6)
 	return USRXML_E_NONE;
 }
 
-function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
+function run_usrxml_parser(h, line, cb, data,    a, n, fn, val, s_rs, s_rl)
 {
 	val = usrxml_errno(h);
 	if (val != USRXML_E_NONE)
@@ -1566,12 +1566,19 @@ function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
 	if (line ~ /^[[:space:]]*$/)
 		return USRXML_E_NONE;
 
-	nfields = match(line, "^[[:space:]]*<([[:alpha:]_][[:alnum:]_]+)[[:space:]]+([^<>]+)>[[:space:]]*$", a);
-	if (!nfields) {
-		nfields = match(line, "^[[:space:]]*<(/[[:alpha:]_][[:alnum:]_]+)[[:space:]]*([^<>]*)>[[:space:]]*$", a);
-		if (!nfields)
-			return usrxml_syntax_err(h);
-	}
+	# These are modified by match(): save them
+	s_rs = RSTART;
+	s_rl = RLENGTH;
+
+	n = match(line, "^[[:space:]]*<(/?[[:alpha:]_][[:alnum:]_]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
+
+	RSTART = s_rs;
+	RLENGTH = s_rl;
+
+	if (!n)
+		return usrxml_syntax_err(h);
+
+	sub("[[:space:]]+", "", a[2]);
 
 	# name = a[1]
 	# val  = a[2]
