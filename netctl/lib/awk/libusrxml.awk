@@ -1416,12 +1416,12 @@ function usrxml__scope_qdisc(h, sign, name, val,    n, o)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_net(h, sign, name, val,    n, o, net)
+function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 {
-	n = USRXML__instance[h,"netid"];
-	net = USRXML_usernets[n];
+	n = USRXML__instance[h,"net" s "id"];
+	net = umap[n];
 
-	if (name == "/net") {
+	if (name == "/net" s) {
 		if (val != "" && val != net)
 			return usrxml_inv_arg(h, name, val);
 
@@ -1441,7 +1441,7 @@ function usrxml__scope_net(h, sign, name, val,    n, o, net)
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		if ((n, "mac") in USRXML_usernets)
+		if ((n, "mac") in umap)
 			return usrxml_inv_arg(h, name, val);
 
 		o = val;
@@ -1453,12 +1453,12 @@ function usrxml__scope_net(h, sign, name, val,    n, o, net)
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		if ((n, "via") in USRXML_usernets)
+		if ((n, "via") in umap)
 			return usrxml_inv_arg(h, name, val);
 
 		if (!is_ipp_host(net))
 			return usrxml_inv_arg(h, name, val);
-	} else if ((n,"has_opts") in USRXML_usernets) {
+	} else if ((n,"has_opts") in umap) {
 		return usrxml_syntax_err(h);
 	} else {
 		USRXML__instance[h,"scope"] = USRXML__scope_user;
@@ -1467,65 +1467,20 @@ function usrxml__scope_net(h, sign, name, val,    n, o, net)
 		return 1;
 	}
 
-	USRXML_usernets[n,name] = val;
-	USRXML_usernets[n,"has_opts"] = 1;
+	umap[n,name] = val;
+	umap[n,"has_opts"] = 1;
+
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_net6(h, sign, name, val,    n, o, net6)
+function usrxml__scope_net(h, sign, name, val)
 {
-	n = USRXML__instance[h,"net6id"];
-	net6 = USRXML_usernets6[n];
+	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets, "");
+}
 
-	if (name == "/net6") {
-		if (val != "" && val != net6)
-			return usrxml_inv_arg(h, name, val);
-
-		USRXML__instance[h,"scope"] = USRXML__scope_user;
-
-		return USRXML_E_NONE;
-	} else if (name == "src") {
-		if (val == "")
-			return usrxml_ept_val(h, name);
-
-		o = val;
-
-		val = ipa_normalize(val);
-		if (val == "")
-			return usrxml_inv_arg(h, name, o);
-	} else if (name == "via") {
-		if (val == "")
-			return usrxml_ept_val(h, name);
-
-		if ((n, "mac") in USRXML_usernets6)
-			return usrxml_inv_arg(h, name, val);
-
-		o = val;
-
-		val = ipa_normalize(val);
-		if (val == "")
-			return usrxml_inv_arg(h, name, o);
-	} else if (name == "mac") {
-		if (val == "")
-			return usrxml_ept_val(h, name);
-
-		if ((n, "via") in USRXML_usernets6)
-			return usrxml_inv_arg(h, name, val);
-
-		if (!is_ipp_host(net6))
-			return usrxml_inv_arg(h, name, val);
-	} else if ((n,"has_opts") in USRXML_usernets6) {
-		return usrxml_syntax_err(h);
-	} else {
-		USRXML__instance[h,"scope"] = USRXML__scope_user;
-
-		# Signal caller to lookup with new scope
-		return 1;
-	}
-
-	USRXML_usernets6[n,name] = val;
-	USRXML_usernets6[n,"has_opts"] = 1;
-	return USRXML_E_NONE;
+function usrxml__scope_net6(h, sign, name, val)
+{
+	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6, "6");
 }
 
 function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret, s_rs, s_rl)
