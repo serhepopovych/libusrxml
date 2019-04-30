@@ -955,6 +955,8 @@ function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 		if (!(j in umap))
 			continue;
 
+		usrxml_section_delete_fileline(h, name SUBSEP j);
+
 		# These are "net" and "net6" specific
 		delete umap[j,"src"];
 		delete umap[j,"via"];
@@ -962,15 +964,12 @@ function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 		delete umap[j,"has_opts"];
 
 		usrxml__map_del_by_id(i, p, umap);
-
-		if (name != "")
-			usrxml_section_delete_fileline(h, name SUBSEP j);
 	}
 	# Remove in case of umap[i,"num"] is not defined (e.g. no <net6> tags)
 	delete umap[i,"num"];
 }
 
-function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, name, val)
+function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, val)
 {
 	if (subid != "")
 		h = h SUBSEP subid;
@@ -979,6 +978,8 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, na
 
 	# h,userid
 	i = h SUBSEP userid;
+
+	usrxml_section_delete_fileline(h, "user" SUBSEP i);
 
 	usrxml__map_del_by_attr(h, username, USRXML_users);
 
@@ -989,6 +990,9 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, na
 	for (p = 0; p < m; p++) {
 		# h,userid,pipeid
 		j = i SUBSEP p;
+
+		usrxml_section_delete_fileline(h, "pipe" SUBSEP j);
+		usrxml_section_delete_fileline(h, "qdisc" SUBSEP j);
 
 		delete USRXML_userpipe[j];
 		delete USRXML_userpipe[j,"zone"];
@@ -1011,24 +1015,21 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, na
 	delete USRXML_userif[i];
 
 	# net
-	name = (subid != "") ? "" : "net";
-	usrxml__delete_maps(h, userid, USRXML_nets, USRXML_usernets, name);
-
+	usrxml__delete_maps(h, userid, USRXML_nets, USRXML_usernets, "net");
 	# net6
-	name = (subid != "") ? "" : "net6";
-	usrxml__delete_maps(h, userid, USRXML_nets6, USRXML_usernets6, name);
-
+	usrxml__delete_maps(h, userid, USRXML_nets6, USRXML_usernets6, "net6");
 	# nat
-	name = (subid != "") ? "" : "nat";
-	usrxml__delete_maps(h, userid, USRXML_nats, USRXML_usernats, name);
-
+	usrxml__delete_maps(h, userid, USRXML_nats, USRXML_usernats, "nat");
 	# nat6
-	name = (subid != "") ? "" : "nat6";
-	usrxml__delete_maps(h, userid, USRXML_nats6, USRXML_usernats6, name);
+	usrxml__delete_maps(h, userid, USRXML_nats6, USRXML_usernats6, "nat6");
 }
 
 function usrxml__delete_user_by_id(h, userid)
 {
+	# Skip holes entries
+	if (!((h,userid) in USRXML_users))
+		return;
+
 	# if
 	usrxml__map_del_userif(h, userid);
 
@@ -1110,7 +1111,7 @@ function release_usrxml_consts()
 	delete zone_dir_bits;
 }
 
-function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
+function fini_usrxml_parser(h,    n, u)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
@@ -1123,28 +1124,8 @@ function fini_usrxml_parser(h,    n, m, i, j, u, p, o, val)
 
 	# user
 	n = USRXML_users[h,"num"];
-	for (u = 0; u < n; u++) {
-		# h,userid
-		i = h SUBSEP u;
-
-		# Skip holes entries
-		if (!(i in USRXML_users))
-			continue;
-
-		usrxml_section_delete_fileline(h, "user" SUBSEP i);
-
-		# pipe
-		m = USRXML_userpipe[i];
-		for (p = 0; p < m; p++) {
-			# h,userid,pipeid
-			j = i SUBSEP p;
-
-			usrxml_section_delete_fileline(h, "pipe" SUBSEP j);
-			usrxml_section_delete_fileline(h, "qdisc" SUBSEP j);
-		}
-
+	for (u = 0; u < n; u++)
 		usrxml__delete_user_by_id(h, u);
-	}
 	delete USRXML_users[h,"num"];
 
 	# Report errors by default
