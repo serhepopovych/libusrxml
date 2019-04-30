@@ -309,12 +309,14 @@ function declare_usrxml_consts()
 	USRXML_E_HANDLE_FULL    = -202;
 	USRXML_E_API_ORDER      = -203;
 	USRXML_E_GETLINE        = -204;
+	USRXML_E_EATLINE        = -205;
 	# entry
 	USRXML_E_NOENT	= -301;
 
 	## Constants (internal, arrays get cleaned )
 
 	# Tag scope
+	USRXML__scope_error	= -1;
 	USRXML__scope_none	= 0;
 	USRXML__scope_user	= 1;
 	USRXML__scope_pipe	= 2;
@@ -322,6 +324,7 @@ function declare_usrxml_consts()
 	USRXML__scope_net	= 4;
 	USRXML__scope_net6	= 5;
 
+	USRXML__scope2name[USRXML__scope_error]	= "error";
 	USRXML__scope2name[USRXML__scope_none]	= "none";
 	USRXML__scope2name[USRXML__scope_user]	= "user";
 	USRXML__scope2name[USRXML__scope_pipe]	= "pipe";
@@ -1162,6 +1165,20 @@ function fini_usrxml_parser(h,    n, u)
 # Parse and validate XML document.
 #
 
+function usrxml__scope_error(h, name, val)
+{
+	# Skip all lines until new user entry on error
+
+	if (name == "user") {
+		USRXML__instance[h,"scope"] = USRXML__scope_none;
+
+		# Signal caller to lookup with new scope
+		return 1;
+	}
+
+	return USRXML_E_EATLINE;
+}
+
 function usrxml__scope_none(h, name, val,    n, i)
 {
 	if (name == "user") {
@@ -1555,6 +1572,13 @@ function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
 				val = @cb(h, val, data);
 			else
 				val++;
+			break;
+		}
+		# Parse error in the middle of operation: skip lines until valid
+		if (val < 0) {
+			if (val == USRXML_E_EATLINE)
+				return USRXML_E_NONE;
+			USRXML__instance[h,"scope"] = USRXML__scope_error;
 			break;
 		}
 	} while (val > 0);
