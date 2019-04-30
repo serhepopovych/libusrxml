@@ -1359,22 +1359,20 @@ function usrxml__scope_pipe(h, sign, name, val,    n)
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_user;
+
+		return USRXML_E_NONE;
 	} else if (name == "zone") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
 		if (!(val in USRXML__zone))
 			return usrxml_inv_arg(h, name, val);
-
-		USRXML_userpipe[n,name] = val;
 	} else if (name == "dir" ) {
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
 		if (!(val in USRXML__dir))
 			return usrxml_inv_arg(h, name, val);
-
-		USRXML_userpipe[n,name] = val;
 	} else if (name == "bw") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1382,13 +1380,10 @@ function usrxml__scope_pipe(h, sign, name, val,    n)
 		val = 0 + val;
 		if (!val)
 			return usrxml_inv_arg(h, name, val);
-
-		USRXML_userpipe[n,name] = val;
 	} else if (name == "qdisc") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		USRXML_userpipe[n,name] = val;
 		USRXML_userpipe[n,"opts"] = 0;
 
 		USRXML__instance[h,"scope"] = USRXML__scope_qdisc;
@@ -1398,6 +1393,7 @@ function usrxml__scope_pipe(h, sign, name, val,    n)
 		return usrxml_syntax_err(h);
 	}
 
+	USRXML_userpipe[n,name] = val;
 	return USRXML_E_NONE;
 }
 
@@ -1441,8 +1437,6 @@ function usrxml__scope_net(h, sign, name, val,    n, o, net)
 		val = ipa_normalize(val);
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
-
-		USRXML_usernets[n,name] = val;
 	} else if (name == "via") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1455,8 +1449,6 @@ function usrxml__scope_net(h, sign, name, val,    n, o, net)
 		val = ipa_normalize(val);
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
-
-		USRXML_usernets[n,name] = val;
 	} else if (name == "mac") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1466,8 +1458,6 @@ function usrxml__scope_net(h, sign, name, val,    n, o, net)
 
 		if (!is_ipp_host(net))
 			return usrxml_inv_arg(h, name, val);
-
-		USRXML_usernets[n,name] = val;
 	} else if ((n,"has_opts") in USRXML_usernets) {
 		return usrxml_syntax_err(h);
 	} else {
@@ -1477,6 +1467,7 @@ function usrxml__scope_net(h, sign, name, val,    n, o, net)
 		return 1;
 	}
 
+	USRXML_usernets[n,name] = val;
 	USRXML_usernets[n,"has_opts"] = 1;
 	return USRXML_E_NONE;
 }
@@ -1502,8 +1493,6 @@ function usrxml__scope_net6(h, sign, name, val,    n, o, net6)
 		val = ipa_normalize(val);
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
-
-		USRXML_usernets6[n,name] = val;
 	} else if (name == "via") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1516,8 +1505,6 @@ function usrxml__scope_net6(h, sign, name, val,    n, o, net6)
 		val = ipa_normalize(val);
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
-
-		USRXML_usernets6[n,name] = val;
 	} else if (name == "mac") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1527,8 +1514,6 @@ function usrxml__scope_net6(h, sign, name, val,    n, o, net6)
 
 		if (!is_ipp_host(net6))
 			return usrxml_inv_arg(h, name, val);
-
-		USRXML_usernets6[n,name] = val;
 	} else if ((n,"has_opts") in USRXML_usernets6) {
 		return usrxml_syntax_err(h);
 	} else {
@@ -1538,6 +1523,7 @@ function usrxml__scope_net6(h, sign, name, val,    n, o, net6)
 		return 1;
 	}
 
+	USRXML_usernets6[n,name] = val;
 	USRXML_usernets6[n,"has_opts"] = 1;
 	return USRXML_E_NONE;
 }
