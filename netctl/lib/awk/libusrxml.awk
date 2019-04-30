@@ -1020,11 +1020,20 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, va
 	usrxml__delete_maps(h, userid, USRXML_nats6, USRXML_usernats6, "nat6");
 }
 
-function usrxml__delete_user_by_id(h, userid)
+function usrxml__delete_user_by_id(h, userid,    n)
 {
+	# h,userid
+	n = h SUBSEP userid;
+
 	# Skip holes entries
-	if (!((h,userid) in USRXML_users))
+	if (!(n in USRXML_users))
 		return;
+
+	# If no <if> is defined (or empty), set staging to non-empty value
+	# to suppress error messages in usrxml__map_del_userif().
+
+	if (USRXML_userif[n] == "" && USRXML_userif[n,"staging"] == "")
+		USRXML_userif[n,"staging"] = " ";
 
 	# if
 	usrxml__map_del_userif(h, userid);
@@ -1038,7 +1047,7 @@ function usrxml__delete_user_by_id(h, userid)
 	# nat6
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
 
-	usrxml__delete_user(h, USRXML_users[h,userid], "");
+	usrxml__delete_user(h, USRXML_users[n], "");
 }
 
 function usrxml__username(h, username,    userid)
