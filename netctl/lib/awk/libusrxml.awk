@@ -73,6 +73,20 @@ function usrxml_seterrno(h, val)
 	return usrxml__seterrno(h, val);
 }
 
+function usrxml__clearerrno(h,    val)
+{
+	val = USRXML__instance[h,"errno"];
+	USRXML__instance[h,"errno"] = USRXML_E_NONE;
+	return val;
+}
+
+function usrxml_clearerrno(h)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+	return usrxml__clearerrno(h);
+}
+
 #
 # Control library verbosity levels.
 #
@@ -345,6 +359,9 @@ function declare_usrxml_consts()
 	# Library public functions call order
 	USRXML__order_none	= 0;
 	USRXML__order_parse	= 1
+
+	# Load/store flags
+	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
 
 	# Zone and direction names to mask mapping
 	zone_dir_bits["world","in"]	= 0x01;
@@ -1745,7 +1762,7 @@ function print_usrxml_entries(h, file)
 # Load/store batch from file/pipe/stdin
 #
 
-function load_usrxml_file(_h, file, cb, data,    h, line, rc, ret, s_fn, stdin)
+function load_usrxml_file(_h, file, flags, cb, data,    h, line, rc, ret, s_fn, stdin)
 {
 	stdin = "/dev/stdin";
 
@@ -1769,8 +1786,11 @@ function load_usrxml_file(_h, file, cb, data,    h, line, rc, ret, s_fn, stdin)
 
 	while ((rc = (getline line <FILENAME)) > 0) {
 		ret = run_usrxml_parser(h, line, cb, data);
-		if (ret < 0)
-			break;
+		if (ret < 0) {
+			if (!and(flags, USRXML_LOAD_SKIP_FAILED))
+				break;
+			usrxml__clearerrno(h);
+		}
 	}
 
 	if (file != stdin)
@@ -1781,7 +1801,7 @@ function load_usrxml_file(_h, file, cb, data,    h, line, rc, ret, s_fn, stdin)
 	} else if (ret == USRXML_E_NONE) {
 		# Check for open sections
 		rc = USRXML__instance[h,"scope"];
-		if (rc != USRXML__scope_none)
+		if (rc > USRXML__scope_none)
 			ret = usrxml_scope_err(h, USRXML__scope2name[rc]);
 	}
 
