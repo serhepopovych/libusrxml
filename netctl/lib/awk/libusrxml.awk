@@ -1009,7 +1009,40 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
+function usrxml__delete_map(i, val, map, umap, name,    a, n, h, id)
+{
+	# h,userid,id,"id"
+	n = i SUBSEP val SUBSEP "id";
+
+	if (!(n in umap))
+		return;
+
+	# i = h,userid
+	split(i, a, SUBSEP);
+
+	h = a[1];
+	id = a[2];
+
+	if (isarray(map) && ((h,val) in map) && map[h,val] == i)
+		usrxml__map_del_by_attr(h, val, map);
+
+	id = umap[n];
+
+	# h,userid,id
+	n = i SUBSEP id;
+
+	usrxml_section_delete_fileline(name SUBSEP n);
+
+	# These are "net" and "net6" specific
+	delete umap[n,"src"];
+	delete umap[n,"via"];
+	delete umap[n,"mac"];
+	delete umap[n,"has_opts"];
+
+	usrxml__map_del_by_attr(i, val, umap);
+}
+
+function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p)
 {
 	# h,userid
 	i = h SUBSEP userid;
@@ -1023,15 +1056,7 @@ function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 		if (!(j in umap))
 			continue;
 
-		usrxml_section_delete_fileline(name SUBSEP j);
-
-		# These are "net" and "net6" specific
-		delete umap[j,"src"];
-		delete umap[j,"via"];
-		delete umap[j,"mac"];
-		delete umap[j,"has_opts"];
-
-		usrxml__map_del_by_id(i, p, umap);
+		usrxml__delete_map(i, umap[j], "", umap, name);
 	}
 	# Remove in case of umap[i,"num"] is not defined (e.g. no <net6> tags)
 	delete umap[i,"num"];
@@ -1105,6 +1130,18 @@ function usrxml__delete_user_by_id(h, userid,    n)
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
 
 	usrxml__delete_user(h, USRXML_users[n], "");
+}
+
+function usrxml__delete_user_by_name(h, username,    n)
+{
+	# h,username,"id"
+	n = h SUBSEP username SUBSEP "id";
+
+	# Skip holes entries
+	if (!(n in USRXML_users))
+		return;
+
+	usrxml__delete_user_by_id(h, USRXML_users[n]);
 }
 
 function usrxml__username(h, username,    userid)
@@ -1239,18 +1276,22 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		i = usrxml__map_add_attr(h, val, USRXML_users);
-		if (i in USRXML_userif) {
-			usrxml__save_user(h, val);
+		if (sign > 0) {
+			i = usrxml__map_add_attr(h, val, USRXML_users);
+			if (i in USRXML_userif) {
+				usrxml__save_user(h, val);
+			} else {
+				# New element allocated
+				USRXML_userif[i] = USRXML_userif[i,"staging"] = "";
+			}
+
+			USRXML__instance[h,"userid"] = i;
+			USRXML__instance[h,"scope"] = USRXML__scope_user;
+
+			usrxml_section_record_fileline(h, name SUBSEP i);
 		} else {
-			# New element allocated
-			USRXML_userif[i] = USRXML_userif[i,"staging"] = "";
+			usrxml__delete_user_by_name(h, val);
 		}
-
-		USRXML__instance[h,"userid"] = i;
-		USRXML__instance[h,"scope"] = USRXML__scope_user;
-
-		usrxml_section_record_fileline(h, name SUBSEP i);
 	} else {
 		return usrxml_syntax_err(h);
 	}
@@ -1284,6 +1325,8 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 	} else if (name == "if") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
+		if (sign <= 0)
+			return usrxml_inv_arg(h, "-" name, val);
 
 		if (!usrxml_dev_valid_name(val))
 			return usrxml_inv_arg(h, name, val);
@@ -1299,12 +1342,17 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		n = usrxml__map_add_attr(i, val, USRXML_usernets);
+		if (sign > 0) {
+			n = usrxml__map_add_attr(i, val, USRXML_usernets);
 
-		USRXML__instance[h,"netid"] = n;
-		USRXML__instance[h,"scope"] = USRXML__scope_net;
+			USRXML__instance[h,"netid"] = n;
+			USRXML__instance[h,"scope"] = USRXML__scope_net;
 
-		usrxml_section_record_fileline(h, name SUBSEP n);
+			usrxml_section_record_fileline(h, name SUBSEP n);
+		} else {
+			usrxml__delete_map(i, val, USRXML_nets,
+					   USRXML_usernets, name);
+		}
 	} else if (name == "net6") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1315,12 +1363,17 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		n = usrxml__map_add_attr(i, val, USRXML_usernets6);
+		if (sign > 0) {
+			n = usrxml__map_add_attr(i, val, USRXML_usernets6);
 
-		USRXML__instance[h,"net6id"] = n;
-		USRXML__instance[h,"scope"] = USRXML__scope_net6;
+			USRXML__instance[h,"net6id"] = n;
+			USRXML__instance[h,"scope"] = USRXML__scope_net6;
 
-		usrxml_section_record_fileline(h, name SUBSEP n);
+			usrxml_section_record_fileline(h, name SUBSEP n);
+		} else {
+			usrxml__delete_map(i, val, USRXML_nets6,
+					   USRXML_usernets6, name);
+		}
 	} else if (name == "nat") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1331,9 +1384,14 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		n = usrxml__map_add_attr(i, val, USRXML_usernats);
+		if (sign > 0) {
+			n = usrxml__map_add_attr(i, val, USRXML_usernats);
 
-		usrxml_section_record_fileline(h, name SUBSEP n);
+			usrxml_section_record_fileline(h, name SUBSEP n);
+		} else {
+			usrxml__delete_map(i, val, USRXML_nats,
+					   USRXML_usernats, name);
+		}
 	} else if (name == "nat6") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1344,9 +1402,14 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
-		n = usrxml__map_add_attr(i, val, USRXML_usernats6);
+		if (sign > 0) {
+			n = usrxml__map_add_attr(i, val, USRXML_usernats6);
 
-		usrxml_section_record_fileline(h, name SUBSEP n);
+			usrxml_section_record_fileline(h, name SUBSEP n);
+		} else {
+			usrxml__delete_map(i, val, USRXML_nats6,
+					   USRXML_usernats6, name);
+		}
 	} else if (name == "pipe") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -1356,32 +1419,46 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 			return usrxml_inv_arg(h, name, val);
 
 		n = val - 1;
-		if (n > USRXML_userpipe[i])
-			return usrxml_inv_arg(h, name, val);
 
-		if (val > USRXML_userpipe[i])
-			USRXML_userpipe[i] = val;
+		if (sign > 0) {
+			if (n > USRXML_userpipe[i])
+				return usrxml_inv_arg(h, name, val);
 
-		# h,userid,pipeid
-		n = i SUBSEP n;
+			if (val > USRXML_userpipe[i])
+				USRXML_userpipe[i] = val;
 
-		USRXML_userpipe[n] = val;
-		USRXML_userpipe[n,"qdisc"] = "";
+			# h,userid,pipeid
+			n = i SUBSEP n;
 
-		USRXML__instance[h,"pipeid"] = n;
-		USRXML__instance[h,"scope"] = USRXML__scope_pipe;
+			USRXML_userpipe[n] = val;
+			USRXML_userpipe[n,"qdisc"] = "";
 
-		usrxml_section_record_fileline(h, name SUBSEP n);
+			USRXML__instance[h,"pipeid"] = n;
+			USRXML__instance[h,"scope"] = USRXML__scope_pipe;
+
+			usrxml_section_record_fileline(h, name SUBSEP n);
+		} else {
+			if (n < USRXML_userpipe[i]) {
+				# h,userid,pipeid
+				n = i SUBSEP n;
+
+				usrxml__delete_pipe(n);
+			}
+		}
 	} else if (name == "inactive") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		if (val == "yes")
-			USRXML_users[i,"inactive"] = 1;
-		else if (val == "no")
+		if (sign > 0) {
+			if (val == "yes")
+				USRXML_users[i,"inactive"] = 1;
+			else if (val == "no")
+				delete USRXML_users[i,"inactive"];
+			else
+				return usrxml_inv_arg(h, name, val);
+		} else {
 			delete USRXML_users[i,"inactive"];
-		else
-			return usrxml_inv_arg(h, name, val);
+		}
 	} else {
 		return usrxml_syntax_err(h);
 	}
@@ -1423,16 +1500,27 @@ function usrxml__scope_pipe(h, sign, name, val,    n)
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		USRXML_userpipe[n,"opts"] = 0;
+		if (sign > 0) {
+			USRXML_userpipe[n,"opts"] = 0;
 
-		USRXML__instance[h,"scope"] = USRXML__scope_qdisc;
+			USRXML__instance[h,"scope"] = USRXML__scope_qdisc;
 
-		usrxml_section_record_fileline(h, name SUBSEP n);
+			usrxml_section_record_fileline(h, name SUBSEP n);
+		} else {
+			usrxml__delete_qdisc(n);
+		}
+
+		return USRXML_E_NONE;
 	} else {
 		return usrxml_syntax_err(h);
 	}
 
-	USRXML_userpipe[n,name] = val;
+	if (sign > 0) {
+		USRXML_userpipe[n,name] = val;
+	} else {
+		delete USRXML_userpipe[n,name];
+	}
+
 	return USRXML_E_NONE;
 }
 
@@ -1446,6 +1534,9 @@ function usrxml__scope_qdisc(h, sign, name, val,    n, o)
 
 		USRXML__instance[h,"scope"] = USRXML__scope_pipe;
 	} else if (name == "opts") {
+		if (sign <= 0)
+			return usrxml_inv_arg(h, "-" name, val);
+
 		o = USRXML_userpipe[n,name]++;
 		USRXML_userpipe[n,name,o] = val;
 	} else {
@@ -1465,6 +1556,9 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_user;
+
+		if (umap[n,"has_opts"] <= 0)
+			delete umap[n,"has_opts"];
 
 		return USRXML_E_NONE;
 	} else if (name == "src") {
@@ -1506,8 +1600,16 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 		return 1;
 	}
 
-	umap[n,name] = val;
-	umap[n,"has_opts"] = 1;
+	if (sign > 0) {
+		umap[n,name] = val;
+	} else {
+		if ((n,name) in umap) {
+			delete umap[n,name];
+		} else {
+			sign = 0;
+		}
+	}
+	umap[n,"has_opts"] += sign;
 
 	return USRXML_E_NONE;
 }
