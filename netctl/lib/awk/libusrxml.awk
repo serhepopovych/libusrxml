@@ -784,8 +784,6 @@ function usrxml__activate_user_by_id(h, userid,    i, val)
 	# h,userid
 	i = h SUBSEP userid;
 
-	USRXML__instance[h,"userid"] = i;
-
 	# if
 	val = usrxml__map_add_userif(h, userid);
 	if (val != USRXML_E_NONE)
@@ -827,8 +825,6 @@ function usrxml__deactivate_user_by_id(h, userid,    i, val)
 {
 	# h,userid
 	i = h SUBSEP userid;
-
-	USRXML__instance[h,"userid"] = i;
 
 	# if
 	val = usrxml__map_del_userif(h, userid);
