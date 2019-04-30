@@ -779,6 +779,10 @@ function usrxml__validate_pipe(i,    m, j, p, val, zones_dirs, zd_bits)
 		# h,userid,pipeid
 		j = i SUBSEP p;
 
+		# Skip holes entries
+		if (!(j in USRXML_userpipe))
+			continue;
+
 		val = "pipe" SUBSEP j;
 
 		if (!((j,"zone") in USRXML_userpipe))
@@ -918,6 +922,11 @@ function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst,
 	for (p = 0; p < n; p++) {
 		# sh,userid,pipeid
 		j_src = i_src SUBSEP p;
+
+		# Skip holes entries
+		if (!(j_src in USRXML_userpipe))
+			continue;
+
 		# dh,userid,pipeid
 		j_dst = i_dst SUBSEP p;
 
@@ -957,6 +966,37 @@ function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst,
 	usrxml__map_copy(i_dst, USRXML_usernats6, i_src, USRXML_usernats6);
 }
 
+function usrxml__delete_qdisc(n,    m, p)
+{
+	# n = h,userid,pipeid
+
+	usrxml_section_delete_fileline("qdisc" SUBSEP n);
+
+	delete USRXML_userpipe[n,"qdisc"];
+
+	# h,userid,pipeid,opts
+	n = n SUBSEP "opts";
+
+	m = USRXML_userpipe[n];
+	for (p = 0; p < m; p++)
+		delete USRXML_userpipe[n,p];
+	delete USRXML_userpipe[n];
+}
+
+function usrxml__delete_pipe(n)
+{
+	# n = h,userid,pipeid
+
+	usrxml__delete_qdisc(n);
+
+	usrxml_section_delete_fileline("pipe" SUBSEP n);
+
+	delete USRXML_userpipe[n];
+	delete USRXML_userpipe[n,"zone"];
+	delete USRXML_userpipe[n,"dir"];
+	delete USRXML_userpipe[n,"bw"];
+}
+
 function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 {
 	# h,userid
@@ -985,7 +1025,7 @@ function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 	delete umap[i,"num"];
 }
 
-function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, val)
+function usrxml__delete_user(h, username, subid,    n, m, i, p, userid)
 {
 	if (subid != "")
 		h = h SUBSEP subid;
@@ -995,6 +1035,7 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, va
 	# h,userid
 	i = h SUBSEP userid;
 
+	# user
 	usrxml_section_delete_fileline("user" SUBSEP i);
 
 	usrxml__map_del_by_attr(h, username, USRXML_users);
@@ -1005,25 +1046,9 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, va
 	m = USRXML_userpipe[i];
 	for (p = 0; p < m; p++) {
 		# h,userid,pipeid
-		j = i SUBSEP p;
+		n = i SUBSEP p;
 
-		usrxml_section_delete_fileline("pipe" SUBSEP j);
-		usrxml_section_delete_fileline("qdisc" SUBSEP j);
-
-		delete USRXML_userpipe[j];
-		delete USRXML_userpipe[j,"zone"];
-		delete USRXML_userpipe[j,"dir"];
-		delete USRXML_userpipe[j,"bw"];
-
-		delete USRXML_userpipe[j,"qdisc"];
-
-		# h,userid,pipeid,opts
-		j = j SUBSEP "opts";
-
-		val = USRXML_userpipe[j];
-		delete USRXML_userpipe[j];
-		for (o = 0; o < val; o++)
-			delete USRXML_userpipe[j,o];
+		usrxml__delete_pipe(n);
 	}
 	delete USRXML_userpipe[i];
 
@@ -1325,7 +1350,9 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 		if (val > USRXML_userpipe[i])
 			USRXML_userpipe[i] = val;
 
+		# h,userid,pipeid
 		n = i SUBSEP n;
+
 		USRXML_userpipe[n] = val;
 		USRXML_userpipe[n,"qdisc"] = "";
 
@@ -1623,6 +1650,10 @@ function print_usrxml_entry_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o
 	for (p = 0; p < n; p++) {
 		# h,userid,pipeid
 		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in USRXML_userpipe))
+			continue;
 
 		printf s1 "<pipe %d>" s2 \
 		       s1 s1 "<zone %s>" s2 \
