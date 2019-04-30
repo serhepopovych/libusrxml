@@ -19,18 +19,11 @@ BEGIN{
 	## Parse user database
 	##
 	line = $0;
-	if (run_usrxml_parser(h, line) < 0)
+	if (run_usrxml_parser(h, line, "print_usrxml_entry_oneline") < 0)
 		exit 1;
 }
 
 END{
-	##
-	## Print entries
-	##
-	n = USRXML_users[h,"num"];
-	for (u = 0; u < n; u++)
-		print_usrxml_entry_oneline(h, u);
-
 	##
 	## Finish user database parsing
 	##

@@ -1565,9 +1565,10 @@ function run_usrxml_parser(h, line, cb, data,    a, nfields, fn, val)
 		# userid
 		if (sub(h SUBSEP, "", val) == 1) {
 			# Make sure we always return value > 0
-			val++;
 			if (cb != "")
 				val = @cb(h, val, data);
+			else
+				val++;
 			break;
 		}
 	} while (val > 0);
@@ -1680,7 +1681,7 @@ function print_usrxml_entry_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o
 	# Callers should flush output buffers using fflush(file) to ensure
 	# all pending data is written to a file or named pipe before quit.
 
-	return usrxml__seterrno(h, USRXML_E_NONE);
+	return userid + 1;
 }
 
 function print_usrxml_entries_oneline(h, file, fn,    n, u, o, stdout)
@@ -1704,7 +1705,7 @@ function print_usrxml_entries_oneline(h, file, fn,    n, u, o, stdout)
 			continue;
 
 		o = @fn(h, u, file);
-		if (o != USRXML_E_NONE)
+		if (o < 0)
 			break;
 	}
 
