@@ -449,7 +449,6 @@ function init_usrxml_parser(    h)
 	#
 	#   <if>
 	#     userif = USRXML_userif[h,userid]
-	#     staging_userif = USRXML_userif[h,userid,"staging"]
 	#
 	#   nunets = USRXML_usernets[h,userid,"num"]
 	#   netid = [0 .. nunets - 1]
@@ -720,9 +719,7 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 
 function usrxml__map_add_userif(h, userid,    o, val)
 {
-	val = usrxml__map_del_userif(h, userid);
-	if (val != USRXML_E_NONE)
-		return val;
+	usrxml__map_del_userif(h, userid);
 
 	o = USRXML_userif[h,userid];
 
@@ -739,27 +736,9 @@ function usrxml__map_add_userif(h, userid,    o, val)
 	return USRXML_E_NONE;
 }
 
-function usrxml__map_del_userif(h, userid,    m, i, o, val)
+function usrxml__map_del_userif(h, userid,    m, o, val)
 {
-	# h,userid
-	i = h SUBSEP userid;
-
-	o = USRXML_userif[i];
-	m = USRXML_userif[i,"staging"];
-
-	delete USRXML_userif[i,"staging"];
-
-	if (m == o) {
-		if (m == "") {
-			val = "user" SUBSEP i;
-			return usrxml_section_missing_arg(h, "if", val);
-		}
-	} else {
-		if (m != "")
-			USRXML_userif[i] = m;
-		if (o == "")
-			return USRXML_E_NONE;
-	}
+	o = USRXML_userif[h,userid];
 
 	# h,userif
 	m = h SUBSEP o;
@@ -775,6 +754,16 @@ function usrxml__map_del_userif(h, userid,    m, i, o, val)
 			usrxml__map_del_by_attr(h, o, USRXML_ifnames);
 		}
 	}
+}
+
+function usrxml__validate_if(h, userid,    i, val)
+{
+	# h,userid
+	i = h SUBSEP userid;
+
+	val = USRXML_userif[i];
+	if (val == "")
+		return usrxml_section_missing_arg(h, "if", "user" SUBSEP i);
 
 	return USRXML_E_NONE;
 }
@@ -819,12 +808,17 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 function usrxml__activate_user_by_id(h, userid,    val)
 {
 	# if
-	val = usrxml__map_add_userif(h, userid);
+	val = usrxml__validate_if(h, userid);
 	if (val != USRXML_E_NONE)
 		return val;
 
 	# pipe
 	val = usrxml__validate_pipe(h, userid);
+	if (val != USRXML_E_NONE)
+		return val;
+
+	# if
+	val = usrxml__map_add_userif(h, userid);
 	if (val != USRXML_E_NONE)
 		return val;
 
@@ -858,7 +852,7 @@ function usrxml__activate_user_by_id(h, userid,    val)
 function usrxml__deactivate_user_by_id(h, userid,    val)
 {
 	# if
-	val = usrxml__map_del_userif(h, userid);
+	val = usrxml__validate_if(h, userid);
 	if (val != USRXML_E_NONE)
 		return val;
 
@@ -867,6 +861,8 @@ function usrxml__deactivate_user_by_id(h, userid,    val)
 	if (val != USRXML_E_NONE)
 		return val;
 
+	# if
+	usrxml__map_del_userif(h, userid);
 	# net
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
 	# net6
@@ -1004,6 +1000,20 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
+function usrxml__delete_if(i, map,    a, h, userid)
+{
+	# i = h,userid
+	split(i, a, SUBSEP);
+
+	h = a[1];
+	userid = a[2];
+
+	if (isarray(map))
+		usrxml__map_del_userif(h, userid);
+
+	delete USRXML_userif[i];
+}
+
 function usrxml__delete_map(i, val, map, umap, name,    a, n, h, id)
 {
 	# h,userid,id,"id"
@@ -1084,8 +1094,7 @@ function usrxml__delete_user(h, username, subid,    n, m, i, p, userid)
 	delete USRXML_userpipe[i];
 
 	# if
-	delete USRXML_userif[i];
-
+	usrxml__delete_if(i);
 	# net
 	usrxml__delete_maps(i, USRXML_nets, USRXML_usernets, "net");
 	# net6
@@ -1104,12 +1113,6 @@ function usrxml__delete_user_by_id(h, userid,    n)
 	# Skip holes entries
 	if (!(n in USRXML_users))
 		return;
-
-	# If no <if> is defined (or empty), set staging to non-empty value
-	# to suppress error messages in usrxml__map_del_userif().
-
-	if (USRXML_userif[n] == "" && USRXML_userif[n,"staging"] == "")
-		USRXML_userif[n,"staging"] = " ";
 
 	# if
 	usrxml__map_del_userif(h, userid);
@@ -1276,7 +1279,7 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 				usrxml__save_user(h, val);
 			} else {
 				# New element allocated
-				USRXML_userif[i] = USRXML_userif[i,"staging"] = "";
+				USRXML_userif[i] = "";
 			}
 
 			USRXML__instance[h,"userid"] = i;
@@ -1319,13 +1322,26 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 	} else if (name == "if") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
-		if (sign <= 0)
-			return usrxml_inv_arg(h, "-" name, val);
 
 		if (!usrxml_dev_valid_name(val))
 			return usrxml_inv_arg(h, name, val);
 
-		USRXML_userif[i,"staging"] = val;
+		n = USRXML_userif[i];
+
+		if (sign > 0) {
+			if (n != val) {
+				if (n != "")
+					return usrxml_dup_arg(h, name);
+				USRXML_userif[i] = val;
+			}
+		} else {
+			if (n != "") {
+				if (n != val)
+					return usrxml_inv_arg(h, name, val);
+				usrxml__delete_if(i, USRXML_ifnames);
+				USRXML_userif[i] = "";
+			}
+		}
 	} else if (name == "net") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
