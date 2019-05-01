@@ -221,14 +221,14 @@ function usrxml_section_record_fileline(h, key,    n)
 	USRXML__fileline[key,"line",n] = USRXML__instance[h,"linenum"];
 }
 
-function usrxml_section_delete_fileline(h, key,    n, i)
+function usrxml_section_delete_fileline(key,    n, i)
 {
 	n = USRXML__fileline[key];
-	delete USRXML__fileline[key];
 	for (i = 0; i < n; i++) {
 		delete USRXML__fileline[key,"file",i];
 		delete USRXML__fileline[key,"line",i];
 	}
+	delete USRXML__fileline[key];
 }
 
 function usrxml_section_fn_arg(h, section, key, fn,    n, ret, s_fn, s_ln)
@@ -971,7 +971,7 @@ function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p, subid)
 		if (!(j in umap))
 			continue;
 
-		usrxml_section_delete_fileline(h, name SUBSEP j);
+		usrxml_section_delete_fileline(name SUBSEP j);
 
 		# These are "net" and "net6" specific
 		delete umap[j,"src"];
@@ -995,7 +995,7 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, va
 	# h,userid
 	i = h SUBSEP userid;
 
-	usrxml_section_delete_fileline(h, "user" SUBSEP i);
+	usrxml_section_delete_fileline("user" SUBSEP i);
 
 	usrxml__map_del_by_attr(h, username, USRXML_users);
 
@@ -1007,8 +1007,8 @@ function usrxml__delete_user(h, username, subid,    n, m, i, j, p, o, userid, va
 		# h,userid,pipeid
 		j = i SUBSEP p;
 
-		usrxml_section_delete_fileline(h, "pipe" SUBSEP j);
-		usrxml_section_delete_fileline(h, "qdisc" SUBSEP j);
+		usrxml_section_delete_fileline("pipe" SUBSEP j);
+		usrxml_section_delete_fileline("qdisc" SUBSEP j);
 
 		delete USRXML_userpipe[j];
 		delete USRXML_userpipe[j,"zone"];
