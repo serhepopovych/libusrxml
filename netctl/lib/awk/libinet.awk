@@ -1,6 +1,6 @@
 #!/usr/bin/gawk -f
 
-function do_mac(str, sep,    nfields, v, s, o, t, ret)
+function mac_normalize(str, sep,    nfields, v, s, o, t, ret)
 {
 	if (sep != ":" && sep != "-" && sep != "." && sep != "")
 		return "";
@@ -55,30 +55,30 @@ function do_mac(str, sep,    nfields, v, s, o, t, ret)
 
 function mac2colon(str)
 {
-	return do_mac(str, ":");
+	return mac_normalize(str, ":");
 }
 
 function mac2dash(str)
 {
-	return do_mac(str, "-");
+	return mac_normalize(str, "-");
 }
 
 function mac2cisco(str)
 {
-	return do_mac(str, ".");
+	return mac_normalize(str, ".");
 }
 
 function mac2raw(str)
 {
-	return do_mac(str, "");
+	return mac_normalize(str, "");
 }
 
 function is_valid_mac(str)
 {
-	return do_mac(str, "") != "";
+	return mac_normalize(str, "") != "";
 }
 
-function do_ipv4(str,    nfields, v, vals)
+function ip4_normalize(str,    nfields, v, vals)
 {
 	nfields = split(str, vals, ".");
 	# "1.1.1.1" gives four fields
@@ -98,7 +98,7 @@ function do_ipv4(str,    nfields, v, vals)
 
 function is_valid_ipv4(str)
 {
-	return do_ipv4(str) != "";
+	return ip4_normalize(str) != "";
 }
 
 function __ipv4_to_int(str,    nfields, v, vals)
@@ -120,13 +120,13 @@ function __ipv4_to_int(str,    nfields, v, vals)
 
 function ipv4_to_int(str)
 {
-	str = do_ipv4(str);
+	str = ip4_normalize(str);
 	if (str == "")
 		return -1;
 	return __ipv4_to_int(str);
 }
 
-function do_ipv6(str,    nfields, v, vals, mfields, n, short, nshort, ishort)
+function ip6_normalize(str,    nfields, v, vals, mfields, n, short, nshort, ishort)
 {
 	n = nfields = split(str, vals, ":");
 
@@ -137,7 +137,7 @@ function do_ipv6(str,    nfields, v, vals, mfields, n, short, nshort, ishort)
 	# empty, hex or dotted-quad
 	v = vals[n];
 	if (v !~ "^[[:xdigit:]]{0,4}$") {
-		v = do_ipv4(v)
+		v = ip4_normalize(v)
 		if (v == "")
 			return v;
 		short = __ipv4_to_int(v);
@@ -230,15 +230,15 @@ function do_ipv6(str,    nfields, v, vals, mfields, n, short, nshort, ishort)
 
 function is_valid_ipv6(str)
 {
-	return do_ipv6(str) != "";
+	return ip6_normalize(str) != "";
 }
 
 function ipa_normalize(str,    addr)
 {
-	addr = do_ipv4(str);
+	addr = ip4_normalize(str);
 	if (addr != "")
 		return addr;
-	addr = do_ipv6(str);
+	addr = ip6_normalize(str);
 	if (addr != "")
 		return addr;
 	return "";
@@ -291,12 +291,12 @@ function ipp_normalize(str,    nfields, vals, addr, plen)
 	if (plen !~ "^[[:digit:]]{1,3}$")
 		return "";
 
-	addr = do_ipv4(vals[1]);
+	addr = ip4_normalize(vals[1]);
 	if (addr != "") {
 		if (plen > 32)
 			return "";
 	} else {
-		addr = do_ipv6(vals[1]);
+		addr = ip6_normalize(vals[1]);
 		if (addr == "")
 			return "";
 		if (plen > 128)
@@ -316,7 +316,7 @@ function ipp_network(str,    nfields, o, b, m, vals, sep, addr, plen)
 	if (plen !~ "^[[:digit:]]{1,3}$")
 		return "";
 
-	addr = do_ipv4(vals[1]);
+	addr = ip4_normalize(vals[1]);
 	if (addr != "") {
 		if (plen > 32)
 			return "";
@@ -330,7 +330,7 @@ function ipp_network(str,    nfields, o, b, m, vals, sep, addr, plen)
 			o++;
 		}
 	} else {
-		addr = do_ipv6(vals[1]);
+		addr = ip6_normalize(vals[1]);
 		if (addr == "")
 			return "";
 		if (plen > 128)
@@ -389,7 +389,7 @@ function ipa_do_match(net, address,    nfields, o, b, m, v, valsN, valsA, sep, a
 		return -1;
 	split(address, valsA, "[.:]", sep);
 
-	addr = do_ipv4(valsN[1]);
+	addr = ip4_normalize(valsN[1]);
 	if (addr != "") {
 		if (plen > 32)
 			return -1;
@@ -401,7 +401,7 @@ function ipa_do_match(net, address,    nfields, o, b, m, v, valsN, valsA, sep, a
 		if (b != 0)
 			m = compl(rshift(0xff, b));
 	} else {
-		addr = do_ipv6(valsN[1]);
+		addr = ip6_normalize(valsN[1]);
 		if (addr == "")
 			return -1;
 		if (plen > 128)
