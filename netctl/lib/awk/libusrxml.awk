@@ -596,6 +596,9 @@ function usrxml__map_del_by_attr(h, attr, map,    n, id, val)
 	# h,attr,"id"
 	n = h SUBSEP attr SUBSEP "id";
 
+	if (!(n in map))
+		return -1;
+
 	id = map[n];
 	delete map[n];
 	delete map[h,id];
@@ -615,10 +618,19 @@ function usrxml__map_del_by_attr(h, attr, map,    n, id, val)
 	return id;
 }
 
-function usrxml__map_del_by_id(h, id, map,    attr)
+function usrxml__map_del_by_id(h, id, map,    n, attr)
 {
-	attr = map[h,id];
-	usrxml__map_del_by_attr(h, attr, map);
+	# h,id
+	n = h SUBSEP id;
+
+	if (!(n in map))
+		return "";
+
+	attr = map[n];
+
+	if (usrxml__map_del_by_attr(h, attr, map) < 0)
+		return "";
+
 	return attr;
 }
 
