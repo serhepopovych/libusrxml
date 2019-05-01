@@ -1337,7 +1337,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 		n = val;
 
-		val = ipp_normalize(val);
+		val = ipp_normalize(val, "4");
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
@@ -1358,7 +1358,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 		n = val;
 
-		val = ipp_normalize(val);
+		val = ipp_normalize(val, "6");
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
@@ -1379,7 +1379,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 		n = val;
 
-		val = ipp_normalize(val);
+		val = ipp_normalize(val, "4");
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
@@ -1397,7 +1397,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 		n = val;
 
-		val = ipp_normalize(val);
+		val = ipp_normalize(val, "6");
 		if (val == "")
 			return usrxml_inv_arg(h, name, n);
 
@@ -1566,7 +1566,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 
 		o = val;
 
-		val = ipa_normalize(val);
+		val = ipa_normalize(val, (s == "") ? "4" : "6");
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
 	} else if (name == "via") {
@@ -1578,7 +1578,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 
 		o = val;
 
-		val = ipa_normalize(val);
+		val = ipa_normalize(val, (s == "") ? "4" : "6");
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
 	} else if (name == "mac") {
@@ -1588,7 +1588,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 		if ((n, "via") in umap)
 			return usrxml_inv_arg(h, name, val);
 
-		if (!is_ipp_host(net))
+		if (!is_ipp_host(net, (s == "") ? "4" : "6"))
 			return usrxml_inv_arg(h, name, val);
 	} else if ((n,"has_opts") in umap) {
 		return usrxml_syntax_err(h);
