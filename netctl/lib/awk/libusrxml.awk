@@ -717,6 +717,15 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 	}
 }
 
+function usrxml__map_filter_userif(val, userid)
+{
+	sub(" " userid " ", " ", val) ||   # 1 x 3 == 1 3
+	sub(userid " ", "", val)      ||   # x 2 3 == 2 3
+	sub(" " userid, "", val);          # 1 2 x == 1 2
+
+	return val;
+}
+
 function usrxml__map_add_userif(h, userid,    o, val, userids)
 {
 	o = USRXML_userif[h,userid];
@@ -731,41 +740,34 @@ function usrxml__map_add_userif(h, userid,    o, val, userids)
 		if (userids == userid)
 			return USRXML_E_NONE;
 
-		# Has more than one owner?
-		if (index(userids, " ") == 0) {
-			# No. Append this userid.
-			USRXML_ifnames[val] = userids " " userid;
-			return USRXML_E_NONE;
-		}
-
-		# Yes. Delete this userid if present.
-		usrxml__map_del_userif(h, userid);
-		val = USRXML_ifnames[val] " " userid;
+		# Yes. Filter this userid.
+		USRXML_ifnames[val] = \
+			usrxml__map_filter_userif(userids, userid) " " userid;
 	} else {
-		val = userid;
+		usrxml__map_add_val(h, o, USRXML_ifnames, userid);
 	}
-
-	usrxml__map_add_val(h, o, USRXML_ifnames, val);
 
 	return USRXML_E_NONE;
 }
 
-function usrxml__map_del_userif(h, userid,    m, o, val)
+function usrxml__map_del_userif(h, userid,    o, val, userids)
 {
 	o = USRXML_userif[h,userid];
 
 	# h,userif
-	m = h SUBSEP o;
+	val = h SUBSEP o;
 
-	if (m in USRXML_ifnames) {
-		val = USRXML_ifnames[m];
+	if (val in USRXML_ifnames) {
+		userids = USRXML_ifnames[val];
 
-		if (sub(" " userid " ", " ", val) == 1 ||   # 1 x 3 == 1 3
-		    sub(userid " ", "", val)      == 1 ||   # x 2 3 == 2 3
-		    sub(" " userid, "", val)      == 1) {   # 1 2 x == 1 2
-			USRXML_ifnames[m] = val;
-		} else {
+		# This userid owns interface?
+		if (userids == userid) {
+			# Yes. Delete mapping.
 			usrxml__map_del_by_attr(h, o, USRXML_ifnames);
+		} else {
+			# No. Filter this userid.
+			USRXML_ifnames[val] = \
+				usrxml__map_filter_userif(userids, userid);
 		}
 	}
 }
