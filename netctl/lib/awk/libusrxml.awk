@@ -717,19 +717,33 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 	}
 }
 
-function usrxml__map_add_userif(h, userid,    o, val)
+function usrxml__map_add_userif(h, userid,    o, val, userids)
 {
-	usrxml__map_del_userif(h, userid);
-
 	o = USRXML_userif[h,userid];
 
 	# h,userif
 	val = h SUBSEP o;
 
-	if (val in USRXML_ifnames)
+	if (val in USRXML_ifnames) {
+		userids = USRXML_ifnames[val];
+
+		# This userid owns interface?
+		if (userids == userid)
+			return USRXML_E_NONE;
+
+		# Has more than one owner?
+		if (index(userids, " ") == 0) {
+			# No. Append this userid.
+			USRXML_ifnames[val] = userids " " userid;
+			return USRXML_E_NONE;
+		}
+
+		# Yes. Delete this userid if present.
+		usrxml__map_del_userif(h, userid);
 		val = USRXML_ifnames[val] " " userid;
-	else
+	} else {
 		val = userid;
+	}
 
 	usrxml__map_add_val(h, o, USRXML_ifnames, val);
 
