@@ -805,17 +805,19 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_id(h, userid,    val)
+function usrxml__activate_user_by_id(h, userid, no_validate,    val)
 {
-	# if
-	val = usrxml__validate_if(h, userid);
-	if (val != USRXML_E_NONE)
-		return val;
+	if (no_validate == "") {
+		# if
+		val = usrxml__validate_if(h, userid);
+		if (val != USRXML_E_NONE)
+			return val;
 
-	# pipe
-	val = usrxml__validate_pipe(h, userid);
-	if (val != USRXML_E_NONE)
-		return val;
+		# pipe
+		val = usrxml__validate_pipe(h, userid);
+		if (val != USRXML_E_NONE)
+			return val;
+	}
 
 	# if
 	val = usrxml__map_add_userif(h, userid);
@@ -849,17 +851,19 @@ function usrxml__activate_user_by_id(h, userid,    val)
 	return USRXML_E_NONE;
 }
 
-function usrxml__deactivate_user_by_id(h, userid,    val)
+function usrxml__deactivate_user_by_id(h, userid, no_validate,    val)
 {
-	# if
-	val = usrxml__validate_if(h, userid);
-	if (val != USRXML_E_NONE)
-		return val;
+	if (no_validate == "") {
+		# if
+		val = usrxml__validate_if(h, userid);
+		if (val != USRXML_E_NONE)
+			return val;
 
-	# pipe
-	val = usrxml__validate_pipe(h, userid);
-	if (val != USRXML_E_NONE)
-		return val;
+		# pipe
+		val = usrxml__validate_pipe(h, userid);
+		if (val != USRXML_E_NONE)
+			return val;
+	}
 
 	# if
 	usrxml__map_del_userif(h, userid);
@@ -1114,17 +1118,7 @@ function usrxml__delete_user_by_id(h, userid,    n)
 	if (!(n in USRXML_users))
 		return;
 
-	# if
-	usrxml__map_del_userif(h, userid);
-
-	# net
-	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
-	# net6
-	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets6, USRXML_usernets6);
-	# nat
-	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats, USRXML_usernats);
-	# nat6
-	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
+	usrxml__deactivate_user_by_id(h, userid, "true");
 
 	usrxml__delete_user(h, USRXML_users[n], "");
 }
