@@ -779,9 +779,10 @@ function usrxml__map_del_userif(h, userid,    m, i, o, val)
 	return USRXML_E_NONE;
 }
 
-function usrxml__validate_pipe(i,    m, j, p, val, zones_dirs, zd_bits)
+function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bits)
 {
-	# i = h,userid
+	# h,userid
+	i = h SUBSEP userid;
 
 	# pipe
 	zones_dirs = 0;
@@ -815,18 +816,15 @@ function usrxml__validate_pipe(i,    m, j, p, val, zones_dirs, zd_bits)
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_id(h, userid,    i, val)
+function usrxml__activate_user_by_id(h, userid,    val)
 {
-	# h,userid
-	i = h SUBSEP userid;
-
 	# if
 	val = usrxml__map_add_userif(h, userid);
 	if (val != USRXML_E_NONE)
 		return val;
 
 	# pipe
-	val = usrxml__validate_pipe(i);
+	val = usrxml__validate_pipe(h, userid);
 	if (val != USRXML_E_NONE)
 		return val;
 
@@ -857,18 +855,15 @@ function usrxml__activate_user_by_id(h, userid,    i, val)
 	return USRXML_E_NONE;
 }
 
-function usrxml__deactivate_user_by_id(h, userid,    i, val)
+function usrxml__deactivate_user_by_id(h, userid,    val)
 {
-	# h,userid
-	i = h SUBSEP userid;
-
 	# if
 	val = usrxml__map_del_userif(h, userid);
 	if (val != USRXML_E_NONE)
 		return val;
 
 	# pipe
-	val = usrxml__validate_pipe(i);
+	val = usrxml__validate_pipe(h, userid);
 	if (val != USRXML_E_NONE)
 		return val;
 
