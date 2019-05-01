@@ -1042,10 +1042,9 @@ function usrxml__delete_map(i, val, map, umap, name,    a, n, h, id)
 	usrxml__map_del_by_attr(i, val, umap);
 }
 
-function usrxml__delete_maps(h, userid, map, umap, name,    m, i, j, p)
+function usrxml__delete_maps(i, map, umap, name,    m, j, p)
 {
-	# h,userid
-	i = h SUBSEP userid;
+	# i = h,userid
 
 	m = umap[i,"num"];
 	for (p = 0; p < m; p++) {
@@ -1093,13 +1092,13 @@ function usrxml__delete_user(h, username, subid,    n, m, i, p, userid)
 	delete USRXML_userif[i];
 
 	# net
-	usrxml__delete_maps(h, userid, USRXML_nets, USRXML_usernets, "net");
+	usrxml__delete_maps(i, USRXML_nets, USRXML_usernets, "net");
 	# net6
-	usrxml__delete_maps(h, userid, USRXML_nets6, USRXML_usernets6, "net6");
+	usrxml__delete_maps(i, USRXML_nets6, USRXML_usernets6, "net6");
 	# nat
-	usrxml__delete_maps(h, userid, USRXML_nats, USRXML_usernats, "nat");
+	usrxml__delete_maps(i, USRXML_nats, USRXML_usernats, "nat");
 	# nat6
-	usrxml__delete_maps(h, userid, USRXML_nats6, USRXML_usernats6, "nat6");
+	usrxml__delete_maps(i, USRXML_nats6, USRXML_usernats6, "nat6");
 }
 
 function usrxml__delete_user_by_id(h, userid,    n)
