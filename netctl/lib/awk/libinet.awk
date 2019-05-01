@@ -233,8 +233,15 @@ function is_valid_ipv6(str)
 	return ip6_normalize(str) != "";
 }
 
-function ipa_normalize(str,    addr)
+function ipa_normalize(str, s,    addr)
 {
+	if (s == "4" || s == "6") {
+		s = "ip" s "_normalize";
+		return @s(str);
+	}
+	if (s != "")
+		return "";
+
 	addr = ip4_normalize(str);
 	if (addr != "")
 		return addr;
@@ -244,25 +251,25 @@ function ipa_normalize(str,    addr)
 	return "";
 }
 
-function ipa_compare(str1, str2,    v1, v2)
+function ipa_compare(str1, str2, s,    v1, v2)
 {
-	v1 = ipa_normalize(str1);
+	v1 = ipa_normalize(str1, s);
 	if (v1 == "")
 		return -1;
-	v2 = ipa_normalize(str2);
+	v2 = ipa_normalize(str2, s);
 	if (v2 == "")
 		return -1;
 	return v1 == v2;
 }
 
-function ipa_equal(str1, str2)
+function ipa_equal(str1, str2, s)
 {
-	return ipa_compare(str1, str2) == 1;
+	return ipa_compare(str1, str2, s) == 1;
 }
 
-function ipa_not_equal(str1, str2)
+function ipa_not_equal(str1, str2, s)
 {
-	return ipa_compare(str1, str2) == 0;
+	return ipa_compare(str1, str2, s) == 0;
 }
 
 function ipp_length(str,    nfields, vals, plen)
@@ -281,7 +288,7 @@ function ipp_length(str,    nfields, vals, plen)
 	return plen;
 }
 
-function ipp_normalize(str,    nfields, vals, addr, plen)
+function ipp_normalize(str, s,    nfields, vals, addr, plen)
 {
 	nfields = split(str, vals, "/");
 	if (nfields != 2)
@@ -294,6 +301,8 @@ function ipp_normalize(str,    nfields, vals, addr, plen)
 	addr = ip4_normalize(vals[1]);
 	if (addr != "") {
 		if (plen > 32)
+			return "";
+		if (s != "" && s != "4")
 			return "";
 	} else {
 		addr = ip6_normalize(vals[1]);
@@ -301,12 +310,14 @@ function ipp_normalize(str,    nfields, vals, addr, plen)
 			return "";
 		if (plen > 128)
 			return "";
+		if (s != "" && s != "6")
+			return "";
 	}
 
 	return addr "/" plen;
 }
 
-function ipp_network(str,    nfields, o, b, m, vals, sep, addr, plen)
+function ipp_network(str, s,    nfields, o, b, m, vals, sep, addr, plen)
 {
 	nfields = split(str, vals, "/");
 	if (nfields != 2)
@@ -319,6 +330,8 @@ function ipp_network(str,    nfields, o, b, m, vals, sep, addr, plen)
 	addr = ip4_normalize(vals[1]);
 	if (addr != "") {
 		if (plen > 32)
+			return "";
+		if (s != "" && s != "4")
 			return "";
 		sep = ".";
 		split(addr, vals, sep);
@@ -334,6 +347,8 @@ function ipp_network(str,    nfields, o, b, m, vals, sep, addr, plen)
 		if (addr == "")
 			return "";
 		if (plen > 128)
+			return "";
+		if (s != "" && s != "6")
 			return "";
 		sep = ":";
 		split(addr, vals, sep);
@@ -358,23 +373,23 @@ function ipp_network(str,    nfields, o, b, m, vals, sep, addr, plen)
 	return str;
 }
 
-function is_ipp_network(str)
+function is_ipp_network(str, s)
 {
-	str = ipp_normalize(str);
+	str = ipp_normalize(str, s);
 	if (str == "")
 		return 0;
-	return ipp_network(str) == str;
+	return ipp_network(str, s) == str;
 }
 
-function is_ipp_host(str)
+function is_ipp_host(str, s)
 {
-	str = ipp_normalize(str);
+	str = ipp_normalize(str, s);
 	if (str == "")
 		return 0;
-	return ipp_network(str) != str;
+	return ipp_network(str, s) != str;
 }
 
-function ipa_do_match(net, address,    nfields, o, b, m, v, valsN, valsA, sep, addr, plen)
+function ipa_do_match(net, address, s,    nfields, o, b, m, v, valsN, valsA, sep, addr, plen)
 {
 	nfields = split(net, valsN, "/");
 	if (nfields != 2)
@@ -384,7 +399,7 @@ function ipa_do_match(net, address,    nfields, o, b, m, v, valsN, valsA, sep, a
 	if (plen !~ "^[[:digit:]]{1,3}$")
 		return -1;
 
-	address = ipa_normalize(address);
+	address = ipa_normalize(address, s);
 	if (address == "")
 		return -1;
 	split(address, valsA, "[.:]", sep);
@@ -394,6 +409,8 @@ function ipa_do_match(net, address,    nfields, o, b, m, v, valsN, valsA, sep, a
 		if (plen > 32)
 			return -1;
 		if (sep[1] != ".")
+			return -1;
+		if (s != "" && s != "4")
 			return -1;
 		split(addr, valsN, ".");
 		o = int(plen / 8) + 1;
@@ -407,6 +424,8 @@ function ipa_do_match(net, address,    nfields, o, b, m, v, valsN, valsA, sep, a
 		if (plen > 128)
 			return -1;
 		if (sep[1] != ":")
+			return -1;
+		if (s != "" && s != "6")
 			return -1;
 		split(addr, valsN, ":");
 		o = int(plen / 16) + 1;
@@ -429,12 +448,12 @@ function ipa_do_match(net, address,    nfields, o, b, m, v, valsN, valsA, sep, a
 	return 1;
 }
 
-function ipa_match(net, address)
+function ipa_match(net, address, s)
 {
-	return ipa_do_match(net, address) == 1;
+	return ipa_do_match(net, address, s) == 1;
 }
 
-function ipa_not_match(net, address)
+function ipa_not_match(net, address, s)
 {
-	return ipa_do_match(net, address) == 0;
+	return ipa_do_match(net, address, s) == 0;
 }
