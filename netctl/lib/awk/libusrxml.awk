@@ -424,7 +424,6 @@ function init_usrxml_parser(    h)
 	# userid = [0 .. nusers - 1]
 	# username = USRXML_users[h,userid]
 	# userid = USRXML_users[h,username,"id"]
-	# free userid = USRXML_users[h] + 1 || nusers++
 	# <user 'name'>
 	#
 	#   npipes = USRXML_userpipe[h,userid]
@@ -453,7 +452,6 @@ function init_usrxml_parser(    h)
 	#   nunets = USRXML_usernets[h,userid,"num"]
 	#   netid = [0 .. nunets - 1]
 	#   netid = USRXML_usernets[h,net,"id"]
-	#   free netid = USRXML_usernets[h] + 1 || nunets++
 	#   <net 'cidr'>
 	#     net = USRXML_usernets[h,userid,netid]
 	# [
@@ -470,7 +468,6 @@ function init_usrxml_parser(    h)
 	#   nunets6 = USRXML_usernets6[h,userid,"num"]
 	#   netid6 = [0 .. nunets6 - 1]
 	#   netid6 = USRXML_usernets6[h,net6,"id"]
-	#   free netid6 = USRXML_usernets6[h] + 1 || nunets6++
 	#   <net6 'cidr6'>
 	#     net6 = USRXML_usernets6[h,userid,netid6]
 	# [
@@ -487,14 +484,12 @@ function init_usrxml_parser(    h)
 	#   nunats = USRXML_usernats[h,userid,"num"]
 	#   natid = [0 .. nunats - 1]
 	#   natid = USRXML_usernats[h,nat,"id"]
-	#   free natid = USRXML_usernats[h] + 1 || nunats++
 	#   <nat 'cidr'>
 	#     nat = USRXML_usernats[h,userid,natid]
 	#
 	#   nunats6 = USRXML_usernats6[h,userid,"num"]
 	#   natid6 = [0 .. nunats6 - 1]
 	#   natid6 = USRXML_usernats6[h,nat6,"id"]
-	#   free natid6 = USRXML_usernats6[h] + 1 || nunats6++
 	#   <nat6 'cidr6'>
 	#     nat6 = USRXML_usernats6[h,userid,natid6]
 	#
@@ -508,13 +503,11 @@ function init_usrxml_parser(    h)
 	# ifid = USRXML_ifnames[h,userif,"id"]
 	# userif = USRXML_ifnames[h,ifid]
 	# userid ... = USRXML_ifnames[h,userif]
-	# free ifid = USRXML_ifnames[h] + 1 || nifn++
 	# <user 'name'>
 	#
 	#   nnets = USRXML_nets[h,"num"]
 	#   nid = [0 .. nnets - 1]
 	#   nid = USRXML_nets[h,net,"id"]
-	#   free nid = USRXML_nets[h] + 1 || nnets++
 	#   <net 'cidr'>
 	#     net = USRXML_nets[h,nid]
 	#     h,userid = USRXML_nets[h,net]
@@ -522,7 +515,6 @@ function init_usrxml_parser(    h)
 	#   nnets6 = USRXML_nets6[h,"num"]
 	#   nid6 = [0 .. nnets6 - 1]
 	#   nid6 = USRXML_nets6[h,net6,"id"]
-	#   free nid6 = USRXML_nets6[h] + 1 || nnets6++
 	#   <net6 'cidr6'>
 	#     net6 = USRXML_nets6[h,nid6]
 	#     h,userid = USRXML_nets6[h,net6]
@@ -530,7 +522,6 @@ function init_usrxml_parser(    h)
 	#   nnats = USRXML_nats[h,"num"]
 	#   tid = [0 .. nnats - 1]
 	#   tid = USRXML_nats[h,nat,"id"]
-	#   free tid = USRXML_nats[h] + 1 || nnats++
 	#   <nat 'cidr'>
 	#     nat = USRXML_nats[h,tid]
 	#     h,userid = USRXML_nats[h,nat]
@@ -538,15 +529,11 @@ function init_usrxml_parser(    h)
 	#   nnats6 = USRXML_nats6[h,"num"]
 	#   tid6 = [0 .. nnats6 - 1]
 	#   tid6 = USRXML_nats6[h,nat6,"id"]
-	#   free tid6 = USRXML_nats6[h] + 1 || nnats6++
 	#   <nat6 'cidr6'>
 	#     nat6 = USRXML_nats6[h,tid6]
 	#     h,userid = USRXML_nats6[h,nat6]
 	#
 	# </user>
-
-	# Number of users
-	USRXML_users[h,"num"] = USRXML_users[h] = 0;
 
 	# Note that rest of USRXML_user*[] arrays
 	# initialized in usrxml__scope_user()
@@ -558,7 +545,7 @@ function init_usrxml_parser(    h)
 # Return XML document parsing result performing final validation steps.
 #
 
-function usrxml__map_add_val(h, attr, map, val,    n, m, i, num)
+function usrxml__map_add_val(h, attr, map, val,    n, i, id, num, min, max)
 {
 	# h,attr,"id"
 	n = h SUBSEP attr SUBSEP "id";
@@ -566,16 +553,29 @@ function usrxml__map_add_val(h, attr, map, val,    n, m, i, num)
 	if (n in map) {
 		i = h SUBSEP map[n];
 	} else {
-		num = map[h,"num"];
+		num = strtonum(map[h,"num"]);
+		min = strtonum(map[h,"min"]);
+		max = strtonum(map[h,"max"]);
+
 		do {
-			if (map[h] < num)
-				m = map[h]++;
+			id = min;
+
+			if (min < max)
+				min++;
+			else if (max >= num)
+				min = max = ++num;
 			else
-				m = map[h] = map[h,"num"]++;
-			i = h SUBSEP m;
+				min = (max += (num - max));
+
+			i = h SUBSEP id;
 		} while (i in map);
-		map[n] = m;
+
+		map[n] = id;
 		map[i] = attr;
+
+		map[h,"num"] = num;
+		map[h,"min"] = min;
+		map[h,"max"] = max;
 		map[h,"cnt"]++;
 	}
 
@@ -590,7 +590,7 @@ function usrxml__map_add_attr(h, attr, map)
 	return usrxml__map_add_val(h, attr, map, SUBSEP);
 }
 
-function usrxml__map_del_by_attr(h, attr, map,    n, id, val)
+function usrxml__map_del_by_attr(h, attr, map,    n, id, num)
 {
 	# h,attr,"id"
 	n = h SUBSEP attr SUBSEP "id";
@@ -607,11 +607,17 @@ function usrxml__map_del_by_attr(h, attr, map,    n, id, val)
 
 	if (--map[h,"cnt"] <= 0) {
 		delete map[h,"cnt"];
+		delete map[h,"max"];
+		delete map[h,"min"];
 		delete map[h,"num"];
-		delete map[h];
 	} else {
-		if (id < map[h])
-			map[h] = id;
+		if (id < map[h,"min"]) {
+			if (map[h,"max"] >= map[h,"num"])
+				map[h,"max"] = id;
+			map[h,"min"] = id;
+		} else if (id > map[h,"max"]) {
+			map[h,"max"] = id;
+		}
 	}
 
 	return id;
@@ -644,7 +650,9 @@ function usrxml__map_copy(dh, dmap, sh, smap,    n, p, attr)
 		return;
 
 	dmap[dh,"num"] = n;
-	dmap[dh] = smap[sh];
+	dmap[dh,"min"] = smap[sh,"min"];
+	dmap[dh,"max"] = smap[sh,"max"];
+	dmap[dh,"cnt"] = smap[sh,"cnt"];
 
 	for (p = 0; p < n; p++) {
 		# Skip holes entries
