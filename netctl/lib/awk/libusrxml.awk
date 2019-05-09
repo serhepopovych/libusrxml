@@ -181,12 +181,12 @@ function usrxml_dup_arg(h, section)
 	return usrxml__seterrno(h, USRXML_E_DUP);
 }
 
-function usrxml_dup_attr(h, section, value, i,    ret)
+function usrxml_dup_attr(h, section, value, i,    err)
 {
 	if (i == USRXML__instance[h,"userid"])
-		return usrxml__seterrno(h, USRXML_E_NONE);
+		return USRXML_E_NONE;
 
-	ret = usrxml_dup_val(h, section, value);
+	err = usrxml_dup_val(h, section, value);
 
 	if (USRXML__instance[h,"verbose"]) {
 		printf "USRXML[%u]: %s:%d: already defined by \"%s\" user\n",
@@ -195,7 +195,7 @@ function usrxml_dup_attr(h, section, value, i,    ret)
 			USRXML__instance[h,"linenum"],
 			USRXML_users[i] >"/dev/stderr"
 	}
-	return ret;
+	return err;
 }
 
 function usrxml_missing_arg(h, section)
