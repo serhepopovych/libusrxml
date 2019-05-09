@@ -1028,16 +1028,17 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_if(i, map,    a, h, userid)
+function usrxml__delete_if(i, map,    a)
 {
-	# i = h,userid
-	split(i, a, SUBSEP);
+	if (isarray(map)) {
+		# i = h,userid
+		split(i, a, SUBSEP);
 
-	h = a[1];
-	userid = a[2];
+		# h = a[1]
+		# userid = a[2]
 
-	if (isarray(map))
-		usrxml__map_del_userif(h, userid);
+		usrxml__map_del_userif(a[1], a[2]);
+	}
 
 	delete USRXML_userif[i];
 }
