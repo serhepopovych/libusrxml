@@ -181,9 +181,9 @@ function usrxml_dup_arg(h, section)
 	return usrxml__seterrno(h, USRXML_E_DUP);
 }
 
-function usrxml_dup_attr(h, section, value, userid,    ret)
+function usrxml_dup_attr(h, section, value, i,    ret)
 {
-	if (userid == USRXML__instance[h,"userid"])
+	if (i == USRXML__instance[h,"userid"])
 		return usrxml__seterrno(h, USRXML_E_NONE);
 
 	ret = usrxml_dup_val(h, section, value);
@@ -193,7 +193,7 @@ function usrxml_dup_attr(h, section, value, userid,    ret)
 			h,
 			USRXML__instance[h,"filename"],
 			USRXML__instance[h,"linenum"],
-			USRXML_users[userid] >"/dev/stderr"
+			USRXML_users[i] >"/dev/stderr"
 	}
 	return ret;
 }
@@ -267,15 +267,14 @@ function usrxml_section_inv_arg(h, _section, value, key,    section)
 
 function usrxml__dup_attr(h, section)
 {
-	return usrxml_dup_attr(h, section["name"],
-			       section["value"], section["userid"]);
+	return usrxml_dup_attr(h, section["name"], section["value"], section["i"]);
 }
 
-function usrxml_section_dup_attr(h, _section, value, userid, key,    section)
+function usrxml_section_dup_attr(h, _section, value, i, key,    section)
 {
-	section["name"]   = _section;
-	section["value"]  = value;
-	section["userid"] = userid;
+	section["name"]  = _section;
+	section["value"] = value;
+	section["i"]     = i;
 
 	return usrxml_section_fn_arg(h, section, key, "usrxml__dup_attr");
 }
