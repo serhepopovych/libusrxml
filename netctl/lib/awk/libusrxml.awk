@@ -88,21 +88,109 @@ function usrxml_clearerrno(h)
 }
 
 #
-# Control library verbosity levels.
+# Library messages handling helper routines.
 #
 
-function usrxml_getverbose(h)
+function usrxml__result_msg_tag(h, file, priority, stamp, str)
 {
-	if (!is_valid_usrxml_handle(h))
-		return USRXML_E_HANDLE_INVALID;
-	return USRXML__instance[h,"verbose"];
+	printf "<prio:%s stamp:%s prog:%s h:%u file:%s line:%u str:%s errno:%d>",
+		USRXML__priority2name[priority],
+		stamp,
+		USRXML__instance[h,"prog"],
+		h,
+		USRXML__instance[h,"filename"],
+		USRXML__instance[h,"linenum"],
+		str,
+		USRXML__instance[h,"errno"] >>file
 }
 
-function usrxml_setverbose(h, val)
+function usrxml__result_msg_log(h, file, priority, stamp, str)
+{
+	if (str == "")
+		return;
+
+	if (priority > USRXML__instance[h,"result","log","level"])
+		return;
+
+	printf "{%s} %s %s[%u]: %s:%u: %s\n",
+		USRXML__priority2name[priority],
+		stamp,
+		USRXML__instance[h,"prog"],
+		h,
+		USRXML__instance[h,"filename"],
+		USRXML__instance[h,"linenum"],
+		str >>file
+}
+
+function usrxml_result(h, err, priority, str,    fn, stamp, file)
+{
+	usrxml__seterrno(h, err);
+
+	if ((h,"result","msg_fn") in USRXML__instance) {
+		fn = USRXML__instance[h,"result","msg_fn"];
+		if (fn == "")
+			return err;
+	} else {
+		fn = USRXML__instance[h,"result","msg_fn"] = \
+			"usrxml__result_msg_log";
+	}
+
+	file = USRXML__instance[h,"result","file"];
+
+	if (!(priority in USRXML__priority2name)) {
+		if (err != USRXML_E_NONE)
+			priority = USRXML_MSG_PRIO_ERR;
+		else
+			priority = USRXML_MSG_PRIO_CRIT;
+	}
+
+	stamp = strftime("%Y%m%d-%H%M%S", systime(), "UTC");
+
+	@fn(h, file, priority, stamp, str);
+
+	return err;
+}
+
+function usrxml_getlogging(h, params)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
-	USRXML__instance[h,"verbose"] = val;
+
+	if (isarray(params))
+		delete params;
+
+	params["file"] = USRXML__instance[h,"result","file"];
+	params["msg_fn"] = USRXML__instance[h,"result","msg_fn"];
+
+	params["log","level"] = USRXML__instance[h,"result","log","level"];
+
+	return USRXML_E_NONE;
+}
+
+function usrxml_setlogging(h, params,    val)
+{
+	if (!is_valid_usrxml_handle(h))
+		return USRXML_E_HANDLE_INVALID;
+
+	if (!isarray(params))
+		return USRXML_E_NOT_ARRAY;
+
+	val = "log" SUBSEP "level";
+	if (val in params) {
+		if (!(params[val] in USRXML__priority2name))
+			return USRXML_E_PRIORITY_INVALID;
+		USRXML__instance[h,"result",val] = params[val];
+	}
+
+	val = "msg_fn";
+	if (val in params)
+		USRXML__instance[h,"result",val] = params[val];
+
+	val = params["file"];
+	if (val == "")
+		val = "/dev/stderr";
+	USRXML__instance[h,"result","file"] = val;
+
 	return USRXML_E_NONE;
 }
 
@@ -110,104 +198,57 @@ function usrxml_setverbose(h, val)
 # Parser helper routines to report various errors.
 #
 
-function usrxml_syntax_err(h)
+function usrxml_syntax_err(h,    errstr)
 {
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: syntax error\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"] >"/dev/stderr"
-	}
-	return usrxml__seterrno(h, USRXML_E_SYNTAX);
+	errstr = "syntax error";
+	return usrxml_result(h, USRXML_E_SYNTAX, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_scope_err(h, section)
+function usrxml_scope_err(h, section,    errstr)
 {
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: <%s> scope error\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"],
-			section >"/dev/stderr"
-	}
-	return usrxml__seterrno(h, USRXML_E_SCOPE);
+	errstr = sprintf("<%s> scope error", section);
+	return usrxml_result(h, USRXML_E_SCOPE, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_inv_arg(h, section, value)
+function usrxml_inv_arg(h, section, value,    errstr)
 {
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: invalid argument \"%s\" in <%s>\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"],
-			value, section >"/dev/stderr"
-	}
-	return usrxml__seterrno(h, USRXML_E_INVAL);
+	errstr = sprintf("invalid argument \"%s\" in <%s>", value, section);
+	return usrxml_result(h, USRXML_E_INVAL, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_ept_val(h, section)
+function usrxml_ept_val(h, section,    errstr)
 {
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: empty value in <%s>\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"],
-			section >"/dev/stderr"
-	}
-	return usrxml__seterrno(h, USRXML_E_EMPTY);
+	errstr = sprintf("empty value in <%s>", section);
+	return usrxml_result(h, USRXML_E_EMPTY, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_dup_val(h, section, value)
+function usrxml_dup_val(h, section, value,    errstr)
 {
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: duplicated value \"%s\" in <%s>\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"],
-			value, section >"/dev/stderr"
-	}
-	return usrxml__seterrno(h, USRXML_E_DUP);
+	errstr = sprintf("duplicated value \"%s\" in <%s>", value, section);
+	return usrxml_result(h, USRXML_E_DUP, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_dup_arg(h, section)
+function usrxml_dup_arg(h, section,    errstr)
 {
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: duplicated argument <%s>\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"],
-			section >"/dev/stderr"
-	}
-	return usrxml__seterrno(h, USRXML_E_DUP);
+	errstr = sprintf("duplicated argument <%s>", section);
+	return usrxml_result(h, USRXML_E_DUP, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_dup_attr(h, section, value, i,    err)
+function usrxml_dup_attr(h, section, value, i,    err, errstr)
 {
 	if (i == USRXML__instance[h,"userid"])
 		return USRXML_E_NONE;
 
 	err = usrxml_dup_val(h, section, value);
 
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: already defined by \"%s\" user\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"],
-			USRXML_users[i] >"/dev/stderr"
-	}
-	return err;
+	errstr = sprintf("already defined by \"%s\" user", USRXML_users[i]);
+	return usrxml_result(h, err, USRXML_MSG_PRIO_ERR, errstr);
 }
 
 function usrxml_missing_arg(h, section)
 {
-	if (USRXML__instance[h,"verbose"]) {
-		printf "USRXML[%u]: %s:%d: missing mandatory argument <%s>\n",
-			h,
-			USRXML__instance[h,"filename"],
-			USRXML__instance[h,"linenum"],
-			section >"/dev/stderr"
-	}
-	return usrxml__seterrno(h, USRXML_E_MISS);
+	errstr = sprintf("missing mandatory argument <%s>", section);
+	return usrxml_result(h, USRXML_E_MISS, USRXML_MSG_PRIO_ERR, errstr);
 }
 
 #
@@ -323,10 +364,33 @@ function declare_usrxml_consts()
 	USRXML_E_API_ORDER      = -203;
 	USRXML_E_GETLINE        = -204;
 	USRXML_E_EATLINE        = -205;
-	# entry
-	USRXML_E_NOENT	= -301;
+	# generic
+	USRXML_E_NOENT     = -301;
+	USRXML_E_NOT_ARRAY = -302;
+	# logging
+	USRXML_E_PRIORITY_INVALID = -401;
 
-	## Constants (internal, arrays get cleaned )
+	## Constants (internal, arrays get cleaned)
+
+	# Logging priority
+	USRXML_MSG_PRIO_NONE	= -1;
+	USRXML_MSG_PRIO_EMERG	= 0;
+	USRXML_MSG_PRIO_ALERT	= 1;
+	USRXML_MSG_PRIO_CRIT	= 2;
+	USRXML_MSG_PRIO_ERR	= 3;
+	USRXML_MSG_PRIO_WARN	= 4;
+	USRXML_MSG_PRIO_NOTICE	= 5;
+	USRXML_MSG_PRIO_INFO	= 6;
+	USRXML_MSG_PRIO_DEBUG	= 7;
+
+	USRXML__priority2name[USRXML_MSG_PRIO_EMERG]  = "emergency";
+	USRXML__priority2name[USRXML_MSG_PRIO_ALERT]  = "alert";
+	USRXML__priority2name[USRXML_MSG_PRIO_CRIT]   = "critical";
+	USRXML__priority2name[USRXML_MSG_PRIO_ERR]    = "error";
+	USRXML__priority2name[USRXML_MSG_PRIO_WARN]   = "warning";
+	USRXML__priority2name[USRXML_MSG_PRIO_NOTICE] = "notice";
+	USRXML__priority2name[USRXML_MSG_PRIO_INFO]   = "info";
+	USRXML__priority2name[USRXML_MSG_PRIO_DEBUG]  = "debug";
 
 	# Tag scope
 	USRXML__scope_error	= -1;
@@ -374,7 +438,7 @@ function declare_usrxml_consts()
 	zone_dir_bits["all","all"]	= 0x0f;
 }
 
-function init_usrxml_parser(    h)
+function init_usrxml_parser(prog,    h)
 {
 	# Declare constants only once
 	if (USRXML__instance["h","num"] == 0)
@@ -392,8 +456,14 @@ function init_usrxml_parser(    h)
 	# Parse document first
 	USRXML__instance[h,"order"] = USRXML__order_parse;
 
-	# Report errors by default
-	USRXML__instance[h,"verbose"] = 1;
+	# Name of program that uses API
+	USRXML__instance[h,"prog"] = prog ? prog : "usrxml";
+
+	# Library messages handling
+	USRXML__instance[h,"result","file"] = "/dev/stderr";
+	USRXML__instance[h,"result","msg_fn"] = "usrxml__result_msg_log";
+
+	USRXML__instance[h,"result","log","level"] = USRXML_MSG_PRIO_INFO;
 
 	# Error number updated on each library call
 	USRXML__instance[h,"errno"] = USRXML_E_NONE;
@@ -1213,6 +1283,10 @@ function release_usrxml_consts()
 {
 	## Constants (internal, arrays get cleaned)
 
+	# Library messages handling
+	delete USRXML__priority2name;
+
+	# Tag scope
 	delete USRXML__scope2name;
 
 	# Valid "zone" values
@@ -1242,8 +1316,14 @@ function fini_usrxml_parser(h,    n, u)
 		usrxml__delete_user_by_id(h, u);
 	delete USRXML_users[h,"num"];
 
-	# Report errors by default
-	delete USRXML__instance[h,"verbose"];
+	# Name of program that uses API
+	delete USRXML__instance[h,"prog"];
+
+	# Library messages handling
+	delete USRXML__instance[h,"result","file"];
+	delete USRXML__instance[h,"result","msg_fn"];
+
+	delete USRXML__instance[h,"result","log","level"];
 
 	# Error encountered during XML parsing/validation
 	delete USRXML__instance[h,"errno"];

@@ -11,7 +11,7 @@ BEGIN{
 	##
 	## Initialize user database parser
 	##
-	h = init_usrxml_parser();
+	h = init_usrxml_parser("users_lst2xml");
 	if (h < 0)
 		exit 1;
 }

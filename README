@@ -68,7 +68,7 @@ There are three main API functions provided by libusrxml.awk module:
       # very first routine called from the library.
       # Usually called from BEGIN{} awk(1) program section.
 
-      h = init_usrxml_parser();
+      h = init_usrxml_parser("program name");
       if (h < 0)
           exit 1;
   }
