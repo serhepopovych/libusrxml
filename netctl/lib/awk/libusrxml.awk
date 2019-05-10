@@ -91,6 +91,50 @@ function usrxml_clearerrno(h)
 # Library messages handling helper routines.
 #
 
+function usrxml_split_tag(str, res, r,    tag, n, k)
+{
+	n = split(str, res, r, tag);
+	if (!n)
+		return n;
+
+	# res[1] == "<"
+	if (res[1] !~ "^[[:space:]]*<")
+		return 0;
+
+	# res[n] == ">"
+	if (!sub(">[[:space:]]*$", "", res[n]))
+		return 0;
+
+	delete res[1];
+
+	# strip ":" at the end tag name (i.e. @r is "(tag1|tag2):")
+	for (k in tag) {
+		sub(":$", "", tag[k]);
+	}
+
+	# strip leading and trailing whitespace
+	for (k in res) {
+		gsub("^[[:space:]]+|[[:space:]]+$", "", res[k]);
+	}
+
+	# tag[1] .. tag[n - 1]
+	#   ||        ||
+	# res[2] .. res[n]
+	for (k = 2; k <= n; k++) {
+		r = tag[k - 1];
+		res[r] = res[k];
+		delete res[k];
+	}
+
+	return n;
+}
+
+function usrxml_split_tag_msg(str, res,    r)
+{
+	r = "(prio|stamp|prog|h|file|line|str|errno):";
+	return usrxml_split_tag(str, res, r);
+}
+
 function usrxml__result_msg_tag(h, file, priority, stamp, str)
 {
 	printf "<prio:%s stamp:%s prog:%s h:%u file:%s line:%u str:%s errno:%d>",
