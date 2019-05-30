@@ -1429,7 +1429,13 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 
 			usrxml_section_record_fileline(h, name SUBSEP i);
 		} else {
-			usrxml__delete_user_by_name(h, val);
+			n = USRXML_users[h,val,"id"];
+
+			usrxml__delete_user_by_id(h, n);
+
+			# We can't return > 0 here as this
+			# will collide with parse retry
+			return h SUBSEP n;
 		}
 	} else {
 		return usrxml_syntax_err(h);
@@ -1459,7 +1465,8 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 
-		# We can't return > 0 here as this will collide with parse retry
+		# We can't return > 0 here as this
+		# will collide with parse retry
 		return i;
 	} else if (name == "if") {
 		if (val == "")
