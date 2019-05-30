@@ -135,6 +135,37 @@ function usrxml_split_tag_msg(str, res,    r)
 	return usrxml_split_tag(str, res, r);
 }
 
+function usrxml_result_msg_tag_early(priority, prog, str, err, file)
+{
+	if (file == "")
+		file = "/dev/stdout";
+
+	printf "<prio:%s prog:%s str:%s errno:%d>\n",
+		USRXML__priority2name[priority],
+		prog,
+		str,
+		err >>file;
+
+	fflush(file);
+}
+
+function usrxml_result_msg_log_early(priority, prog, str, err, file)
+{
+	if (str == "")
+		return;
+
+	if (file == "")
+		file = "/dev/stdout";
+
+	printf "{%s} %s: %s: %d\n",
+		USRXML__priority2name[priority],
+		prog,
+		str,
+		err >>file;
+
+	fflush(file);
+}
+
 function usrxml__result_msg_tag(h, file, priority, stamp, str)
 {
 	printf "<prio:%s stamp:%s prog:%s h:%u file:%s line:%u str:%s errno:%d>",
@@ -145,16 +176,18 @@ function usrxml__result_msg_tag(h, file, priority, stamp, str)
 		USRXML__instance[h,"filename"],
 		USRXML__instance[h,"linenum"],
 		str,
-		USRXML__instance[h,"errno"] >>file
+		USRXML__instance[h,"errno"] >>file;
+
+	return 1;
 }
 
 function usrxml__result_msg_log(h, file, priority, stamp, str)
 {
 	if (str == "")
-		return;
+		return 0;
 
 	if (priority > USRXML__instance[h,"result","log","level"])
-		return;
+		return 0;
 
 	printf "{%s} %s %s[%u]: %s:%u: %s\n",
 		USRXML__priority2name[priority],
@@ -163,7 +196,9 @@ function usrxml__result_msg_log(h, file, priority, stamp, str)
 		h,
 		USRXML__instance[h,"filename"],
 		USRXML__instance[h,"linenum"],
-		str >>file
+		str >>file;
+
+	return 1;
 }
 
 function usrxml_result(h, err, priority, str,    fn, stamp, file)
@@ -190,7 +225,8 @@ function usrxml_result(h, err, priority, str,    fn, stamp, file)
 
 	stamp = strftime("%Y%m%d-%H%M%S", systime(), "UTC");
 
-	@fn(h, file, priority, stamp, str);
+	if (@fn(h, file, priority, stamp, str))
+		fflush(file);
 
 	return err;
 }
