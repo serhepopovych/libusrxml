@@ -1,5 +1,10 @@
 #!/usr/bin/gawk -f
 
+function is_valid_vlan_id(vid)
+{
+	return vid ~ "^[[:digit:]]{1,4}$" && vid >= 0 && vid <= 4094;
+}
+
 function mac_normalize(str, sep,    nfields, v, s, o, t, ret)
 {
 	if (sep != ":" && sep != "-" && sep != "." && sep != "")
