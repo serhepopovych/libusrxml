@@ -430,25 +430,35 @@ function declare_usrxml_consts()
 	## Constants (public)
 
 	# USRXML error codes (visible in case of handle allocation error)
+
+	# Also applies to non-libusrxml code
 	USRXML_E_NONE	= 0;
-	USRXML_E_INVAL	= -1;
-	USRXML_E_EMPTY	= -2;
-	USRXML_E_DUP	= -3;
-	USRXML_E_MISS	= -4;
-	USRXML_E_SCOPE	= -50;
-	# generic
-	USRXML_E_SYNTAX	= -100;
+
+	# Program exit code usually from to 0 to 255.
+	# Start libusrxml errors from 300.
+	USRXML_E_BASE	= 300;
+
+	# Document syntax errors
+	USRXML_E_SYNTAX	= -(USRXML_E_BASE + 0);
+	USRXML_E_INVAL	= -(USRXML_E_BASE + 1);
+	USRXML_E_EMPTY	= -(USRXML_E_BASE + 2);
+	USRXML_E_DUP	= -(USRXML_E_BASE + 3);
+	USRXML_E_MISS	= -(USRXML_E_BASE + 4);
+	USRXML_E_SCOPE	= -(USRXML_E_BASE + 50);
+
 	# API
-	USRXML_E_HANDLE_INVALID = -201;
-	USRXML_E_HANDLE_FULL    = -202;
-	USRXML_E_API_ORDER      = -203;
-	USRXML_E_GETLINE        = -204;
-	USRXML_E_EATLINE        = -205;
-	# generic
-	USRXML_E_NOENT     = -301;
-	USRXML_E_NOT_ARRAY = -302;
-	# logging
-	USRXML_E_PRIORITY_INVALID = -401;
+	USRXML_E_HANDLE_INVALID	= -(USRXML_E_BASE + 101);
+	USRXML_E_HANDLE_FULL	= -(USRXML_E_BASE + 102);
+	USRXML_E_API_ORDER	= -(USRXML_E_BASE + 103);
+	USRXML_E_GETLINE	= -(USRXML_E_BASE + 104);
+	USRXML_E_EATLINE	= -(USRXML_E_BASE + 105);
+
+	# Generic
+	USRXML_E_NOENT		= -(USRXML_E_BASE + 201);
+	USRXML_E_NOT_ARRAY	= -(USRXML_E_BASE + 202);
+
+	# Logging
+	USRXML_E_PRIORITY_INVALID = -(USRXML_E_BASE + 301);
 
 	## Constants (internal, arrays get cleaned)
 
