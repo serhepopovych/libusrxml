@@ -131,8 +131,16 @@ function usrxml_split_tag(str, res, r,    tag, n, k)
 
 function usrxml_split_tag_msg(str, res,    r)
 {
-	r = "(prio|stamp|prog|h|file|line|str|errno):";
+	r = "(priority|stamp|prog|h|file|line|str|errno):";
 	return usrxml_split_tag(str, res, r);
+}
+
+function usrxml_priority2name(priority)
+{
+	if (priority in USRXML__priority2name)
+		return USRXML__priority2name[priority];
+	else
+		return "";
 }
 
 function usrxml_timestamp()
@@ -140,149 +148,280 @@ function usrxml_timestamp()
 	return strftime("%Y%m%d-%H%M%S", systime(), "UTC");
 }
 
-function usrxml_result_msg_tag_early(priority, prog, str, err, file,    stamp)
+function usrxml_msg_format(params, append,
+			   h, err, subsys, priority, str,
+			   fileline, file, line, msg, stdout, tag)
 {
-	if (file == "")
-		file = "/dev/stdout";
+	h = params["h"];
+	if (!is_valid_usrxml_handle(h))
+		h = params["h"] = "";
 
-	stamp = usrxml_timestamp();
+	if ("errno" in params)
+		err = int(params["errno"]);
+	else if (h != "")
+		err = USRXML__instance[h,"errno"];
+	else
+		err = USRXML_E_NONE;
+	params["errno"] = err;
 
-	printf "<prio:%s stamp:%s prog:%s str:%s errno:%d>\n",
-		USRXML__priority2name[priority],
-		stamp,
-		prog,
-		str,
-		err >>file;
+	subsys = params["subsys"];
+	if (subsys != "logger")
+		subsys = params["subsys"] = "result";
 
-	fflush(file);
-}
-
-function usrxml_result_msg_log_early(priority, prog, str, err, file,    stamp)
-{
-	if (str == "")
-		return;
-
-	if (file == "")
-		file = "/dev/stdout";
-
-	stamp = usrxml_timestamp();
-
-	printf "{%s} %s %s: %s: %d\n",
-		USRXML__priority2name[priority],
-		stamp,
-		prog,
-		str,
-		err >>file;
-
-	fflush(file);
-}
-
-function usrxml__result_msg_tag(h, file, priority, stamp, str)
-{
-	printf "<prio:%s stamp:%s prog:%s h:%u file:%s line:%u str:%s errno:%d>",
-		USRXML__priority2name[priority],
-		stamp,
-		USRXML__instance[h,"prog"],
-		h,
-		USRXML__instance[h,"filename"],
-		USRXML__instance[h,"linenum"],
-		str,
-		USRXML__instance[h,"errno"] >>file;
-
-	return 1;
-}
-
-function usrxml__result_msg_log(h, file, priority, stamp, str)
-{
-	if (str == "")
-		return 0;
-
-	if (priority > USRXML__instance[h,"result","log","level"])
-		return 0;
-
-	printf "{%s} %s %s[%u]: %s:%u: %s\n",
-		USRXML__priority2name[priority],
-		stamp,
-		USRXML__instance[h,"prog"],
-		h,
-		USRXML__instance[h,"filename"],
-		USRXML__instance[h,"linenum"],
-		str >>file;
-
-	return 1;
-}
-
-function usrxml_result(h, err, priority, str,    fn, stamp, file)
-{
-	usrxml__seterrno(h, err);
-
-	if ((h,"result","msg_fn") in USRXML__instance) {
-		fn = USRXML__instance[h,"result","msg_fn"];
-		if (fn == "")
-			return err;
-	} else {
-		fn = USRXML__instance[h,"result","msg_fn"] = \
-			"usrxml__result_msg_log";
-	}
-
-	file = USRXML__instance[h,"result","file"];
-
+	priority = params["priority"];
 	if (!(priority in USRXML__priority2name)) {
 		if (err != USRXML_E_NONE)
 			priority = USRXML_MSG_PRIO_ERR;
-		else
+		else if (h == "")
 			priority = USRXML_MSG_PRIO_CRIT;
+		else
+			priority = USRXML__instance[h,subsys,"dflt_priority"];
+		params["priority"] = priority;
 	}
 
-	stamp = usrxml_timestamp();
+	## Mandatory params
 
-	if (@fn(h, file, priority, stamp, str))
-		fflush(file);
+	# prio, stamp
+	params["prio"] = USRXML__priority2name[priority];
+	params["stamp"] = usrxml_timestamp();
+
+	# prog
+	if (params["prog"] == "") {
+		if (h == "") {
+			str = "usrxml";
+		} else {
+			str = USRXML__instance[h,"prog"];
+			if (str == "")
+				str = "usrxml";
+		}
+		params["prog"] = str;
+	}
+	str = "";
+
+	## Optional params
+
+	# filename and linenum
+	if (h != "") {
+		file = params["filename"] = USRXML__instance[h,"filename"];
+		line = params["linenum"] = USRXML__instance[h,"linenum"];
+	} else {
+		file = line = "";
+	}
+
+	if (file != "" && line != "")
+		fileline = params["fileline"] = file ":" line;
+	else
+		delete params["fileline"];
+
+	## Format message
+
+	tag = 0;
+
+	if (params["fmt"] == "log") {
+		msg = sprintf("{%d} %s %s",
+			      params["priority"],
+			      params["stamp"], params["prog"]);
+
+		if (h != "")
+			msg = msg sprintf("[%u]", h);
+
+		if (fileline != "")
+			msg = msg sprintf(": %s", fileline);
+
+		str = params["str"];
+		if (str != "")
+			msg = msg sprintf(": %s", str);
+
+		if (err != USRXML_E_NONE)
+			msg = msg sprintf(": %d", err);
+	} else {
+		msg = sprintf("<priority:%s stamp:%s prog:%s",
+			      params["priority"],
+			      params["stamp"], params["prog"]);
+
+		if (h != "")
+			msg = msg sprintf(" h:%u", h);
+
+		if (fileline != "")
+			msg = msg sprintf(" file:%s line:%u", file, line);
+
+		str = params["str"];
+		if (str != "")
+			msg = msg sprintf(" str:%s", str);
+
+		msg = msg sprintf(" errno:%d", err);
+
+		tag = 1;
+	}
+
+	# Append user supplied string
+	if (append != "")
+		msg = msg " " append;
+
+	# Close tag
+	if (tag)
+		msg = msg ">";
+
+	# Output file
+	stdout = params["stdout"] = "/dev/stdout";
+
+	if (params["file"] == "") {
+		if (h == "") {
+			file = stdout;
+		} else {
+			file = USRXML__instance[h,subsys,"file"];
+			if (file == "")
+				file = stdout;
+		}
+		params["file"] = file;
+	}
+
+	params["msg"] = msg;
+
+	return USRXML_E_NONE;
+}
+
+function usrxml_msg_output(params,    h, err, subsys, priority, file)
+{
+	h = params["h"];
+
+	if (!("msg" in params)) {
+		if (is_valid_usrxml_handle(h))
+			usrxml__seterrno(h, USRXML_E_API_ORDER);
+		return USRXML_E_API_ORDER;
+	}
+
+	err = params["errno"];
+
+	if (h != "") {
+		subsys = params["subsys"];
+		if (subsys != "logger") {
+			usrxml__seterrno(h, err);
+		} else {
+			priority = params["priority"]
+			if (priority > USRXML__instance[h,subsys,"level"])
+				return err;
+		}
+	}
+
+	file = params["file"];
+
+	print params["msg"] >>file;
+
+	fflush(file);
+
+	if (file != params["stdout"])
+		close(file);
 
 	return err;
 }
 
-function usrxml_getlogging(h, params)
+function usrxml_msg_getopt(h, opts,    subsys, val)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
 
-	if (isarray(params))
-		delete params;
+	if (isarray(opts))
+		delete opts;
 
-	params["file"] = USRXML__instance[h,"result","file"];
-	params["msg_fn"] = USRXML__instance[h,"result","msg_fn"];
+	subsys = "logger";
 
-	params["log","level"] = USRXML__instance[h,"result","log","level"];
+	val = subsys SUBSEP "level";
+	opts[val] = USRXML__instance[h,val];
+	val = subsys SUBSEP "dflt_priority";
+	opts[val] = USRXML__instance[h,val];
+	val = subsys SUBSEP "file";
+	opts[val] = USRXML__instance[h,val];
+
+	subsys = "result";
+
+	val = subsys SUBSEP "dflt_priority";
+	opts[val] = USRXML__instance[h,val];
+	val = subsys SUBSEP "file";
+	opts[val] = USRXML__instance[h,val];
 
 	return USRXML_E_NONE;
 }
 
-function usrxml_setlogging(h, params,    val)
+function usrxml__msg_setopt(h, opts, subsys,    val)
+{
+	val = subsys SUBSEP "dflt_priority";
+	if (val in opts) {
+		if (!(opts[val] in USRXML__priority2name))
+			return USRXML_E_PRIORITY_INVALID;
+		USRXML__instance[h,val] = opts[val];
+	}
+
+	val = subsys SUBSEP "file";
+	if (val in opts) {
+		if (opts[val] != "")
+			USRXML__instance[h,val] = opts[val];
+		else
+			USRXML__instance[h,val] = "/dev/stdout";
+	}
+
+	return USRXML_E_NONE;
+}
+
+function usrxml_msg_setopt(h, opts,    subsys, val, ret)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
 
-	if (!isarray(params))
+	if (!isarray(opts))
 		return USRXML_E_NOT_ARRAY;
 
-	val = "log" SUBSEP "level";
-	if (val in params) {
-		if (!(params[val] in USRXML__priority2name))
+	subsys = "logger";
+
+	val = subsys SUBSEP "level";
+	if (val in opts) {
+		if (!(opts[val] in USRXML__priority2name))
 			return USRXML_E_PRIORITY_INVALID;
-		USRXML__instance[h,"result",val] = params[val];
+		USRXML__instance[h,val] = opts[val];
 	}
 
-	val = "msg_fn";
-	if (val in params)
-		USRXML__instance[h,"result",val] = params[val];
+	ret = usrxml__msg_setopt(h, opts, subsys);
+	if (ret != USRXML_E_NONE)
+		return ret;
 
-	val = params["file"];
-	if (val == "")
-		val = "/dev/stderr";
-	USRXML__instance[h,"result","file"] = val;
+	subsys = "result";
+
+	ret = usrxml__msg_setopt(h, opts, subsys);
+	if (ret != USRXML_E_NONE)
+		return ret;
 
 	return USRXML_E_NONE;
+}
+
+function usrxml_msg(h, err, subsys, priority, str, prog, file,    params, ret)
+{
+	params["h"]		= h;
+	params["errno"]		= err;
+	params["subsys"]	= subsys;
+	params["priority"]	= priority;
+	params["str"]		= str;
+
+	params["fmt"] = (subsys != "logger") ? "tag" : "log";
+
+	# These optional and determined from handle (h) if given
+	params["prog"] = prog;
+	params["file"] = file;
+
+	ret = usrxml_msg_format(params);
+	if (ret != USRXML_E_NONE)
+		return ret;
+
+	return usrxml_msg_output(params);
+}
+
+function usrxml_logger(h, err, priority, str, prog, file)
+{
+	usrxml_msg(h, err, "logger", priority, str, prog, file);
+}
+
+function usrxml_result(h, err, priority, str, prog, file)
+{
+	usrxml_msg(h, err, "result", priority, str, prog, file);
 }
 
 #
@@ -468,7 +607,7 @@ function declare_usrxml_consts()
 	USRXML_E_NOENT		= -(USRXML_E_BASE + 201);
 	USRXML_E_NOT_ARRAY	= -(USRXML_E_BASE + 202);
 
-	# Logging
+	# Messaging
 	USRXML_E_PRIORITY_INVALID = -(USRXML_E_BASE + 301);
 
 	## Constants (internal, arrays get cleaned)
@@ -561,10 +700,15 @@ function init_usrxml_parser(prog,    h)
 	USRXML__instance[h,"prog"] = prog ? prog : "usrxml";
 
 	# Library messages handling
-	USRXML__instance[h,"result","file"] = "/dev/stderr";
-	USRXML__instance[h,"result","msg_fn"] = "usrxml__result_msg_log";
+	USRXML__instance[h,"logger","level"] = USRXML_MSG_PRIO_INFO;
 
-	USRXML__instance[h,"result","log","level"] = USRXML_MSG_PRIO_INFO;
+	USRXML__instance[h,"logger","dflt_priority"] = \
+	USRXML__instance[h,"result","dflt_priority"] = \
+		USRXML_MSG_PRIO_INFO;
+
+	USRXML__instance[h,"logger","file"] = \
+	USRXML__instance[h,"result","file"] = \
+		"/dev/stdout";
 
 	# Error number updated on each library call
 	USRXML__instance[h,"errno"] = USRXML_E_NONE;
@@ -582,8 +726,9 @@ function init_usrxml_parser(prog,    h)
 	if (FILENAME == "")
 		FILENAME = "/dev/stdin";
 
-	USRXML__instance[h,"filename"] = FILENAME;
-	USRXML__instance[h,"linenum"] = 0;
+	# Real values set by run_usrxml_parser()
+	USRXML__instance[h,"filename"] = "";
+	USRXML__instance[h,"linenum"] = "";
 
 	# USRXML__fileline[key,{ "file" | "line" },n]
 
@@ -1421,10 +1566,13 @@ function fini_usrxml_parser(h,    n, u)
 	delete USRXML__instance[h,"prog"];
 
 	# Library messages handling
-	delete USRXML__instance[h,"result","file"];
-	delete USRXML__instance[h,"result","msg_fn"];
+	delete USRXML__instance[h,"logger","level"];
 
-	delete USRXML__instance[h,"result","log","level"];
+	delete USRXML__instance[h,"logger","dflt_priority"];
+	delete USRXML__instance[h,"result","dflt_priority"];
+
+	delete USRXML__instance[h,"logger","file"];
+	delete USRXML__instance[h,"result","file"];
 
 	# Error encountered during XML parsing/validation
 	delete USRXML__instance[h,"errno"];
