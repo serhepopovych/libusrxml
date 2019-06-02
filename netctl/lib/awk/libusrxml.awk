@@ -135,13 +135,21 @@ function usrxml_split_tag_msg(str, res,    r)
 	return usrxml_split_tag(str, res, r);
 }
 
-function usrxml_result_msg_tag_early(priority, prog, str, err, file)
+function usrxml_timestamp()
+{
+	return strftime("%Y%m%d-%H%M%S", systime(), "UTC");
+}
+
+function usrxml_result_msg_tag_early(priority, prog, str, err, file,    stamp)
 {
 	if (file == "")
 		file = "/dev/stdout";
 
-	printf "<prio:%s prog:%s str:%s errno:%d>\n",
+	stamp = usrxml_timestamp();
+
+	printf "<prio:%s stamp:%s prog:%s str:%s errno:%d>\n",
 		USRXML__priority2name[priority],
+		stamp,
 		prog,
 		str,
 		err >>file;
@@ -149,7 +157,7 @@ function usrxml_result_msg_tag_early(priority, prog, str, err, file)
 	fflush(file);
 }
 
-function usrxml_result_msg_log_early(priority, prog, str, err, file)
+function usrxml_result_msg_log_early(priority, prog, str, err, file,    stamp)
 {
 	if (str == "")
 		return;
@@ -157,8 +165,11 @@ function usrxml_result_msg_log_early(priority, prog, str, err, file)
 	if (file == "")
 		file = "/dev/stdout";
 
-	printf "{%s} %s: %s: %d\n",
+	stamp = usrxml_timestamp();
+
+	printf "{%s} %s %s: %s: %d\n",
 		USRXML__priority2name[priority],
+		stamp,
 		prog,
 		str,
 		err >>file;
@@ -223,7 +234,7 @@ function usrxml_result(h, err, priority, str,    fn, stamp, file)
 			priority = USRXML_MSG_PRIO_CRIT;
 	}
 
-	stamp = strftime("%Y%m%d-%H%M%S", systime(), "UTC");
+	stamp = usrxml_timestamp();
 
 	if (@fn(h, file, priority, stamp, str))
 		fflush(file);
