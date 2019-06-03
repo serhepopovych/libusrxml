@@ -2002,10 +2002,6 @@ function usrxml__scope_net6(h, sign, name, val)
 
 function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret, s_rs, s_rl)
 {
-	val = usrxml_errno(h);
-	if (val != USRXML_E_NONE)
-		return val;
-
 	val = USRXML__instance[h,"order"];
 	if (val < USRXML__order_parse)
 		return usrxml__seterrno(h, USRXML_E_API_ORDER);
@@ -2020,6 +2016,8 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 		USRXML__instance[h,"linenum"] = 0;
 	}
 	USRXML__instance[h,"linenum"]++;
+
+	usrxml__clearerrno(h);
 
 	if (line ~ /^[[:space:]]*$/)
 		return USRXML_E_NONE;
