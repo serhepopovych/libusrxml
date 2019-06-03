@@ -728,10 +728,6 @@ function init_usrxml_parser(prog,    h)
 	USRXML__instance[h,"netid"] = 0;
 	USRXML__instance[h,"net6id"] = 0;
 
-	# FILENAME might be empty (e.g. when called directly from BEGIN{})
-	if (FILENAME == "")
-		FILENAME = "/dev/stdin";
-
 	# Real values set by run_usrxml_parser()
 	USRXML__instance[h,"filename"] = "";
 	USRXML__instance[h,"linenum"] = "";
@@ -2012,6 +2008,8 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 	# When called from main block with multiple files on command line
 	# FILENAME is set each time to next file being processed
 	if (USRXML__instance[h,"filename"] != FILENAME) {
+		if (FILENAME == "" || FILENAME == "-")
+			FILENAME = "/dev/stdin";
 		USRXML__instance[h,"filename"] = FILENAME;
 		USRXML__instance[h,"linenum"] = 0;
 	}
