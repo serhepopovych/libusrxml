@@ -605,7 +605,6 @@ function declare_usrxml_consts()
 	USRXML_E_HANDLE_FULL	= -(USRXML_E_BASE + 102);
 	USRXML_E_API_ORDER	= -(USRXML_E_BASE + 103);
 	USRXML_E_GETLINE	= -(USRXML_E_BASE + 104);
-	USRXML_E_EATLINE	= -(USRXML_E_BASE + 105);
 
 	# Generic
 	USRXML_E_NOENT		= -(USRXML_E_BASE + 201);
@@ -1617,9 +1616,11 @@ function usrxml__scope_error(h, sign, name, val)
 
 		# Signal caller to lookup with new scope
 		return 1;
+	} else if (name == "/user") {
+		USRXML__instance[h,"scope"] = USRXML__scope_none;
 	}
 
-	return USRXML_E_EATLINE;
+	return USRXML_E_NONE;
 }
 
 function usrxml__scope_none(h, sign, name, val,    n, i)
@@ -2029,8 +2030,11 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 	RSTART = s_rs;
 	RLENGTH = s_rl;
 
+	# On line mismatch make sure name (a[2]) is empty to
+	# trigger syntax error at any scope as it cannot be
+	# empty (see match() regular expression above).
 	if (!n)
-		return usrxml_syntax_err(h);
+		a[1] = a[2] = a[3] = "";
 
 	sign = a[1];
 	name = a[2];
@@ -2064,9 +2068,8 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 		}
 		# Parse error in the middle of operation: skip lines until valid
 		if (ret < 0) {
-			if (ret == USRXML_E_EATLINE)
-				return USRXML_E_NONE;
-			USRXML__instance[h,"scope"] = USRXML__scope_error;
+			if (n > USRXML__scope_none)
+				USRXML__instance[h,"scope"] = USRXML__scope_error;
 			break;
 		}
 	} while (ret > 0);
