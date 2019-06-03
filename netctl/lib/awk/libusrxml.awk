@@ -416,12 +416,12 @@ function usrxml_msg(h, err, subsys, priority, str, prog, file,    params, ret)
 
 function usrxml_logger(h, err, priority, str, prog, file)
 {
-	usrxml_msg(h, err, "logger", priority, str, prog, file);
+	return usrxml_msg(h, err, "logger", priority, str, prog, file);
 }
 
 function usrxml_result(h, err, priority, str, prog, file)
 {
-	usrxml_msg(h, err, "result", priority, str, prog, file);
+	return usrxml_msg(h, err, "result", priority, str, prog, file);
 }
 
 #
