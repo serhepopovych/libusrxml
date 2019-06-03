@@ -577,6 +577,10 @@ function usrxml_dev_valid_name(name)
 
 function declare_usrxml_consts()
 {
+	# Avoid multiple initializations
+	if ("consts" in USRXML__instance)
+		return;
+
 	## Constants (public)
 
 	# USRXML error codes (visible in case of handle allocation error)
@@ -676,13 +680,15 @@ function declare_usrxml_consts()
 	zone_dir_bits["all","in"]	= 0x05;
 	zone_dir_bits["all","out"]	= 0x0a;
 	zone_dir_bits["all","all"]	= 0x0f;
+
+	# Mark as initialized
+	USRXML__instance["consts"] = 1;
 }
 
 function init_usrxml_parser(prog,    h)
 {
-	# Declare constants only once
-	if (USRXML__instance["h","num"] == 0)
-		declare_usrxml_consts();
+	# Declare constants
+	declare_usrxml_consts();
 
 	# Establish next (first) instance
 	h = usrxml__alloc_handle();
@@ -1527,6 +1533,9 @@ function usrxml__cleanup_user(h, username)
 
 function release_usrxml_consts()
 {
+	if (!("consts" in USRXML__instance))
+		return;
+
 	## Constants (internal, arrays get cleaned)
 
 	# Library messages handling
@@ -1543,6 +1552,9 @@ function release_usrxml_consts()
 
 	# Zone and direction names to mask mapping
 	delete zone_dir_bits;
+
+	# Mark as uninitialized
+	delete USRXML__instance["consts"];
 }
 
 function fini_usrxml_parser(h,    n, u)
