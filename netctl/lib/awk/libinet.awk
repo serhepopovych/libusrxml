@@ -296,26 +296,31 @@ function ipp_length(str,    nfields, vals, plen)
 function ipp_normalize(str, s,    nfields, vals, addr, plen)
 {
 	nfields = split(str, vals, "/");
-	if (nfields != 2)
-		return "";
-
-	plen = vals[2];
-	if (plen !~ "^[[:digit:]]{1,3}$")
-		return "";
+	if (nfields != 2) {
+		plen = -1;
+	} else {
+		plen = vals[2];
+		if (plen !~ "^[[:digit:]]{1,3}$")
+			return "";
+	}
 
 	addr = ip4_normalize(vals[1]);
 	if (addr != "") {
-		if (plen > 32)
-			return "";
 		if (s != "" && s != "4")
+			return "";
+		if (plen < 0)
+			return addr "/32";
+		if (plen > 32)
 			return "";
 	} else {
 		addr = ip6_normalize(vals[1]);
 		if (addr == "")
 			return "";
-		if (plen > 128)
-			return "";
 		if (s != "" && s != "6")
+			return "";
+		if (plen < 0)
+			return addr "/128";
+		if (plen > 128)
 			return "";
 	}
 
@@ -325,18 +330,21 @@ function ipp_normalize(str, s,    nfields, vals, addr, plen)
 function ipp_network(str, s,    nfields, o, b, m, vals, sep, addr, plen)
 {
 	nfields = split(str, vals, "/");
-	if (nfields != 2)
-		return "";
-
-	plen = vals[2];
-	if (plen !~ "^[[:digit:]]{1,3}$")
-		return "";
+	if (nfields != 2) {
+		plen = -1;
+	} else {
+		plen = vals[2];
+		if (plen !~ "^[[:digit:]]{1,3}$")
+			return "";
+	}
 
 	addr = ip4_normalize(vals[1]);
 	if (addr != "") {
-		if (plen > 32)
-			return "";
 		if (s != "" && s != "4")
+			return "";
+		if (plen < 0)
+			return addr "/32";
+		if (plen > 32)
 			return "";
 		sep = ".";
 		split(addr, vals, sep);
@@ -351,9 +359,11 @@ function ipp_network(str, s,    nfields, o, b, m, vals, sep, addr, plen)
 		addr = ip6_normalize(vals[1]);
 		if (addr == "")
 			return "";
-		if (plen > 128)
-			return "";
 		if (s != "" && s != "6")
+			return "";
+		if (plen < 0)
+			return addr "/128";
+		if (plen > 128)
 			return "";
 		sep = ":";
 		split(addr, vals, sep);
