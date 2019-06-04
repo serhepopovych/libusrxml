@@ -2296,5 +2296,8 @@ function load_usrxml_file(_h, file, flags, cb, data,    h, line, rc, ret, s_fn, 
 
 function store_usrxml_file(h, file)
 {
+	if (file != "")
+		printf "" >file;
+
 	print_usrxml_entries(h, file);
 }
