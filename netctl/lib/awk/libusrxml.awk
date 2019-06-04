@@ -1972,7 +1972,15 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 		if ((n, "via") in umap)
 			return usrxml_inv_arg(h, name, val);
 
-		if (!is_ipp_host(net, (s == "") ? "4" : "6"))
+		if (s == "") {
+			s = "4";
+			o = 32;
+		} else {
+			s = "6";
+			o = 128;
+		}
+
+		if (ipp_network(net, s) == net && ipp_length(net, s) != o)
 			return usrxml_inv_arg(h, name, val);
 	} else if ((n,"has_opts") in umap) {
 		return usrxml_syntax_err(h);
