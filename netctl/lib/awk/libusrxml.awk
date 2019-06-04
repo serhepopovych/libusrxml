@@ -2118,7 +2118,7 @@ function usrxml__print_maps(i, umap, name, file, s1, s2,    n, j, p)
 			if ((j,"mac") in umap)
 				printf s1 s1 "<mac %s>" s2,
 					umap[j,"mac"] >>file;
-			printf s1 "</%s>" s2, name;
+			printf s1 "</%s>" s2, name >>file;
 		}
 	}
 }
