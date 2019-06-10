@@ -897,6 +897,8 @@ function usrxml__map_add_val(h, attr, map, val,    n, i, id, num, min, max)
 
 	if (val != SUBSEP)
 		map[h,attr] = val;
+	else
+		map[h,attr]++;
 
 	return i;
 }
@@ -977,8 +979,7 @@ function usrxml__map_copy(dh, dmap, sh, smap,    n, p, attr)
 
 		attr = dmap[dh,p] = smap[sh,p];
 		dmap[dh,attr,"id"] = p;         # optimization
-		if ((sh,attr) in smap)
-			dmap[dh,attr] = smap[sh,attr];
+		dmap[dh,attr] = smap[sh,attr];
 	}
 }
 
