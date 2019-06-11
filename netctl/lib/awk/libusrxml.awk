@@ -814,11 +814,17 @@ function init_usrxml_parser(prog,    h)
 	# These are used to find duplicates at parse time
 	# -----------------------------------------------
 	#
-	# nifn = USRXML_ifnames[h,"num"]
+	# nifn = USRXML_ifuser[h,"num"]
 	# ifid = [0 .. nifn - 1]
-	# ifid = USRXML_ifnames[h,userif,"id"]
-	# userif = USRXML_ifnames[h,ifid]
-	# userid ... = USRXML_ifnames[h,userif]
+	# ifid = USRXML_ifuser[h,userif,"id"]
+	# userif = USRXML_ifuser[h,ifid]
+	# refcnt = USRXML_ifuser[h,userif]
+	#
+	# nifu = USRXML_ifuser[h,userif,"num"]
+	# iuid = [0 .. nifu - 1]
+	# username = USRXML_ifuser[h,userif,iuid]
+	# userid = USRXML_ifuser[h,userif,username]
+	#
 	# <user 'name'>
 	#
 	#   nnets = USRXML_nets[h,"num"]
@@ -855,6 +861,7 @@ function init_usrxml_parser(prog,    h)
 	# defined it will be created as "uninitialized scalar"
 	# making iterations like "for (v in arr)" to fail.
 	delete USRXML__dynmap[1];
+	delete USRXML_ifuser[1];
 
 	# Note that rest of USRXML_user*[] arrays
 	# initialized in usrxml__scope_user()
@@ -1322,61 +1329,6 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 	}
 }
 
-function usrxml__map_filter_userif(val, userid)
-{
-	sub(" " userid " ", " ", val) ||   # 1 x 3 == 1 3
-	sub(userid " ", "", val)      ||   # x 2 3 == 2 3
-	sub(" " userid, "", val);          # 1 2 x == 1 2
-
-	return val;
-}
-
-function usrxml__map_add_userif(h, userid,    o, val, userids)
-{
-	o = USRXML_userif[h,userid];
-
-	# h,userif
-	val = h SUBSEP o;
-
-	if (val in USRXML_ifnames) {
-		userids = USRXML_ifnames[val];
-
-		# This userid owns interface?
-		if (userids == userid)
-			return USRXML_E_NONE;
-
-		# Yes. Filter this userid.
-		USRXML_ifnames[val] = \
-			usrxml__map_filter_userif(userids, userid) " " userid;
-	} else {
-		usrxml__map_add_val(h, o, USRXML_ifnames, userid);
-	}
-
-	return USRXML_E_NONE;
-}
-
-function usrxml__map_del_userif(h, userid,    o, val, userids)
-{
-	o = USRXML_userif[h,userid];
-
-	# h,userif
-	val = h SUBSEP o;
-
-	if (val in USRXML_ifnames) {
-		userids = USRXML_ifnames[val];
-
-		# This userid owns interface?
-		if (userids == userid) {
-			# Yes. Delete mapping.
-			usrxml__map_del_by_attr(h, o, USRXML_ifnames);
-		} else {
-			# No. Filter this userid.
-			USRXML_ifnames[val] = \
-				usrxml__map_filter_userif(userids, userid);
-		}
-	}
-}
-
 function usrxml__validate_if(h, userid,    i, val)
 {
 	# h,userid
@@ -1441,9 +1393,9 @@ function usrxml__activate_user_by_id(h, userid, no_validate,    val)
 	}
 
 	# if
-	val = usrxml__map_add_userif(h, userid);
-	if (val != USRXML_E_NONE)
-		return val;
+	val = h SUBSEP userid;
+	usrxml__dyn_add_val(h, USRXML_userif[val], USRXML_users[val],
+			    userid, USRXML_ifuser);
 
 	# net
 	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
@@ -1487,7 +1439,8 @@ function usrxml__deactivate_user_by_id(h, userid, no_validate,    val)
 	}
 
 	# if
-	usrxml__map_del_userif(h, userid);
+	val = h SUBSEP userid;
+	usrxml__dyn_del_by_attr(h, USRXML_userif[val], USRXML_users[val]);
 	# net
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
 	# net6
@@ -1625,17 +1578,15 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_if(i, map,    a)
+function usrxml__delete_if(i,    a)
 {
-	if (isarray(map)) {
-		# i = h,userid
-		split(i, a, SUBSEP);
+	# i = h,userid
+	split(i, a, SUBSEP);
 
-		# h = a[1]
-		# userid = a[2]
+	# h = a[1]
+	# userid = a[2]
 
-		usrxml__map_del_userif(a[1], a[2]);
-	}
+	usrxml__dyn_del_by_attr(a[1], USRXML_userif[i], USRXML_users[i]);
 
 	delete USRXML_userif[i];
 }
@@ -1702,13 +1653,6 @@ function usrxml__delete_user(h, username, subid,    n, m, i, p, userid)
 	# h,userid
 	i = h SUBSEP userid;
 
-	# user
-	usrxml_section_delete_fileline("user" SUBSEP i);
-
-	usrxml__map_del_by_attr(h, username, USRXML_users);
-
-	delete USRXML_users[i,"inactive"];
-
 	# pipe
 	m = USRXML_userpipe[i];
 	for (p = 0; p < m; p++) {
@@ -1729,6 +1673,13 @@ function usrxml__delete_user(h, username, subid,    n, m, i, p, userid)
 	usrxml__delete_maps(i, USRXML_nats, USRXML_usernats, "nat");
 	# nat6
 	usrxml__delete_maps(i, USRXML_nats6, USRXML_usernats6, "nat6");
+
+	# user
+	usrxml_section_delete_fileline("user" SUBSEP i);
+
+	usrxml__map_del_by_attr(h, username, USRXML_users);
+
+	delete USRXML_users[i,"inactive"];
 }
 
 function usrxml__delete_user_by_id(h, userid,    n)
@@ -1851,6 +1802,7 @@ function fini_usrxml_parser(h,    n, u)
 	delete USRXML_users[h,"num"];
 
 	# Dynamic mappings
+	usrxml__finish_dynmap(h, USRXML_ifuser);
 	usrxml__finish_dynmap(h);
 
 	# Name of program that uses API
@@ -1995,7 +1947,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 			if (n != "") {
 				if (n != val)
 					return usrxml_inv_arg(h, name, val);
-				usrxml__delete_if(i, USRXML_ifnames);
+				usrxml__delete_if(i);
 				USRXML_userif[i] = "";
 			}
 		}
