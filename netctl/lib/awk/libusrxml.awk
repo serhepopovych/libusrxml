@@ -636,21 +636,13 @@ function declare_usrxml_consts()
 	USRXML__priority2name[USRXML_MSG_PRIO_DEBUG]  = "debug";
 
 	# Tag scope
-	USRXML__scope_error	= -1;
-	USRXML__scope_none	= 0;
-	USRXML__scope_user	= 1;
-	USRXML__scope_pipe	= 2;
-	USRXML__scope_qdisc	= 3;
-	USRXML__scope_net	= 4;
-	USRXML__scope_net6	= 5;
-
-	USRXML__scope2name[USRXML__scope_error]	= "error";
-	USRXML__scope2name[USRXML__scope_none]	= "none";
-	USRXML__scope2name[USRXML__scope_user]	= "user";
-	USRXML__scope2name[USRXML__scope_pipe]	= "pipe";
-	USRXML__scope2name[USRXML__scope_qdisc]	= "qdisc";
-	USRXML__scope2name[USRXML__scope_net]	= "net";
-	USRXML__scope2name[USRXML__scope_net6]	= "net6";
+	USRXML__scope_error	= "error";
+	USRXML__scope_none	= "none";
+	USRXML__scope_user	= "user";
+	USRXML__scope_pipe	= "pipe";
+	USRXML__scope_qdisc	= "qdisc";
+	USRXML__scope_net	= "net";
+	USRXML__scope_net6	= "net6";
 
 	# Library public functions call order
 	USRXML__order_none	= 0;
@@ -718,8 +710,9 @@ function init_usrxml_parser(prog,    h)
 	# Error number updated on each library call
 	USRXML__instance[h,"errno"] = USRXML_E_NONE;
 
-	# Current scope
+	# Current scope and depth
 	USRXML__instance[h,"scope"] = USRXML__scope_none;
+	USRXML__instance[h,"depth"] = 0;
 
 	# Populated from parsing XML document
 	USRXML__instance[h,"userid"] = 0;
@@ -1768,9 +1761,6 @@ function release_usrxml_consts()
 	# Library messages handling
 	delete USRXML__priority2name;
 
-	# Tag scope
-	delete USRXML__scope2name;
-
 	# Valid "zone" values
 	delete USRXML__zone;
 
@@ -1820,8 +1810,9 @@ function fini_usrxml_parser(h,    n, u)
 	# Error encountered during XML parsing/validation
 	delete USRXML__instance[h,"errno"];
 
-	# Current scope
+	# Current scope and depth
 	delete USRXML__instance[h,"scope"];
+	delete USRXML__instance[h,"depth"];
 
 	# Populated from parsing XML document
 	delete USRXML__instance[h,"userid"];
@@ -1848,15 +1839,18 @@ function usrxml__scope_error(h, sign, name, val)
 	# Skip all lines until new user entry on error
 
 	if (name == "user") {
-		USRXML__instance[h,"scope"] = USRXML__scope_none;
-
 		# Signal caller to lookup with new scope
-		return 1;
+		ret = 1;
 	} else if (name == "/user") {
-		USRXML__instance[h,"scope"] = USRXML__scope_none;
+		ret = USRXML_E_NONE;
+	} else {
+		return USRXML_E_NONE;
 	}
 
-	return USRXML_E_NONE;
+	USRXML__instance[h,"scope"] = USRXML__scope_none;
+	USRXML__instance[h,"depth"] = 0;
+
+	return ret;
 }
 
 function usrxml__scope_none(h, sign, name, val,    n, i)
@@ -1876,6 +1870,7 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 
 			USRXML__instance[h,"userid"] = i;
 			USRXML__instance[h,"scope"] = USRXML__scope_user;
+			USRXML__instance[h,"depth"]++;
 
 			usrxml_section_record_fileline(h, name SUBSEP i);
 		} else {
@@ -1924,6 +1919,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 			return n;
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
+		USRXML__instance[h,"depth"]--;
 
 		# We can't return > 0 here as this
 		# will collide with parse retry
@@ -1966,6 +1962,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 			USRXML__instance[h,"netid"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_net;
+			USRXML__instance[h,"depth"]++;
 
 			usrxml_section_record_fileline(h, name SUBSEP n);
 		} else {
@@ -1987,6 +1984,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 			USRXML__instance[h,"net6id"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_net6;
+			USRXML__instance[h,"depth"]++;
 
 			usrxml_section_record_fileline(h, name SUBSEP n);
 		} else {
@@ -2054,6 +2052,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 
 			USRXML__instance[h,"pipeid"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_pipe;
+			USRXML__instance[h,"depth"]++;
 
 			usrxml_section_record_fileline(h, name SUBSEP n);
 		} else {
@@ -2094,6 +2093,7 @@ function usrxml__scope_pipe(h, sign, name, val,    n)
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"depth"]--;
 
 		return USRXML_E_NONE;
 	} else if (name == "zone") {
@@ -2123,6 +2123,7 @@ function usrxml__scope_pipe(h, sign, name, val,    n)
 			USRXML_userpipe[n,"opts"] = 0;
 
 			USRXML__instance[h,"scope"] = USRXML__scope_qdisc;
+			USRXML__instance[h,"depth"]++;
 
 			usrxml_section_record_fileline(h, name SUBSEP n);
 		} else {
@@ -2152,6 +2153,7 @@ function usrxml__scope_qdisc(h, sign, name, val,    n, o)
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_pipe;
+		USRXML__instance[h,"depth"]--;
 	} else if (name == "opts") {
 		if (sign <= 0)
 			return usrxml_inv_arg(h, "-" name, val);
@@ -2175,6 +2177,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"depth"]--;
 
 		if (umap[n,"has_opts"] <= 0)
 			delete umap[n,"has_opts"];
@@ -2222,6 +2225,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 		return usrxml_syntax_err(h);
 	} else {
 		USRXML__instance[h,"scope"] = USRXML__scope_user;
+		USRXML__instance[h,"depth"]--;
 
 		# Signal caller to lookup with new scope
 		return 1;
@@ -2306,9 +2310,9 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 	sub("[[:space:]]+", "", val);
 
 	do {
-		n = USRXML__instance[h,"scope"];
+		n = USRXML__instance[h,"depth"];
 
-		fn = "usrxml__scope_" USRXML__scope2name[n];
+		fn = "usrxml__scope_" USRXML__instance[h,"scope"];
 		ret = @fn(h, sign, name, val);
 
 		# userid
@@ -2322,7 +2326,7 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 		}
 		# Parse error in the middle of operation: skip lines until valid
 		if (ret < 0) {
-			if (n > USRXML__scope_none)
+			if (n > 0)
 				USRXML__instance[h,"scope"] = USRXML__scope_error;
 			break;
 		}
@@ -2532,9 +2536,9 @@ function load_usrxml_file(_h, file, flags, cb, data,    h, line, rc, ret, s_fn, 
 		ret = usrxml__seterrno(USRXML_E_GETLINE);
 	} else if (ret == USRXML_E_NONE) {
 		# Check for open sections
-		rc = USRXML__instance[h,"scope"];
-		if (rc > USRXML__scope_none)
-			ret = usrxml_scope_err(h, USRXML__scope2name[rc]);
+		rc = USRXML__instance[h,"depth"];
+		if (rc > 0)
+			ret = usrxml_scope_err(h, USRXML__instance[h,"scope"]);
 	}
 
 	if (ret < 0) {
