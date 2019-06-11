@@ -652,6 +652,13 @@ function declare_usrxml_consts()
 	USRXML__scope2name[USRXML__scope_net]	= "net";
 	USRXML__scope2name[USRXML__scope_net6]	= "net6";
 
+	# Library public functions call order
+	USRXML__order_none	= 0;
+	USRXML__order_parse	= 1;
+
+	# Load/store flags
+	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
+
 	# Valid "zone" values
 	USRXML__zone["world"]	= 1;
 	USRXML__zone["local"]	= 1;
@@ -661,13 +668,6 @@ function declare_usrxml_consts()
 	USRXML__dir["in"]	= 1;
 	USRXML__dir["out"]	= 1;
 	USRXML__dir["all"]	= 1;
-
-	# Library public functions call order
-	USRXML__order_none	= 0;
-	USRXML__order_parse	= 1
-
-	# Load/store flags
-	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
 
 	# Zone and direction names to mask mapping
 	zone_dir_bits["world","in"]	= 0x01;
