@@ -871,6 +871,9 @@ function usrxml__map_add_val(h, attr, map, val,    n, i, id, num, min, max)
 	# h,attr,"id"
 	n = h SUBSEP attr SUBSEP "id";
 
+	if (attr ~ "^(num|min|max|cnt|id|[[:digit:]]+)$")
+		return -1;
+
 	if (n in map) {
 		i = h SUBSEP map[n];
 	} else {
@@ -1037,13 +1040,16 @@ function usrxml__dyn_get_val(h, dyn, attr, arr,    n)
 		return (n in USRXML__dynmap) ? USRXML__dynmap[n] : "";
 }
 
-function usrxml___dyn_add_val(h, dyn, attr, val, arr,    hh)
+function usrxml___dyn_add_val(h, dyn, attr, val, arr,    hh, ret)
 {
 	# h,dyn
 	hh = h SUBSEP dyn;
 
-	if (!((hh,attr) in arr))
-		usrxml__map_add_attr(h, dyn, arr);
+	if (!((hh,attr) in arr)) {
+		ret = int(usrxml__map_add_attr(h, dyn, arr));
+		if (ret < 0)
+			return ret;
+	}
 
 	return usrxml__map_add_val(hh, attr, arr, val);
 }
@@ -1861,6 +1867,9 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 
 		if (sign > 0) {
 			i = usrxml__map_add_attr(h, val, USRXML_users);
+			if (int(i) < 0)
+				return usrxml_inv_arg(h, name, val);
+
 			if (i in USRXML_userif) {
 				usrxml__save_user(h, val);
 			} else {
