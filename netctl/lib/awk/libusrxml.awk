@@ -1642,11 +1642,8 @@ function usrxml__delete_maps(i, map, umap, name,    m, j, p)
 	delete umap[i,"num"];
 }
 
-function usrxml__delete_user(h, username, subid,    n, m, i, p, userid)
+function usrxml__delete_user(h, username,    n, m, i, p, userid)
 {
-	if (subid != "")
-		h = h SUBSEP subid;
-
 	userid = USRXML_users[h,username,"id"];
 
 	# h,userid
@@ -1692,7 +1689,7 @@ function usrxml__delete_user_by_id(h, userid,    n)
 
 	usrxml__deactivate_user_by_id(h, userid, "true");
 
-	usrxml__delete_user(h, USRXML_users[n], "");
+	usrxml__delete_user(h, USRXML_users[n]);
 }
 
 function usrxml__delete_user_by_name(h, username,    n)
@@ -1724,7 +1721,7 @@ function usrxml__save_user(h, username)
 	usrxml__copy_user(h SUBSEP "orig", h, username);
 }
 
-function usrxml__restore_user(h, username,    userid)
+function usrxml__restore_user(h, username,    hh, userid)
 {
 	username = usrxml__username(h, username);
 	if (username == "")
@@ -1734,9 +1731,12 @@ function usrxml__restore_user(h, username,    userid)
 
 	usrxml__delete_user_by_id(h, userid);
 
-	if ((h,"orig",userid) in USRXML_users) {
-		usrxml__copy_user(h, h SUBSEP "orig", username);
-		usrxml__delete_user(h, username, "orig");
+	# h,"orig"
+	hh = h SUBSEP "orig";
+
+	if ((hh,userid) in USRXML_users) {
+		usrxml__copy_user(h, hh, username);
+		usrxml__delete_user(hh, username);
 
 		if (!((h,userid,"inactive") in USRXML_users))
 			usrxml__activate_user_by_id(h, userid);
@@ -1749,7 +1749,7 @@ function usrxml__cleanup_user(h, username)
 	if (username == "")
 		return;
 
-	usrxml__delete_user(h, username, "orig");
+	usrxml__delete_user(h SUBSEP "orig", username);
 }
 
 #
