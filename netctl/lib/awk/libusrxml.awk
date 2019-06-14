@@ -475,7 +475,7 @@ function usrxml_dup_attr(h, section, value, i,    err, errstr)
 	return usrxml_result(h, err, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_missing_arg(h, section)
+function usrxml_missing_arg(h, section,    errstr)
 {
 	errstr = sprintf("missing mandatory argument <%s>", section);
 	return usrxml_result(h, USRXML_E_MISS, USRXML_MSG_PRIO_ERR, errstr);
