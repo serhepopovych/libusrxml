@@ -670,15 +670,15 @@ function declare_usrxml_consts()
 	USRXML__dir["all"]	= 1;
 
 	# Zone and direction names to mask mapping
-	zone_dir_bits["world","in"]	= 0x01;
-	zone_dir_bits["world","out"]	= 0x02;
-	zone_dir_bits["world","all"]	= 0x03;
-	zone_dir_bits["local","in"]	= 0x04;
-	zone_dir_bits["local","out"]	= 0x08;
-	zone_dir_bits["local","all"]	= 0x0c;
-	zone_dir_bits["all","in"]	= 0x05;
-	zone_dir_bits["all","out"]	= 0x0a;
-	zone_dir_bits["all","all"]	= 0x0f;
+	USRXML__zone_dir_bits["world","in"]	= 0x01;
+	USRXML__zone_dir_bits["world","out"]	= 0x02;
+	USRXML__zone_dir_bits["world","all"]	= 0x03;
+	USRXML__zone_dir_bits["local","in"]	= 0x04;
+	USRXML__zone_dir_bits["local","out"]	= 0x08;
+	USRXML__zone_dir_bits["local","all"]	= 0x0c;
+	USRXML__zone_dir_bits["all","in"]	= 0x05;
+	USRXML__zone_dir_bits["all","out"]	= 0x0a;
+	USRXML__zone_dir_bits["all","all"]	= 0x0f;
 
 	# Mark as initialized
 	USRXML__instance["consts"] = 1;
@@ -1367,7 +1367,7 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 		if (!((j,"bw") in USRXML_userpipe))
 			return usrxml_section_missing_arg(h, "bw", val);
 
-		zd_bits = zone_dir_bits[USRXML_userpipe[j,"zone"],
+		zd_bits = USRXML__zone_dir_bits[USRXML_userpipe[j,"zone"],
 					USRXML_userpipe[j,"dir"]];
 		if (and(zones_dirs, zd_bits))
 			return usrxml_section_inv_arg(h, "pipe", "zone|dir", val);
@@ -1778,7 +1778,7 @@ function release_usrxml_consts()
 	delete USRXML__dir;
 
 	# Zone and direction names to mask mapping
-	delete zone_dir_bits;
+	delete USRXML__zone_dir_bits;
 
 	# Mark as uninitialized
 	delete USRXML__instance["consts"];
