@@ -1577,7 +1577,7 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_if(i,    a)
+function usrxml__delete_userif(i,    a)
 {
 	# i = h,userid
 	split(i, a, SUBSEP);
@@ -1660,7 +1660,7 @@ function usrxml__delete_user(h, username,    n, m, i, p, userid)
 	delete USRXML_userpipe[i];
 
 	# if
-	usrxml__delete_if(i);
+	usrxml__delete_userif(i);
 	# net
 	usrxml__delete_maps(i, USRXML_nets, USRXML_usernets, "net");
 	# net6
@@ -1952,7 +1952,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i)
 			if (n != "") {
 				if (n != val)
 					return usrxml_inv_arg(h, name, val);
-				usrxml__delete_if(i);
+				usrxml__delete_userif(i);
 				USRXML_userif[i] = "";
 			}
 		}
