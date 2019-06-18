@@ -1883,18 +1883,23 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 
 			usrxml_section_record_fileline(h, name SUBSEP i);
 		} else {
-			n = USRXML_users[h,val,"id"];
+			# h,val,"id"
+			i = h SUBSEP val SUBSEP "id";
 
-			# h, userid
-			i = h SUBSEP n;
+			if (i in USRXML_users) {
+				n = USRXML_users[i];
 
-			if (i in USRXML_userif) {
 				# Save entry before delete to make
 				# it visible to run_usrxml_parser()
 				# and their callbacks
 				usrxml__save_user(h, val);
 
 				usrxml__delete_user_by_id(h, n);
+
+				# h,userid
+				i = h SUBSEP n;
+			} else {
+				i = USRXML_E_NONE;
 			}
 
 			# We can't return > 0 here as this
