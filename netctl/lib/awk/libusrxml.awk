@@ -1489,11 +1489,17 @@ function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 
 function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst, j_src)
 {
-	if (dh == sh)
-		return;
+	# sh,username,"id"
+	i_src = sh SUBSEP username SUBSEP "id";
+
+	if (!(i_src in USRXML_users))
+		return "";
 
 	# sh,userid
-	i_src = sh SUBSEP USRXML_users[sh,username,"id"];
+	i_src = sh SUBSEP USRXML_users[i_src];
+
+	if (dh == sh)
+		return i_src;
 
 	# user
 	i_dst = usrxml__map_add_attr(dh, USRXML_users[i_src], USRXML_users);
@@ -1550,6 +1556,8 @@ function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst,
 	usrxml__map_copy(i_dst, USRXML_usernats, i_src, USRXML_usernats);
 	# nat6
 	usrxml__map_copy(i_dst, USRXML_usernats6, i_src, USRXML_usernats6);
+
+	return i_dst;
 }
 
 function usrxml__delete_qdisc(n,    m, p)
@@ -1724,10 +1732,10 @@ function usrxml__username(h, username)
 
 function usrxml__save_user(h, username)
 {
-	usrxml__copy_user(h SUBSEP "orig", h, username);
+	return usrxml__copy_user(h SUBSEP "orig", h, username);
 }
 
-function usrxml__restore_user(h, username,    hh, userid)
+function usrxml__restore_user(h, username,    hh, userid, i)
 {
 	username = usrxml__username(h, username);
 	if (username == "")
@@ -1741,11 +1749,15 @@ function usrxml__restore_user(h, username,    hh, userid)
 	hh = h SUBSEP "orig";
 
 	if ((hh,userid) in USRXML_users) {
-		usrxml__copy_user(h, hh, username);
+		i = usrxml__copy_user(h, hh, username);
 		usrxml__delete_user(hh, username);
 
-		if (!((h,userid,"inactive") in USRXML_users))
+		if (!((i,"inactive") in USRXML_users)) {
+			username = USRXML_users[i];
+			userid = USRXML_users[h,username,"id"];
+
 			usrxml__activate_user_by_id(h, userid);
+		}
 	}
 }
 
