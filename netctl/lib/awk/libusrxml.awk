@@ -464,14 +464,21 @@ function usrxml_dup_arg(h, section,    errstr)
 	return usrxml_result(h, USRXML_E_DUP, USRXML_MSG_PRIO_ERR, errstr);
 }
 
-function usrxml_dup_attr(h, section, value, i,    err, errstr)
+function usrxml_dup_attr(h, section, value, i,    username, err, errstr)
 {
-	if (i == USRXML__instance[h,"userid"])
+	if (!(i in USRXML_users)) {
+		# This is assert and thus not reported via usrxml_result()
+		return USRXML_E_NOENT;
+	}
+
+	username = USRXML_users[i];
+
+	if (username == USRXML__instance[h,"username"])
 		return USRXML_E_NONE;
 
 	err = usrxml_dup_val(h, section, value);
 
-	errstr = sprintf("already defined by \"%s\" user", USRXML_users[i]);
+	errstr = sprintf("already defined by \"%s\" user", username);
 	return usrxml_result(h, err, USRXML_MSG_PRIO_ERR, errstr);
 }
 
@@ -715,7 +722,6 @@ function init_usrxml_parser(prog,    h)
 	USRXML__instance[h,"depth"] = 0;
 
 	# Populated from parsing XML document
-	USRXML__instance[h,"userid"] = 0;
 	USRXML__instance[h,"pipeid"] = 0;
 	USRXML__instance[h,"netid"] = 0;
 	USRXML__instance[h,"net6id"] = 0;
@@ -1293,7 +1299,7 @@ function usrxml__map_add_umap_attr2map(h, userid, map, umap, name,    m, i, j, p
 		# name,h,userid,id
 		j = name SUBSEP j;
 
-		# Note that USRXML__instance[h,"userid"] must be set
+		# Note that USRXML__instance[h,"username"] must be set
 		val = usrxml_section_dup_attr(h, name, val, map[h,val], j);
 		if (val != USRXML_E_NONE)
 			return val;
@@ -1704,16 +1710,16 @@ function usrxml__delete_user_by_name(h, username,    n)
 	usrxml__delete_user_by_id(h, USRXML_users[n]);
 }
 
-function usrxml__username(h, username,    userid)
+function usrxml__username(h, username)
 {
 	if (username != "")
 		return username;
 
-	userid = USRXML__instance[h,"userid"];
-	if (userid != "" && (userid in USRXML_users))
-		username = USRXML_users[userid];
+	username = USRXML__instance[h,"username"];
+	if (username != "" && ((h,username,"id") in USRXML_users))
+		return username;
 
-	return username;
+	return "";
 }
 
 function usrxml__save_user(h, username)
@@ -1821,7 +1827,7 @@ function fini_usrxml_parser(h,    n, u)
 	delete USRXML__instance[h,"depth"];
 
 	# Populated from parsing XML document
-	delete USRXML__instance[h,"userid"];
+	delete USRXML__instance[h,"username"];
 	delete USRXML__instance[h,"pipeid"];
 	delete USRXML__instance[h,"netid"];
 	delete USRXML__instance[h,"net6id"];
@@ -1877,7 +1883,7 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 				USRXML_userif[i] = "";
 			}
 
-			USRXML__instance[h,"userid"] = i;
+			USRXML__instance[h,"username"] = val;
 			USRXML__instance[h,"scope"] = USRXML__scope_user;
 			USRXML__instance[h,"depth"]++;
 
@@ -1913,21 +1919,21 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_user(h, sign, name, val,    n, i)
+function usrxml__scope_user(h, sign, name, val,    n, i, u)
 {
-	i = USRXML__instance[h,"userid"];
+	n = USRXML__instance[h,"username"];
+
+	u = USRXML_users[h,n,"id"];
+	i = h SUBSEP u;
 
 	if (name == "/user") {
-		n = USRXML_users[i];
 		if (val != "" && val != n)
 			return usrxml_inv_arg(h, name, val);
 
-		n = USRXML_users[h,n,"id"];
-
 		if ((i,"inactive") in USRXML_users)
-			n = usrxml__deactivate_user_by_id(h, n);
+			n = usrxml__deactivate_user_by_id(h, u);
 		else
-			n = usrxml__activate_user_by_id(h, n);
+			n = usrxml__activate_user_by_id(h, u);
 
 		if (n != USRXML_E_NONE)
 			return n;
