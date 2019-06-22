@@ -1910,19 +1910,14 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 				# Save entry before delete to make
 				# it visible to run_usrxml_parser()
 				# and their callbacks
-				usrxml__save_user(h, val);
+				i = usrxml__save_user(h, val);
 
 				usrxml__delete_user_by_id(h, n);
 
-				# h,userid
-				i = h SUBSEP n;
-			} else {
-				i = USRXML_E_NONE;
+				# We can't return > 0 here as this
+				# will collide with parse retry
+				return i;
 			}
-
-			# We can't return > 0 here as this
-			# will collide with parse retry
-			return i;
 		}
 	} else {
 		return usrxml_syntax_err(h);
@@ -2347,13 +2342,13 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 		fn = "usrxml__scope_" USRXML__instance[h,"scope"];
 		ret = @fn(h, sign, name, val);
 
-		# userid
-		if (sub(h SUBSEP, "", ret) == 1) {
+		# h,userid (2) or h,"orig",userid (3)
+		if (split(ret, a, SUBSEP) >= 2) {
 			# Make sure we always return value > 0
 			if (cb != "")
-				ret = @cb(h, ret, data);
+				ret = @cb(h, ret, data, a);
 			else
-				ret++;
+				ret = a[2] + 1;
 			break;
 		}
 		# Parse error in the middle of operation: skip lines until valid
