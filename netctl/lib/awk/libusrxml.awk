@@ -488,6 +488,12 @@ function usrxml_missing_arg(h, section,    errstr)
 	return usrxml_result(h, USRXML_E_MISS, USRXML_MSG_PRIO_ERR, errstr);
 }
 
+function usrxml_self_ref(h, section, value,    errstr)
+{
+	errstr = sprintf("self referencing \"%s\" with <%s>\n", value, section);
+	return usrxml_result(h, USRXML_E_SELF_REF, USRXML_MSG_PRIO_ERR, errstr);
+}
+
 #
 # Helper routines to track section (e.g. <user>, <pipe>) filename and linenum.
 #
@@ -600,12 +606,13 @@ function declare_usrxml_consts()
 	USRXML_E_BASE	= 300;
 
 	# Document syntax errors
-	USRXML_E_SYNTAX	= -(USRXML_E_BASE + 0);
-	USRXML_E_INVAL	= -(USRXML_E_BASE + 1);
-	USRXML_E_EMPTY	= -(USRXML_E_BASE + 2);
-	USRXML_E_DUP	= -(USRXML_E_BASE + 3);
-	USRXML_E_MISS	= -(USRXML_E_BASE + 4);
-	USRXML_E_SCOPE	= -(USRXML_E_BASE + 50);
+	USRXML_E_SYNTAX   = -(USRXML_E_BASE + 0);
+	USRXML_E_INVAL    = -(USRXML_E_BASE + 1);
+	USRXML_E_EMPTY    = -(USRXML_E_BASE + 2);
+	USRXML_E_DUP      = -(USRXML_E_BASE + 3);
+	USRXML_E_MISS     = -(USRXML_E_BASE + 4);
+	USRXML_E_SELF_REF = -(USRXML_E_BASE + 5);
+	USRXML_E_SCOPE    = -(USRXML_E_BASE + 50);
 
 	# API
 	USRXML_E_HANDLE_INVALID	= -(USRXML_E_BASE + 101);
@@ -645,6 +652,9 @@ function declare_usrxml_consts()
 	# Tag scope
 	USRXML__scope_error	= "error";
 	USRXML__scope_none	= "none";
+
+	USRXML__scope_if	= "if";
+
 	USRXML__scope_user	= "user";
 	USRXML__scope_pipe	= "pipe";
 	USRXML__scope_qdisc	= "qdisc";
@@ -657,6 +667,64 @@ function declare_usrxml_consts()
 
 	# Load/store flags
 	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
+
+	# Network interfaces
+
+	# kinds
+	USRXML_iftype_cmp_nan = 0x00; # no value supported
+	USRXML_iftype_cmp_eql = 0x01; # equal
+	USRXML_iftype_cmp_geq = 0x02; # greather or equal
+	USRXML_iftype_cmp_leq = 0x03; # less or equal
+	USRXML_iftype_cmp_zeq = 0x04; # zero or equal
+	USRXML_iftype_cmp_inf = 0x7f; # do not compare
+
+	# ifb
+	USRXML_iftypes["ifb","cmp"]       = USRXML_iftype_cmp_nan;
+	# vrf
+	USRXML_iftypes["vrf","cmp"]       = USRXML_iftype_cmp_inf;
+	# bridge
+	USRXML_iftypes["bridge","cmp"]    = USRXML_iftype_cmp_inf;
+	# bond
+	USRXML_iftypes["bond","cmp"]      = USRXML_iftype_cmp_inf;
+	# host
+	USRXML_iftypes["host","cmp"]      = USRXML_iftype_cmp_nan;
+	# dummy
+	USRXML_iftypes["dummy","cmp"]     = USRXML_iftype_cmp_nan;
+	# veth
+	USRXML_iftypes["veth","cmp"]      = USRXML_iftype_cmp_nan;
+	# gretap
+	USRXML_iftypes["gretap","cmp"]    = USRXML_iftype_cmp_zeq;
+	USRXML_iftypes["gretap","num"]    = 1;
+	# ip6gretap
+	USRXML_iftypes["ip6gretap","cmp"] = USRXML_iftype_cmp_zeq;
+	USRXML_iftypes["ip6gretap","num"] = 1;
+	# vxlan
+	USRXML_iftypes["vxlan","cmp"]     = USRXML_iftype_cmp_zeq;
+	USRXML_iftypes["vxlan","num"]     = 1;
+	# vlan
+	USRXML_iftypes["vlan","cmp"]      = USRXML_iftype_cmp_eql;
+	USRXML_iftypes["vlan","num"]      = 1;
+	# macvlan
+	USRXML_iftypes["macvlan","cmp"]   = USRXML_iftype_cmp_eql;
+	USRXML_iftypes["macvlan","num"]   = 1;
+	# ipvlan
+	USRXML_iftypes["ipvlan","cmp"]    = USRXML_iftype_cmp_eql;
+	USRXML_iftypes["ipvlan","num"]    = 1;
+	# gre
+	USRXML_iftypes["gre","cmp"]       = USRXML_iftype_cmp_zeq;
+	USRXML_iftypes["gre","num"]       = 1;
+	# ip6gre
+	USRXML_iftypes["ip6gre","cmp"]    = USRXML_iftype_cmp_zeq;
+	USRXML_iftypes["ip6gre","num"]    = 1;
+
+	# params
+	USRXML_ifparms["ip-link"]	= 1;
+	USRXML_ifparms["ip-link-type"]	= 1;
+	USRXML_ifparms["tc-qdisc"]	= 1;
+	USRXML_ifparms["tc-class"]	= 1;
+	USRXML_ifparms["tc-filter"]	= 1;
+	USRXML_ifparms["ethtool"]	= 1;
+	USRXML_ifparms["sysctl"]	= 1;
 
 	# Valid "zone" values
 	USRXML__zone["world"]	= 1;
@@ -717,7 +785,8 @@ function init_usrxml_parser(prog,    h)
 	# Error number updated on each library call
 	USRXML__instance[h,"errno"] = USRXML_E_NONE;
 
-	# Current scope and depth
+	# Current entry type, scope and depth
+	USRXML__instance[h,"entry"] = "";
 	USRXML__instance[h,"scope"] = USRXML__scope_none;
 	USRXML__instance[h,"depth"] = 0;
 
@@ -729,6 +798,10 @@ function init_usrxml_parser(prog,    h)
 	# Real values set by run_usrxml_parser()
 	USRXML__instance[h,"filename"] = "";
 	USRXML__instance[h,"linenum"] = "";
+
+	# Interface up/down hooks
+	USRXML__instance[h,"ifup"] = "";
+	USRXML__instance[h,"ifdown"] = "";
 
 	# USRXML__fileline[key,{ "file" | "line" },n]
 
@@ -1770,6 +1843,367 @@ function usrxml__cleanup_user(h, username)
 	usrxml__delete_user(h SUBSEP "orig", username);
 }
 
+function usrxml__iftype_cmp(h, ifname,    type, cmp, len, num, dyn)
+{
+	type = USRXML_ifnames[h,ifname];
+
+	# Interface being deleted: force iftype compare mismatch
+	if (type ~ "^/")
+		return 0;
+
+	cmp = USRXML_iftypes[type,"cmp"];
+
+	if (cmp == USRXML_iftype_cmp_inf)
+		return 1;
+
+	dyn = "lower-" ifname;
+
+	len = USRXML__dynmap[h,dyn,"ref"];
+
+	if (cmp == USRXML_iftype_cmp_nan)
+		return len == 0;
+
+	num = USRXML_iftypes[type,"num"];
+
+	if (cmp == USRXML_iftype_cmp_eql)
+		return len == num;
+	if (cmp == USRXML_iftype_cmp_zeq)
+		return len == 0 || len == num;
+	if (cmp == USRXML_iftype_cmp_geq)
+		return len >= num;
+	if (cmp == USRXML_iftype_cmp_leq)
+		return len <= num;
+
+	return 0;
+}
+
+function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
+{
+	if (ifname != "") {
+		# Called recursively for "upper-{iflu}": resolve lower
+
+		# <host en1>
+		#   <ip-link mtu 1504>
+		#   <upper bond0> <-- is not in USRXML_ifnames[]: skip
+		# </host>
+		#
+		# <bond bond0>
+		#   <ip-link mtu 1504>
+		#   <ip-link-type mode 802.3ad miimon 100 xmit_hash_policy encap2+3>
+		#   <lower en1>
+		# </bond>
+
+		if (!((h,iflu) in USRXML_ifnames))
+			return USRXML_E_NONE;
+
+		rev = "lower-" iflu;
+
+		if (usrxml__dyn_get_val(h, rev, ifname, arr) != ifname) {
+			arr[h,rev,"ref"]++;
+			usrxml__dyn_add_val(h, rev, ifname, ifname, arr);
+		}
+	}
+
+	# h,iflu,"inactive"
+	i = h SUBSEP iflu SUBSEP "inactive";
+
+	val = USRXML_ifnames[i];
+
+	if (val > 0)
+		return USRXML_E_NONE;
+
+	if (usrxml__iftype_cmp(h, iflu) > 0) {
+		if (val == 0)
+			return USRXML_E_NONE;
+	} else {
+		if (val != 0)
+			return USRXML_E_NONE;
+
+		return usrxml__deactivate_if_by_name(h, dyn, iflu);
+	}
+
+	cb = USRXML__instance[h,"ifup"];
+	if (cb != "")
+		@cb(h, iflu);
+
+	# Activate interface and it's uppers
+	USRXML_ifnames[i] = 0;
+
+	cb = "usrxml__activate_if_by_name";
+	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
+}
+
+function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
+{
+	if (ifname != "") {
+		# Called recursively for "upper-{ifname}": unresolve lower
+
+		# <host en1>
+		#   <ip-link mtu 1504>
+		#   <upper bond0> <-- is not in USRXML_ifnames[]: skip
+		# </host>
+		#
+		# <bond bond0>
+		#   <ip-link mtu 1504>
+		#   <ip-link-type mode 802.3ad miimon 100 xmit_hash_policy encap2+3>
+		#   <lower en1>
+		# </bond>
+
+		if (!((h,iflu) in USRXML_ifnames))
+			return USRXML_E_NONE;
+
+		rev = "lower-" iflu;
+
+		usrxml__dyn_del_by_attr(h, rev, ifname, arr);
+		if (--arr[h,rev,"ref"] <= 0)
+			delete arr[h,rev,"ref"];
+	}
+
+	# h,iflu,"inactive"
+	i = h SUBSEP iflu SUBSEP "inactive";
+
+	val = USRXML_ifnames[i];
+
+	if (val > 0)
+		return USRXML_E_NONE;
+
+	if (usrxml__iftype_cmp(h, iflu) > 0) {
+		if (val == 0)
+			return USRXML_E_NONE;
+
+		return usrxml__activate_if_by_name(h, dyn, iflu);
+	} else {
+		if (val != 0)
+			return USRXML_E_NONE;
+	}
+
+	cb = USRXML__instance[h,"ifdown"];
+	if (cb != "")
+		@cb(h, iflu);
+
+	# Deactivate interface and it's uppers
+	USRXML_ifnames[i] = -1;
+
+	cb = "usrxml__deactivate_if_by_name";
+	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
+}
+
+function usrxml__copy_if_cb(sh, dyn, iflu, data, arr,    val, dh, ifname)
+{
+	dh = data["dh"];
+	ifname = data["ifname"];
+
+	usrxml___dyn_add_val(dh, dyn, iflu, arr[sh,dyn,iflu], arr);
+
+	dyn = "unres-" iflu;
+
+	# sh,unres-{iflu},ifname
+	val = usrxml__dyn_get_val(sh, dyn, ifname, arr);
+	if (val != "")
+		usrxml___dyn_add_val(dh, dyn, ifname, val, arr);
+	else
+		usrxml___dyn_del_by_attr(dh, dyn, ifname, arr);
+
+	return 0;
+}
+
+function usrxml__copy_if(dh, sh, ifname,    i, i_dst, i_src, name, data)
+{
+	# sh,ifname
+	i_src = sh SUBSEP ifname;
+
+	if (!(i_src in USRXML_ifnames))
+		return "";
+
+	if (dh == sh)
+		return sh SUBSEP USRXML_ifnames[i_src,"id"];
+
+	# dh,ifname
+	i_dst = dh SUBSEP ifname;
+
+	USRXML_ifnames[i_dst,"inactive"] = USRXML_ifnames[i_src,"inactive"];
+
+	for (name in USRXML_ifparms) {
+		# sh,ifname,name
+		i = i_src SUBSEP name;
+
+		if (i in USRXML_ifnames)
+			USRXML_ifnames[i_dst,name] = USRXML_ifnames[i];
+		else
+			delete USRXML_ifnames[i_dst,name];
+	}
+
+	i_dst = usrxml__map_add_val(dh, ifname,
+				    USRXML_ifnames, USRXML_ifnames[i_src]);
+
+	data["dh"] = dh;
+	data["ifname"] = ifname;
+
+	usrxml__dyn_for_each(sh, "lower-" ifname, "usrxml__copy_if_cb", data);
+	usrxml__dyn_for_each(sh, "upper-" ifname, "usrxml__copy_if_cb", data);
+
+	return i_dst;
+}
+
+function usrxml__delete_if_upper_cb(h, dyn, ifname, data, arr)
+{
+	if (!((h,ifname) in USRXML_ifnames))
+		return;
+
+	if (usrxml__iftype_cmp(h, ifname) > 0)
+		usrxml__activate_if_by_name(h, "", ifname);
+	else
+		usrxml__deactivate_if_by_name(h, "", ifname);
+}
+
+function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev)
+{
+	type = arr[h,dyn,iflu];
+
+	if (type == ":") {
+		# iflu reference is unresolved: simply delete it
+		usrxml___dyn_del_by_attr(h, "unres-" iflu, data["ifname"], arr);
+	} else if (type == "") {
+		# iflu added, but no resolution happened at all
+	} else {
+		# iflu marked for delete with "/" or resolved
+		rev = (data["lu"] == "upper") ? "lower" : "upper";
+		rev = rev "-" iflu;
+
+		usrxml___dyn_del_by_attr(h, rev, data["ifname"], arr);
+		if (--arr[h,rev,"ref"] <= 0)
+			delete arr[h,rev,"ref"];
+
+		cb = data["cb"];
+		if (cb != "")
+			@cb(h, dyn, iflu, data, arr);
+	}
+
+	return 1;
+}
+
+function usrxml__delete_if(h, ifname, lower_cb, upper_cb,
+			   n, i, t, dyn, name, data)
+{
+	# h,ifname
+	n = h SUBSEP ifname;
+
+	if (!(n in USRXML_ifnames))
+		return;
+
+	t = USRXML_ifnames[n];
+
+	# Mark interface for deletion (prefix it's type with "/")
+	USRXML_ifnames[n] = "/" t;
+
+	# h,ifid
+	i = h SUBSEP USRXML_ifnames[n,"id"];
+
+	# lower and upper
+	data["ifname"] = ifname;
+
+	data["cb"] = lower_cb;
+	data["lu"] = dyn = "lower";
+
+	dyn = dyn "-" ifname;
+	usrxml__dyn_for_each(h, dyn, "usrxml__delete_if_cb", data);
+	delete USRXML__dynmap[h,dyn,"ref"];
+
+	data["cb"] = upper_cb;
+	data["lu"] = dyn = "upper";
+
+	dyn = dyn "-" ifname;
+	usrxml__dyn_for_each(h, dyn, "usrxml__delete_if_cb", data);
+	delete USRXML__dynmap[h,dyn,"ref"];
+
+	# parms
+	for (name in USRXML_ifparms)
+		delete USRXML_ifnames[n,name];
+
+	# if
+	usrxml_section_delete_fileline(t SUBSEP i);
+
+	usrxml__map_del_by_attr(h, ifname, USRXML_ifnames);
+
+	delete USRXML_ifnames[n,"inactive"];
+}
+
+function usrxml__delete_if_by_id(h, ifid,    n)
+{
+	# h,ifid
+	n = h SUBSEP ifid;
+
+	# Skip holes entries
+	if (!(n in USRXML_ifnames))
+		return;
+
+	usrxml__delete_if_by_name(h, USRXML_ifnames[n]);
+}
+
+function usrxml__delete_if_by_name(h, ifname)
+{
+	usrxml__delete_if(h, ifname, "", "usrxml__delete_if_upper_cb");
+}
+
+function usrxml__ifname(h, ifname)
+{
+	if (ifname != "")
+		return ifname;
+
+	ifname = USRXML__instance[h,"ifname"];
+	if (ifname != "")
+		return ifname;
+
+	return "";
+}
+
+function usrxml__save_if(h, ifname)
+{
+	return usrxml__copy_if(h SUBSEP "orig", h, ifname);
+}
+
+function usrxml__restore_if_cb(h, dyn, iflu, data, arr)
+{
+	return arr[h,dyn,iflu] == "";
+}
+
+function usrxml__restore_if(h, ifname,    hh, cb)
+{
+	ifname = usrxml__ifname(h, ifname);
+	if (ifname == "")
+		return;
+
+	usrxml__delete_if(h, ifname);
+
+	# h,"orig"
+	hh = h SUBSEP "orig";
+
+	if ((hh,ifname) in USRXML_ifnames) {
+		usrxml__copy_if(h, hh, ifname);
+		usrxml__delete_if(hh, ifname);
+
+		# Remove new entries: existing entries marked for delete ("/")
+		# or unresolved (":") already overwritten by usrxml__copy_if().
+		cb = "usrxml__restore_if_cb";
+		usrxml__dyn_for_each(h, "lower-" ifname, cb);
+		usrxml__dyn_for_each(h, "upper-" ifname, cb);
+
+		# No need to (re)activate interface and it's
+		# uppers since we may only be called before
+		# interface activation/deactivation on failure
+		# in usrxml__scope_none() or usrxml__scope_if().
+	}
+}
+
+function usrxml__cleanup_if(h, ifname)
+{
+	ifname = usrxml__ifname(h, ifname);
+	if (ifname == "")
+		return;
+
+	usrxml__delete_if(h SUBSEP "orig", ifname);
+}
+
 #
 # Destroy XML document parser instance.
 # This is usually called from END{} section.
@@ -1785,6 +2219,10 @@ function release_usrxml_consts()
 	# Library messages handling
 	delete USRXML__priority2name;
 
+	# Network interfaces
+	delete USRXML_iftypes;
+	delete USRXML_ifparms;
+
 	# Valid "zone" values
 	delete USRXML__zone;
 
@@ -1798,7 +2236,7 @@ function release_usrxml_consts()
 	delete USRXML__instance["consts"];
 }
 
-function fini_usrxml_parser(h,    n, u)
+function fini_usrxml_parser(h,    n, p)
 {
 	if (!is_valid_usrxml_handle(h))
 		return USRXML_E_HANDLE_INVALID;
@@ -1806,16 +2244,25 @@ function fini_usrxml_parser(h,    n, u)
 	# Disable library functions at all levels
 	delete USRXML__instance[h,"order"];
 
-	# Cleanup saved user if exists
+	# Cleanup saved if; if exists
+	usrxml__cleanup_if(h, "");
+	# Cleanup saved user; if exists
 	usrxml__cleanup_user(h, "");
+
+	# if
+	n = USRXML_ifnames[h,"num"];
+	for (p = 0; p < n; p++)
+		usrxml__delete_if_by_id(h, p);
+	delete USRXML_ifnames[h,"num"];
 
 	# user
 	n = USRXML_users[h,"num"];
-	for (u = 0; u < n; u++)
-		usrxml__delete_user_by_id(h, u);
+	for (p = 0; p < n; p++)
+		usrxml__delete_user_by_id(h, p);
 	delete USRXML_users[h,"num"];
 
 	# Dynamic mappings
+	usrxml__finish_dynmap(h, USRXML_ifnames);
 	usrxml__finish_dynmap(h, USRXML_ifuser);
 	usrxml__finish_dynmap(h);
 
@@ -1834,12 +2281,16 @@ function fini_usrxml_parser(h,    n, u)
 	# Error encountered during XML parsing/validation
 	delete USRXML__instance[h,"errno"];
 
-	# Current scope and depth
+	# Current entry type, scope and depth
+	delete USRXML__instance[h,"entry"];
 	delete USRXML__instance[h,"scope"];
 	delete USRXML__instance[h,"depth"];
 
 	# Populated from parsing XML document
 	delete USRXML__instance[h,"username"];
+	n = USRXML__instance[h,"ifname"];
+	delete USRXML__instance[h,"ifname"];
+	delete USRXML__instance[h,n,"inactive"];
 	delete USRXML__instance[h,"pipeid"];
 	delete USRXML__instance[h,"netid"];
 	delete USRXML__instance[h,"net6id"];
@@ -1847,6 +2298,10 @@ function fini_usrxml_parser(h,    n, u)
 	# File name and line number
 	delete USRXML__instance[h,"filename"];
 	delete USRXML__instance[h,"linenum"];
+
+	# Interface up/down hooks
+	delete USRXML__instance[h,"ifup"];
+	delete USRXML__instance[h,"ifdown"];
 
 	if (usrxml__free_handle(h) == 0)
 		release_usrxml_consts();
@@ -1858,15 +2313,19 @@ function fini_usrxml_parser(h,    n, u)
 # Parse and validate XML document.
 #
 
-function usrxml__scope_error(h, sign, name, val)
+function usrxml__scope_error(h, sign, name, val,    ret)
 {
 	# Skip all lines until new user entry on error
 
-	if (name == "user") {
-		# Signal caller to lookup with new scope
-		ret = 1;
-	} else if (name == "/user") {
-		ret = USRXML_E_NONE;
+	val = sub("^/", "", name);
+
+	if (name == "user" || (name,"cmp") in USRXML_iftypes) {
+		if (val == 1) {
+			ret = USRXML_E_NONE;
+		} else {
+			# Signal caller to lookup with new scope
+			ret = 1;
+		}
 	} else {
 		return USRXML_E_NONE;
 	}
@@ -1880,6 +2339,8 @@ function usrxml__scope_error(h, sign, name, val)
 function usrxml__scope_none(h, sign, name, val,    n, i)
 {
 	if (name == "user") {
+		USRXML__instance[h,"entry"] = USRXML__scope_user;
+
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
@@ -1921,6 +2382,419 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 				return i;
 			}
 		}
+	} else if ((name,"cmp") in USRXML_iftypes) {
+		USRXML__instance[h,"entry"] = USRXML__scope_if;
+
+		if (val == "")
+			return usrxml_ept_val(h, name);
+
+		if (!usrxml_dev_valid_name(val))
+			return usrxml_inv_arg(h, name, val);
+
+		# h,val
+		n = h SUBSEP val;
+
+		if (n in USRXML_ifnames) {
+			if (USRXML_ifnames[n] != name)
+				return usrxml_inv_arg(h, name, val);
+		} else {
+			n = USRXML_E_NONE;
+		}
+
+		if (sign > 0) {
+			if (n != USRXML_E_NONE) {
+				# h,ifid
+				i = h SUBSEP USRXML_ifnames[n,"id"];
+				usrxml__save_if(h, val);
+			} else {
+				i = usrxml__map_add_val(h, val, USRXML_ifnames, name);
+				if (int(i) < 0)
+					return usrxml_inv_arg(h, name, val);
+
+				# New interfaces are inactive by default and
+				# activated on section closure. Old ones marked
+				# as inactive if they was active before.
+
+				USRXML_ifnames[h,val,"inactive"] = -1;
+			}
+
+			USRXML__instance[h,"ifname"] = val;
+			USRXML__instance[h,"scope"] = USRXML__scope_if;
+			USRXML__instance[h,"depth"]++;
+
+			usrxml_section_record_fileline(h, name SUBSEP i);
+		} else {
+			if (n != USRXML_E_NONE) {
+				USRXML__instance[h,"ifname"] = val;
+
+				# Save entry before delete to make
+				# it visible to run_usrxml_parser()
+				# and their callbacks
+				i = usrxml__save_if(h, val);
+
+				usrxml__delete_if_by_name(h, val);
+
+				# We can't return > 0 here as this
+				# will collide with parse retry
+				return i;
+			}
+		}
+	} else {
+		return usrxml_syntax_err(h);
+	}
+
+	return USRXML_E_NONE;
+}
+
+function usrxml__scope_if_inactive(h, ifname,    n, r, ifn, ins, cmp, type)
+{
+	# h,ifname
+	n = h SUBSEP ifname;
+
+	# h,ifname,"inactive"
+	r = n SUBSEP "inactive";
+
+	ifn = USRXML_ifnames[r];
+
+	if (r in USRXML__instance) {
+		# ins < 0 - activate   (<inactive no> or <-inactive>)
+		# ins > 0 - deactivate (<inactive yes>)
+		ins = USRXML__instance[r];
+		delete USRXML__instance[r];
+
+		# ifn + ins
+		# ---------
+		#  -1 + -1 == -2  -> -1 # inactive forced -> inactive forced
+		#  -1 +  1 ==  0  ->  1 # inactive forced -> inactive yes (ret)
+		#
+		#   1 + -1 ==  0        # inactive yes -> inactive forced
+		#   1 +  1 ==  2  ->  1 # inactive yes -> inactive yes    (ret)
+		#
+		#   0 + -1 == -1  ->  0 # active -> active
+		#   0 +  1 ==  1        # active -> inactive yes   (deactivate)
+
+		if (ins > 0) {
+			if (ifn < 0) {
+				# inactive forced -> inactive yes
+				USRXML_ifnames[r] = 1;
+				return;
+			}
+			if (ifn > 0) {
+				# inactive yes -> inactive yes
+				return;
+			}
+			# active -> inactive yes
+			cmp = -1;
+		} else {
+			if (ifn > 0) {
+				# inactive yes -> inactive forced
+				USRXML_ifnames[r] = -1;
+			}
+			# inactive forced -> inactive forced
+			# active -> active
+			cmp = usrxml__iftype_cmp(h, ifname);
+		}
+	} else {
+		cmp = usrxml__iftype_cmp(h, ifname);
+	}
+
+	if (cmp > 0) {
+		usrxml__activate_if_by_name(h, "", ifname);
+	} else {
+		type = USRXML_ifnames[n];
+
+		USRXML_ifnames[n] = "/" type; # force iftype cmp
+		usrxml__deactivate_if_by_name(h, "", ifname);
+		USRXML_ifnames[n] = type;
+
+		if (cmp < 0)
+			USRXML_ifnames[r] = 1;
+	}
+}
+
+function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
+{
+	ifname = data["ifname:"];
+	lu = data["lu:"];
+
+	# Processing unresolved entries
+	if (lu == "unres") {
+		# Parent (lower) is last; no <upper en0.32> specified
+		#
+		# <vlan en0.32>
+		#   <lower en0>
+		# </vlan>
+		#
+		# lower-en0.32,en0 = ""
+		# unres-en0,en0.32 = "lower"
+		#
+		# <host en0>
+		#   <!--upper en0.32-->
+		# </host>
+		#
+		# upper-en0,en0.32 = ""
+		# lower-en0.32,en0 <-- from "unres"
+
+		# {lower|upper}
+		lu = arr[h,dyn,iflu];
+		usrxml___dyn_del_by_attr(h, dyn, iflu, arr);
+
+		# exchange
+		i = ifname;
+		ifname = iflu;
+		iflu = i;
+
+		# {lower|upper}-ifname (lower-en0.32 from (2))
+		dyn = lu "-" ifname;
+		rev = (lu == "upper") ? "lower" : "upper";
+
+		# Add interface to activate map
+		data[ifname] = 1;
+
+		# Add (":" -> "")
+		i = "";
+	} else {
+		rev = (lu == "upper") ? "lower" : "upper";
+
+		# Parent (lower) is first; <upper en0.32> specified
+		#
+		# <host en0>
+		#   <upper en0.32>
+		# </host>
+		#
+		# upper-en0,en0.32 = ""
+		# unres-en0.32,en0 = "upper"
+		#
+		# <vlan en0.32>
+		#   <lower en0>
+		# </vlan>
+		#
+		# lower-en0.32,en0 = ""
+		# unres-en0.32,en0 <-- removed by lower cb; thus no unres
+
+		# Remove from unresolved map
+		# unres: @ifname (en0.32, former @iflu) only exists for
+		#        case (1); thus usrxml__dyn_get_val() == rev
+		#        will not met for case (2) and other cases
+		i = "unres-" ifname;
+		if (usrxml__dyn_get_val(h, i, iflu, arr) == rev)
+			usrxml___dyn_del_by_attr(h, i, iflu, arr);
+
+		i = arr[h,dyn,iflu];
+	}
+
+	if (i == "") {
+		## Add
+
+		# Upper/lower interface doesn't exist: mark as unresolved
+		# unres: @iflu (en0, former @ifname) exists as we called
+		#        from dynamic map iterator
+		if (!((h,iflu) in USRXML_ifnames)) {
+			usrxml___dyn_add_val(h, "unres-" iflu, ifname, lu, arr);
+			usrxml___dyn_add_val(h, dyn, iflu, ":", arr);
+			return 0;
+		}
+
+		if (usrxml__dyn_get_val(h, dyn, iflu, arr) != iflu)
+			arr[h,dyn,"ref"]++;
+		usrxml___dyn_add_val(h, dyn, iflu, iflu, arr);
+
+		rev = rev "-" iflu;
+
+		if (usrxml__dyn_get_val(h, rev, ifname, arr) != ifname)
+			arr[h,rev,"ref"]++;
+		usrxml___dyn_add_val(h, rev, ifname, ifname, arr);
+	} else if (i == "/") {
+		## Del
+
+		# Upper/lower interface doesn't exist: remove it and unres
+		if (!((h,iflu) in USRXML_ifnames)) {
+			usrxml___dyn_del_by_attr(h, "unres-" iflu, ifname, arr);
+			usrxml___dyn_del_by_attr(h, dyn, iflu, arr);
+			return 0;
+		}
+
+		# Was active (i.e. usrxml__dyn_get_val() != "") but now marked
+		# for delete by setting to "/" which is not valid ifname
+		# according to usrxml_dev_valid_name() helper.
+
+		usrxml___dyn_del_by_attr(h, dyn, iflu, arr);
+		if (--arr[h,dyn,"ref"] <= 0)
+			delete arr[h,dyn,"ref"];
+
+		rev = rev "-" iflu;
+
+		usrxml___dyn_del_by_attr(h, rev, ifname, arr);
+		if (--arr[h,rev,"ref"] <= 0)
+			delete arr[h,rev,"ref"];
+
+		# Lowers/uppers deletion can activate interface(s):
+		#
+		# <vlan en0.32.1>
+		#   <ip-link mtu 1500 group downlink>
+		#   <ip-link-type id 1>
+		#   <lower en0.32>
+		#   <lower en0.33>    <-- only one lower (parent) allowed
+		#   <inactive forced> <-- put to inactive
+		# </vlan>
+		#
+		# <vlan en0.32.2>
+		#   <ip-link mtu 1500 group downlink>
+		#   <ip-link-type id 2>
+		#   <lower en0.32>
+		# </vlan>
+		#
+		# <vlan en0.32>
+		#   <ip-link mtu 1504>
+		#   <ip-link-type id 32>
+		#   <upper en0.32.1>
+		#   <upper en0.32.2>
+		#   <lower en0>
+		# </vlan>
+		#
+		# <vlan en0.33>
+		#   <ip-link mtu 1504>
+		#   <ip-link-type id 33>
+		#   <upper en0.32.1>
+		#   <lower en0>
+		# </vlan>
+		#
+		# <host en0>
+		#   <ip-link mtu 1504>
+		# </host>
+		#
+		# <vlan en0.33>
+		#   <-upper en0.32.1> <-- will activate en0.32.1
+		# </vlan>
+
+		data[iflu] = 1;
+	}
+
+	return 0;
+}
+
+function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data)
+{
+	ifname = USRXML__instance[h,"ifname"];
+
+	# h,ifname
+	n = h SUBSEP ifname;
+
+	# h,ifid
+	i = h SUBSEP USRXML_ifnames[n,"id"];
+
+	type = USRXML_ifnames[n];
+
+	if (sub("^/", "", name) == 1) {
+		if (name != type)
+			return usrxml_syntax_err(h);
+
+		if (val != "" && val != ifname)
+			return usrxml_inv_arg(h, name, val);
+
+		# Host is the only type of interface that can have no options.
+
+		if (type != "host") {
+			if (!((n,"ip-link") in USRXML_ifnames))
+				return usrxml_missing_arg(h, "ip-link");
+
+			if (!((n,"ip-link-type") in USRXML_ifnames))
+				return usrxml_missing_arg(h, "ip-link-type");
+		}
+
+		# At this point we should not fail since upper/lower
+		# links could be modified during resolve.
+
+		cb = "usrxml__scope_if_cb";
+
+		# Use ":" suffix which is not valid ifname according
+		# to usrxml_dev_valid_name() helper to avoid interface
+		# name clash with keys used to pass params to callback.
+		data["ifname:"] = ifname;
+
+		# Resolve interface reference links (order is important)
+		data["lu:"] = "lower";
+		usrxml__dyn_for_each(h, "lower-" ifname, cb, data);
+
+		data["lu:"] = "upper";
+		usrxml__dyn_for_each(h, "upper-" ifname, cb, data);
+
+		# Resolve interfaces that refer this one
+		data["lu:"] = "unres";
+		usrxml__dyn_for_each(h, "unres-" ifname, cb, data);
+
+		delete data["lu:"];
+		delete data["ifname:"];
+
+		# Handle user supplied <inactive> tag, if any
+		usrxml__scope_if_inactive(h, ifname);
+
+		# Activate interface(s)
+		for (ifname in data)
+			usrxml__activate_if_by_name(h, "", ifname);
+
+		USRXML__instance[h,"scope"] = USRXML__scope_none;
+		USRXML__instance[h,"depth"]--;
+
+		# We can't return > 0 here as this
+		# will collide with parse retry
+		return i;
+	} else if (name == "lower" || name == "upper") {
+		if (val == "")
+			return usrxml_ept_val(h, name);
+
+		if (val == ifname)
+			return usrxml_self_ref(h, name, val);
+
+		if (!usrxml_dev_valid_name(val))
+			return usrxml_inv_arg(h, name, val);
+
+		n = name "-" ifname;
+
+		if (sign > 0) {
+			usrxml__dyn_add_val(h, n, val, "");
+
+			# Support <upper/lower en0> to <lower/upper en0> replace
+			r = (name == "upper") ? "lower" : "upper";
+			r = r "-" ifname;
+		} else {
+			r = n;
+		}
+
+		if (usrxml__dyn_get_val(h, r, val) != "")
+			usrxml__dyn_add_val(h, r, val, "/");
+		else
+			usrxml__dyn_del_by_attr(h, r, val);
+	} else if (name in USRXML_ifparms) {
+		if (sign > 0) {
+			if (val == "")
+				return usrxml_ept_val(h, name);
+
+			gsub("@if@", ifname, val);
+
+			USRXML_ifnames[n,name] = val;
+		} else {
+			delete USRXML_ifnames[n,name];
+		}
+	} else if (name == "inactive") {
+		if (val == "")
+			return usrxml_ept_val(h, name);
+
+		if (sign > 0) {
+			if (val == "yes")
+				val = 1;
+			else if (val == "no")
+				val = -1;
+			else if (val == "forced")
+				val = 0;
+			else
+				return usrxml_inv_arg(h, name, val);
+		} else {
+			val = -1;
+		}
+
+		if (val != 0)
+			USRXML__instance[n,"inactive"] = val;
 	} else {
 		return usrxml_syntax_err(h);
 	}
@@ -2284,7 +3158,8 @@ function usrxml__scope_net6(h, sign, name, val)
 	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6, "6");
 }
 
-function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret, s_rs, s_rl)
+function run_usrxml_parser(h, line, cb, data,
+			   a, n, fn, sign, name, val, entry, ret, s_rs, s_rl)
 {
 	val = USRXML__instance[h,"order"];
 	if (val < USRXML__order_parse)
@@ -2312,7 +3187,7 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 	s_rs = RSTART;
 	s_rl = RLENGTH;
 
-	n = match(line, "^[[:space:]]*<(|[/+-])([[:alpha:]_][[:alnum:]_]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
+	n = match(line, "^[[:space:]]*<(|[/+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
 
 	RSTART = s_rs;
 	RLENGTH = s_rl;
@@ -2344,7 +3219,7 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 		fn = "usrxml__scope_" USRXML__instance[h,"scope"];
 		ret = @fn(h, sign, name, val);
 
-		# h,userid (2) or h,"orig",userid (3)
+		# h,ifid/userid (2) or h,"orig",ifid/userid (3)
 		if (split(ret, a, SUBSEP) >= 2) {
 			# Make sure we always return value > 0
 			if (cb != "")
@@ -2362,9 +3237,22 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 	} while (ret > 0);
 
 	if (ret < 0)
-		usrxml__restore_user(h, "");
+		fn = "usrxml__restore_";
 	else if (ret > 0)
-		usrxml__cleanup_user(h, "");
+		fn = "usrxml__cleanup_";
+	else
+		fn = "";
+
+	if (fn != "") {
+		entry = USRXML__instance[h,"entry"];
+		if (entry != "") {
+			fn = fn entry;
+
+			@fn(h, "");
+
+			USRXML__instance[h,"entry"] = "";
+		}
+	}
 
 	return ret;
 }
@@ -2372,6 +3260,86 @@ function run_usrxml_parser(h, line, cb, data,    a, n, fn, sign, name, val, ret,
 #
 # Print users entry in oneline usrxml format
 #
+
+function print_usrxml_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, file)
+{
+	s1 = data["s1"];
+	s2 = data["s2"];
+	lu = data["lu"];
+	file = data["file"];
+
+	printf s1 "<%s %s>" s2, lu, iflu >>file;
+}
+
+function print_usrxml_if_oneline(h, ifid, file, s1, s2,
+				 n, i, p, o, t, ifname, data)
+{
+	o = usrxml_errno(h);
+	if (o != USRXML_E_NONE)
+		return o;
+
+	# h,ifid
+	i = h SUBSEP ifid;
+
+	if (!(i in USRXML_ifnames))
+		return usrxml__seterrno(h, USRXML_E_NOENT);
+
+	if (file == "")
+		file = "/dev/stdout";
+
+	ifname = USRXML_ifnames[i];
+
+	# h,ifname
+	i = h SUBSEP ifname;
+
+	t = USRXML_ifnames[i];
+
+	# if
+	printf "<%s %s>" s2, t, ifname >>file;
+
+	# inactive
+	o = USRXML_ifnames[i,"inactive"];
+	if (o < 0)
+		o = "forced";
+	else if (o > 0)
+		o = "yes";
+	else
+		o = "";
+
+	if (o != "")
+		printf s1 "<inactive %s>" s2, o >>file;
+
+	for (n in USRXML_ifparms) {
+		# h,ifname,n
+		p = i SUBSEP n;
+
+		if (p in USRXML_ifnames) {
+			o = USRXML_ifnames[p];
+
+			gsub(ifname, "@if@", o);
+
+			printf s1 "<%s %s>" s2, n, o >>file;
+		}
+	}
+
+	data["s1"] = s1;
+	data["s2"] = s2;
+	data["ifname"] = ifname;
+	data["file"] = file;
+
+	data["lu"] = "lower";
+	usrxml__dyn_for_each(h, "lower-" ifname, "print_usrxml_if_cb", data);
+
+	data["lu"] = "upper";
+	usrxml__dyn_for_each(h, "upper-" ifname, "print_usrxml_if_cb", data);
+
+	printf "</%s>" s2 s2, t >>file;
+
+	# Callers should flush output buffers using fflush(file) to ensure
+	# all pending data is written to a file or named pipe before quit.
+
+	return ifid + 1;
+}
 
 function usrxml__print_maps(i, umap, name, file, s1, s2,    n, j, p)
 {
@@ -2400,7 +3368,7 @@ function usrxml__print_maps(i, umap, name, file, s1, s2,    n, j, p)
 	}
 }
 
-function print_usrxml_entry_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o)
+function print_usrxml_user_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -2476,24 +3444,27 @@ function print_usrxml_entry_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o
 	return userid + 1;
 }
 
-function print_usrxml_entries_oneline(h, file, fn,    n, u, o, stdout)
+function usrxml__print_entries(h, file, fn, arr,    n, u, o, stdout)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
 		return o;
 
-	stdout = "/dev/stdout"
+	if (fn == "")
+		return USRXML_E_INVAL;
+
+	if (!isarray(arr))
+		return USRXML_E_NOT_ARRAY;
+
+	stdout = "/dev/stdout";
 
 	if (file == "")
 		file = stdout;
 
-	if (fn == "")
-		fn = "print_usrxml_entry_oneline";
-
-	n = USRXML_users[h,"num"];
+	n = arr[h,"num"];
 	for (u = 0; u < n; u++) {
 		# Skip holes entries
-		if (!((h,u) in USRXML_users))
+		if (!((h,u) in arr))
 			continue;
 
 		o = @fn(h, u, file);
@@ -2509,18 +3480,42 @@ function print_usrxml_entries_oneline(h, file, fn,    n, u, o, stdout)
 	return o;
 }
 
+function print_usrxml_ifs_oneline(h, file,    fn)
+{
+	fn = "print_usrxml_if_oneline";
+	return usrxml__print_entries(h, file, fn, USRXML_ifnames);
+}
+
+function print_usrxml_users_oneline(h, file,    fn)
+{
+	fn = "print_usrxml_user_oneline";
+	return usrxml__print_entries(h, file, fn, USRXML_users);
+}
+
 #
 # Print users entry in usrxml format
 #
 
-function print_usrxml_entry(h, userid, file)
+function print_usrxml_if(h, ifid, file)
 {
-	return print_usrxml_entry_oneline(h, userid, file, "\t", "\n");
+	return print_usrxml_if_oneline(h, ifid, file, "\t", "\n");
 }
 
-function print_usrxml_entries(h, file)
+function print_usrxml_ifs(h, file,    fn)
 {
-	return print_usrxml_entries_oneline(h, file, "print_usrxml_entry");
+	fn = "print_usrxml_if";
+	return usrxml__print_entries(h, file, fn, USRXML_ifnames);
+}
+
+function print_usrxml_user(h, userid, file)
+{
+	return print_usrxml_user_oneline(h, userid, file, "\t", "\n");
+}
+
+function print_usrxml_users(h, file,    fn)
+{
+	fn = "print_usrxml_user";
+	return usrxml__print_entries(h, file, fn, USRXML_users);
 }
 
 #
