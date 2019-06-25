@@ -1724,7 +1724,7 @@ function usrxml__username(h, username)
 		return username;
 
 	username = USRXML__instance[h,"username"];
-	if (username != "" && ((h,username,"id") in USRXML_users))
+	if (username != "")
 		return username;
 
 	return "";
@@ -1905,6 +1905,8 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 			i = h SUBSEP val SUBSEP "id";
 
 			if (i in USRXML_users) {
+				USRXML__instance[h,"username"] = val;
+
 				n = USRXML_users[i];
 
 				# Save entry before delete to make
