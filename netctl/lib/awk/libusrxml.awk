@@ -1502,6 +1502,18 @@ function usrxml__activate_user_by_id(h, userid, no_validate,    val)
 	return USRXML_E_NONE;
 }
 
+function usrxml__activate_user_by_name(h, username, no_validate,    i)
+{
+	# h,username,"id"
+	i = h SUBSEP username SUBSEP "id";
+
+	# Skip holes entries
+	if (!(i in USRXML_users))
+		return USRXML_E_NOENT;
+
+	return usrxml__activate_user_by_id(h, USRXML_users[i], no_validate);
+}
+
 function usrxml__deactivate_user_by_id(h, userid, no_validate,    val)
 {
 	if (no_validate == "") {
@@ -1529,6 +1541,18 @@ function usrxml__deactivate_user_by_id(h, userid, no_validate,    val)
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
 
 	return USRXML_E_NONE;
+}
+
+function usrxml__deactivate_user_by_name(h, username, no_validate,    i)
+{
+	# h,username,"id"
+	i = h SUBSEP username SUBSEP "id";
+
+	# Skip holes entries
+	if (!(i in USRXML_users))
+		return USRXML_E_NOENT;
+
+	return usrxml__deactivate_user_by_id(h, USRXML_users[i], no_validate);
 }
 
 function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
@@ -1825,12 +1849,8 @@ function usrxml__restore_user(h, username,    hh, userid, i)
 		i = usrxml__copy_user(h, hh, username);
 		usrxml__delete_user(hh, username);
 
-		if (!((i,"inactive") in USRXML_users)) {
-			username = USRXML_users[i];
-			userid = USRXML_users[h,username,"id"];
-
-			usrxml__activate_user_by_id(h, userid);
-		}
+		if (!((i,"inactive") in USRXML_users))
+			usrxml__activate_user_by_name(h, username);
 	}
 }
 
