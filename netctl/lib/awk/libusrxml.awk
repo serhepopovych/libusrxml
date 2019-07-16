@@ -890,7 +890,7 @@ function init_usrxml_parser(prog,    h)
 	# ifid = [0 .. nifn - 1]
 	# ifid = USRXML_ifuser[h,userif,"id"]
 	# userif = USRXML_ifuser[h,ifid]
-	# refcnt = USRXML_ifuser[h,userif]
+	# nifu = USRXML_ifuser[h,userif]
 	#
 	# nifu = USRXML_ifuser[h,userif,"num"]
 	# iuid = [0 .. nifu - 1]
@@ -1472,8 +1472,8 @@ function usrxml__activate_user_by_id(h, userid, no_validate,    val)
 
 	# if
 	val = h SUBSEP userid;
-	usrxml__dyn_add_val(h, USRXML_userif[val], USRXML_users[val],
-			    userid, USRXML_ifuser);
+	usrxml___dyn_add_val(h, USRXML_userif[val], USRXML_users[val],
+			     userid, USRXML_ifuser);
 
 	# net
 	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
@@ -1530,7 +1530,8 @@ function usrxml__deactivate_user_by_id(h, userid, no_validate,    val)
 
 	# if
 	val = h SUBSEP userid;
-	usrxml__dyn_del_by_attr(h, USRXML_userif[val], USRXML_users[val]);
+	usrxml___dyn_del_by_attr(h, USRXML_userif[val], USRXML_users[val],
+			         USRXML_ifuser);
 	# net
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
 	# net6
@@ -1696,7 +1697,8 @@ function usrxml__delete_userif(i,    a)
 	# h = a[1]
 	# userid = a[2]
 
-	usrxml__dyn_del_by_attr(a[1], USRXML_userif[i], USRXML_users[i]);
+	usrxml___dyn_del_by_attr(a[1], USRXML_userif[i], USRXML_users[i],
+				 USRXML_ifuser);
 
 	delete USRXML_userif[i];
 }
