@@ -1218,7 +1218,7 @@ function usrxml___dyn_for_each(h, dyn, cb, data, arr,
 		if (ret < 0)
 			return ret;
 		if (ret > 0)
-			usrxml__dyn_del_by_attr(h, dyn, attr, arr);
+			usrxml___dyn_del_by_attr(h, dyn, attr, arr);
 	}
 
 	return USRXML_E_NONE;
