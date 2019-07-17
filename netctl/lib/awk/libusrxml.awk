@@ -1595,15 +1595,21 @@ function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 	for (p = 0; p < n; p++) {
 		# h,userid,netid
 		j_src = i_src SUBSEP p;
+		# h,userid,subid,netid
+		j_dst = i_dst SUBSEP p;
+
+		# Remove from destination
+		delete umap[j_dst,"has_opts"];
+
+		delete umap[j_dst,"src"];
+		delete umap[j_dst,"via"];
+		delete umap[j_dst,"mac"];
 
 		# Skip holes entries
 		if (!(j_src in umap))
 			continue;
 
 		if ((j_src,"has_opts") in umap) {
-			# h,userid,subid,netid
-			j_dst = i_dst SUBSEP p;
-
 			umap[j_dst,"has_opts"] = umap[j_src,"has_opts"];
 
 			if ((j_src,"src") in umap)
@@ -1643,23 +1649,38 @@ function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst,
 	for (p = 0; p < n; p++) {
 		# sh,userid,pipeid
 		j_src = i_src SUBSEP p;
+		# dh,userid,pipeid
+		j_dst = i_dst SUBSEP p;
+
+		# Remove from destination
+		o = USRXML_userpipe[j_dst,"qdisc"];
+		delete USRXML_userpipe[j_dst,"qdisc"];
+
+		m = USRXML_userpipe[j_dst,"opts"];
+		delete USRXML_userpipe[j_dst,"opts"];
+
+		for (o = 0; o < m; o++)
+			delete USRXML_userpipe[j_dst,o];
+
+		delete USRXML_userpipe[j_dst];
+		delete USRXML_userpipe[j_dst,"zone"];
+		delete USRXML_userpipe[j_dst,"dir"];
+		delete USRXML_userpipe[j_dst,"bw"];
 
 		# Skip holes entries
 		if (!(j_src in USRXML_userpipe))
 			continue;
 
-		# dh,userid,pipeid
-		j_dst = i_dst SUBSEP p;
-
+		# Copy to destination
 		USRXML_userpipe[j_dst] = USRXML_userpipe[j_src];
 		USRXML_userpipe[j_dst,"zone"] = USRXML_userpipe[j_src,"zone"];
 		USRXML_userpipe[j_dst,"dir"] = USRXML_userpipe[j_src,"dir"];
 		USRXML_userpipe[j_dst,"bw"] = USRXML_userpipe[j_src,"bw"];
 
 		o = USRXML_userpipe[j_src,"qdisc"];
-		USRXML_userpipe[j_dst,"qdisc"] = o;
-
 		if (o != "") {
+			USRXML_userpipe[j_dst,"qdisc"] = o;
+
 			# sh,userid,pipeid,"opts"
 			j_src = j_src SUBSEP "opts";
 			# dh,userid,pipeid,"opts"
