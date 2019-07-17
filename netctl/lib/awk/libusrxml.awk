@@ -947,11 +947,11 @@ function init_usrxml_parser(prog,    h)
 
 function usrxml__map_add_val(h, attr, map, val,    n, i, id, num, min, max)
 {
-	# h,attr,"id"
-	n = h SUBSEP attr SUBSEP "id";
-
 	if (attr ~ "^(num|min|max|cnt|id|[[:digit:]]+)$")
 		return -1;
+
+	# h,attr,"id"
+	n = h SUBSEP attr SUBSEP "id";
 
 	if (n in map) {
 		i = h SUBSEP map[n];
@@ -1071,7 +1071,7 @@ function usrxml__map_del_all(h, map,    n, i, p, cnt)
 	return cnt;
 }
 
-function usrxml__map_copy(dh, dmap, sh, smap,    n, i, p, attr)
+function usrxml__map_copy_all(dh, dmap, sh, smap,    n, i, p, attr)
 {
 	# sh,"num"
 	i = sh SUBSEP "num";
@@ -1101,6 +1101,30 @@ function usrxml__map_copy(dh, dmap, sh, smap,    n, i, p, attr)
 	i = dh SUBSEP "cnt";
 
 	return (i in dmap) ? dmap[i] : 0;
+}
+
+function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    n, i)
+{
+	if (dh == sh)
+		return "";
+
+	if (attr ~ "^[[:digit:]]+$") {
+		# sh,id
+		i = sh SUBSEP attr;
+
+		if (!(i in smap))
+			return "";
+
+		attr = smap[i];
+	} else {
+		# sh,attr,"id"
+		i = sh SUBSEP attr SUBSEP "id";
+
+		if (!(i in smap))
+			return "";
+	}
+
+	return usrxml__map_add_val(dh, attr, dmap, smap[sh,attr]);
 }
 
 #
@@ -1589,7 +1613,7 @@ function usrxml__deactivate_user_by_name(h, username, no_validate,    i)
 
 function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 {
-	usrxml__map_copy(i_dst, umap, i_src, umap);
+	usrxml__map_copy_all(i_dst, umap, i_src, umap);
 
 	n = umap[i_src,"num"];
 	for (p = 0; p < n; p++) {
@@ -1703,9 +1727,9 @@ function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst,
 	usrxml__copy_user_net(i_dst, i_src, USRXML_usernets6);
 
 	# nat
-	usrxml__map_copy(i_dst, USRXML_usernats, i_src, USRXML_usernats);
+	usrxml__map_copy_all(i_dst, USRXML_usernats, i_src, USRXML_usernats);
 	# nat6
-	usrxml__map_copy(i_dst, USRXML_usernats6, i_src, USRXML_usernats6);
+	usrxml__map_copy_all(i_dst, USRXML_usernats6, i_src, USRXML_usernats6);
 
 	return i_dst;
 }
