@@ -1046,6 +1046,31 @@ function usrxml__map_del_by_id(h, id, map,    n, attr)
 	return attr;
 }
 
+function usrxml__map_del_all(h, map,    n, i, p, cnt)
+{
+	# h,"num"
+	i = h SUBSEP "num";
+
+	if (!(i in map))
+		return 0;
+
+	cnt = map[h,"cnt"];
+
+	n = map[i];
+	for (p = 0; p < n; p++) {
+		# h,id
+		i = h SUBSEP p;
+
+		# Skip holes entries
+		if (!(i in map))
+			continue;
+
+		usrxml__map_del_by_attr(h, map[i], map);
+	}
+
+	return cnt;
+}
+
 function usrxml__map_copy(dh, dmap, sh, smap,    n, p, attr)
 {
 	# Not touching if source is empty
