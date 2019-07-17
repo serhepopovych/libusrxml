@@ -1071,30 +1071,36 @@ function usrxml__map_del_all(h, map,    n, i, p, cnt)
 	return cnt;
 }
 
-function usrxml__map_copy(dh, dmap, sh, smap,    n, p, attr)
+function usrxml__map_copy(dh, dmap, sh, smap,    n, i, p, attr)
 {
-	# Not touching if source is empty
-	if (!((sh,"num") in smap))
-		return;
+	# sh,"num"
+	i = sh SUBSEP "num";
 
-	n = smap[sh,"num"];
-	if (!n)
-		return;
+	if (!(i in smap))
+		return 0;
 
-	dmap[dh,"num"] = n;
-	dmap[dh,"min"] = smap[sh,"min"];
-	dmap[dh,"max"] = smap[sh,"max"];
-	dmap[dh,"cnt"] = smap[sh,"cnt"];
+	if (dh == sh)
+		return 0;
 
+	usrxml__map_del_all(dh, dmap);
+
+	n = smap[i];
 	for (p = 0; p < n; p++) {
+		# sh,id
+		i = sh SUBSEP p;
+
 		# Skip holes entries
-		if (!((sh,p) in smap))
+		if (!(i in smap))
 			continue;
 
-		attr = dmap[dh,p] = smap[sh,p];
-		dmap[dh,attr,"id"] = p;         # optimization
-		dmap[dh,attr] = smap[sh,attr];
+		attr = smap[i];
+		usrxml__map_add_val(dh, attr, dmap, smap[sh,attr]);
 	}
+
+	# dh,"cnt"
+	i = dh SUBSEP "cnt";
+
+	return (i in dmap) ? dmap[i] : 0;
 }
 
 #
