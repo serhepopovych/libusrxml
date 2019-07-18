@@ -1881,16 +1881,13 @@ function usrxml__delete_user_by_id(h, userid,    n)
 	usrxml__delete_user(h, USRXML_users[n]);
 }
 
-function usrxml__delete_user_by_name(h, username,    n)
+function usrxml__delete_user_by_name(h, username,    ret)
 {
-	# h,username,"id"
-	n = h SUBSEP username SUBSEP "id";
-
-	# Skip holes entries
-	if (!(n in USRXML_users))
+	ret = usrxml__deactivate_user_by_name(h, username, "true");
+	if (ret != USRXML_E_NONE)
 		return;
 
-	usrxml__delete_user_by_id(h, USRXML_users[n]);
+	usrxml__delete_user(h, username);
 }
 
 function usrxml__username(h, username)
