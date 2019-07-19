@@ -2303,6 +2303,93 @@ function usrxml__cleanup_if(h, ifname)
 }
 
 #
+# Helpers to handle activation/deactivation
+#
+
+function usrxml__tag_inactive(h, name, arr, acb, dcb,    n, i, v, r, t, cmp)
+{
+	# h,name
+	n = h SUBSEP name;
+
+	# h,name,"inactive"
+	r = n SUBSEP "inactive";
+
+	v = arr[r];
+
+	if (r in USRXML__instance) {
+		# i < 0 - activate   (<inactive no> or <-inactive>)
+		# i > 0 - deactivate (<inactive yes>)
+		i = USRXML__instance[r];
+		delete USRXML__instance[r];
+
+		# v + i
+		# -----
+		#  -1 + -1 == -2  -> -1 # inactive forced -> inactive forced
+		#  -1 +  1 ==  0  ->  1 # inactive forced -> inactive yes (ret)
+		#
+		#   1 + -1 ==  0        # inactive yes -> inactive forced
+		#   1 +  1 ==  2  ->  1 # inactive yes -> inactive yes    (ret)
+		#
+		#   0 + -1 == -1  ->  0 # active -> active
+		#   0 +  1 ==  1        # active -> inactive yes   (deactivate)
+
+		if (i > 0) {
+			if (v < 0) {
+				# inactive forced -> inactive yes
+				arr[r] = 1;
+				return;
+			}
+			if (v > 0) {
+				# inactive yes -> inactive yes
+				return;
+			}
+			# active -> inactive yes
+			cmp = -1;
+		} else {
+			if (v > 0) {
+				# inactive yes -> inactive forced
+				arr[r] = -1;
+			}
+			# inactive forced -> inactive forced
+			# active -> active
+			cmp = usrxml__type_cmp(h, name, arr);
+		}
+	} else {
+		cmp = usrxml__type_cmp(h, name, arr);
+	}
+
+	if (cmp > 0) {
+		@acb(h, name);
+	} else {
+		t = arr[n];
+
+		arr[n] = "/" t; # force type cmp
+		@dcb(h, name);
+		arr[n] = t;
+
+		if (cmp < 0)
+			arr[r] = 1;
+	}
+}
+
+function usrxml__scope_if_acb(h, ifname)
+{
+	return usrxml__activate_if_by_name(h, "", ifname);
+}
+
+function usrxml__scope_if_dcb(h, ifname)
+{
+	return usrxml__deactivate_if_by_name(h, "", ifname);;
+}
+
+function usrxml__scope_if_inactive(h, ifname)
+{
+	usrxml__tag_inactive(h, ifname, USRXML_ifnames,
+			     "usrxml__scope_if_acb",
+			     "usrxml__scope_if_dcb");
+}
+
+#
 # Destroy XML document parser instance.
 # This is usually called from END{} section.
 #
@@ -2542,72 +2629,6 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 	}
 
 	return USRXML_E_NONE;
-}
-
-function usrxml__scope_if_inactive(h, ifname,    n, r, ifn, ins, cmp, type)
-{
-	# h,ifname
-	n = h SUBSEP ifname;
-
-	# h,ifname,"inactive"
-	r = n SUBSEP "inactive";
-
-	ifn = USRXML_ifnames[r];
-
-	if (r in USRXML__instance) {
-		# ins < 0 - activate   (<inactive no> or <-inactive>)
-		# ins > 0 - deactivate (<inactive yes>)
-		ins = USRXML__instance[r];
-		delete USRXML__instance[r];
-
-		# ifn + ins
-		# ---------
-		#  -1 + -1 == -2  -> -1 # inactive forced -> inactive forced
-		#  -1 +  1 ==  0  ->  1 # inactive forced -> inactive yes (ret)
-		#
-		#   1 + -1 ==  0        # inactive yes -> inactive forced
-		#   1 +  1 ==  2  ->  1 # inactive yes -> inactive yes    (ret)
-		#
-		#   0 + -1 == -1  ->  0 # active -> active
-		#   0 +  1 ==  1        # active -> inactive yes   (deactivate)
-
-		if (ins > 0) {
-			if (ifn < 0) {
-				# inactive forced -> inactive yes
-				USRXML_ifnames[r] = 1;
-				return;
-			}
-			if (ifn > 0) {
-				# inactive yes -> inactive yes
-				return;
-			}
-			# active -> inactive yes
-			cmp = -1;
-		} else {
-			if (ifn > 0) {
-				# inactive yes -> inactive forced
-				USRXML_ifnames[r] = -1;
-			}
-			# inactive forced -> inactive forced
-			# active -> active
-			cmp = usrxml__iftype_cmp(h, ifname);
-		}
-	} else {
-		cmp = usrxml__iftype_cmp(h, ifname);
-	}
-
-	if (cmp > 0) {
-		usrxml__activate_if_by_name(h, "", ifname);
-	} else {
-		type = USRXML_ifnames[n];
-
-		USRXML_ifnames[n] = "/" type; # force iftype cmp
-		usrxml__deactivate_if_by_name(h, "", ifname);
-		USRXML_ifnames[n] = type;
-
-		if (cmp < 0)
-			USRXML_ifnames[r] = 1;
-	}
 }
 
 function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
