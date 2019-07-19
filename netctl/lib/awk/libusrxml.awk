@@ -668,56 +668,54 @@ function declare_usrxml_consts()
 	# Load/store flags
 	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
 
-	# Network interfaces
-
-	# kinds
-	USRXML_iftype_cmp_nan = 0x00; # no value supported
-	USRXML_iftype_cmp_eql = 0x01; # equal
-	USRXML_iftype_cmp_geq = 0x02; # greather or equal
-	USRXML_iftype_cmp_leq = 0x03; # less or equal
-	USRXML_iftype_cmp_zeq = 0x04; # zero or equal
-	USRXML_iftype_cmp_inf = 0x7f; # do not compare
+	# Types and dependencies map
+	USRXML_type_cmp_nan = 0x00; # no value supported
+	USRXML_type_cmp_eql = 0x01; # equal
+	USRXML_type_cmp_geq = 0x02; # greather or equal
+	USRXML_type_cmp_leq = 0x03; # less or equal
+	USRXML_type_cmp_zeq = 0x04; # zero or equal
+	USRXML_type_cmp_inf = 0x7f; # do not compare
 
 	# ifb
-	USRXML_iftypes["ifb","cmp"]       = USRXML_iftype_cmp_nan;
+	USRXML_types["ifb","cmp"]       = USRXML_type_cmp_nan;
 	# vrf
-	USRXML_iftypes["vrf","cmp"]       = USRXML_iftype_cmp_inf;
+	USRXML_types["vrf","cmp"]       = USRXML_type_cmp_inf;
 	# bridge
-	USRXML_iftypes["bridge","cmp"]    = USRXML_iftype_cmp_inf;
+	USRXML_types["bridge","cmp"]    = USRXML_type_cmp_inf;
 	# bond
-	USRXML_iftypes["bond","cmp"]      = USRXML_iftype_cmp_inf;
+	USRXML_types["bond","cmp"]      = USRXML_type_cmp_inf;
 	# host
-	USRXML_iftypes["host","cmp"]      = USRXML_iftype_cmp_nan;
+	USRXML_types["host","cmp"]      = USRXML_type_cmp_nan;
 	# dummy
-	USRXML_iftypes["dummy","cmp"]     = USRXML_iftype_cmp_nan;
+	USRXML_types["dummy","cmp"]     = USRXML_type_cmp_nan;
 	# veth
-	USRXML_iftypes["veth","cmp"]      = USRXML_iftype_cmp_nan;
+	USRXML_types["veth","cmp"]      = USRXML_type_cmp_nan;
 	# gretap
-	USRXML_iftypes["gretap","cmp"]    = USRXML_iftype_cmp_zeq;
-	USRXML_iftypes["gretap","num"]    = 1;
+	USRXML_types["gretap","cmp"]    = USRXML_type_cmp_zeq;
+	USRXML_types["gretap","num"]    = 1;
 	# ip6gretap
-	USRXML_iftypes["ip6gretap","cmp"] = USRXML_iftype_cmp_zeq;
-	USRXML_iftypes["ip6gretap","num"] = 1;
+	USRXML_types["ip6gretap","cmp"] = USRXML_type_cmp_zeq;
+	USRXML_types["ip6gretap","num"] = 1;
 	# vxlan
-	USRXML_iftypes["vxlan","cmp"]     = USRXML_iftype_cmp_zeq;
-	USRXML_iftypes["vxlan","num"]     = 1;
+	USRXML_types["vxlan","cmp"]     = USRXML_type_cmp_zeq;
+	USRXML_types["vxlan","num"]     = 1;
 	# vlan
-	USRXML_iftypes["vlan","cmp"]      = USRXML_iftype_cmp_eql;
-	USRXML_iftypes["vlan","num"]      = 1;
+	USRXML_types["vlan","cmp"]      = USRXML_type_cmp_eql;
+	USRXML_types["vlan","num"]      = 1;
 	# macvlan
-	USRXML_iftypes["macvlan","cmp"]   = USRXML_iftype_cmp_eql;
-	USRXML_iftypes["macvlan","num"]   = 1;
+	USRXML_types["macvlan","cmp"]   = USRXML_type_cmp_eql;
+	USRXML_types["macvlan","num"]   = 1;
 	# ipvlan
-	USRXML_iftypes["ipvlan","cmp"]    = USRXML_iftype_cmp_eql;
-	USRXML_iftypes["ipvlan","num"]    = 1;
+	USRXML_types["ipvlan","cmp"]    = USRXML_type_cmp_eql;
+	USRXML_types["ipvlan","num"]    = 1;
 	# gre
-	USRXML_iftypes["gre","cmp"]       = USRXML_iftype_cmp_zeq;
-	USRXML_iftypes["gre","num"]       = 1;
+	USRXML_types["gre","cmp"]       = USRXML_type_cmp_zeq;
+	USRXML_types["gre","num"]       = 1;
 	# ip6gre
-	USRXML_iftypes["ip6gre","cmp"]    = USRXML_iftype_cmp_zeq;
-	USRXML_iftypes["ip6gre","num"]    = 1;
+	USRXML_types["ip6gre","cmp"]    = USRXML_type_cmp_zeq;
+	USRXML_types["ip6gre","num"]    = 1;
 
-	# params
+	# Network interface parameters
 	USRXML_ifparms["ip-link"]	= 1;
 	USRXML_ifparms["ip-link-type"]	= 1;
 	USRXML_ifparms["tc-qdisc"]	= 1;
@@ -1938,38 +1936,43 @@ function usrxml__cleanup_user(h, username)
 	usrxml__delete_user(h SUBSEP "orig", username);
 }
 
-function usrxml__iftype_cmp(h, ifname,    type, cmp, len, num, dyn)
+function usrxml__type_cmp(h, name, arr,    type, cmp, len, num, dyn)
 {
-	type = USRXML_ifnames[h,ifname];
+	type = arr[h,name];
 
-	# Interface being deleted: force iftype compare mismatch
+	# Item being deleted: force compare mismatch
 	if (type ~ "^/")
 		return 0;
 
-	cmp = USRXML_iftypes[type,"cmp"];
+	cmp = USRXML_types[type,"cmp"];
 
-	if (cmp == USRXML_iftype_cmp_inf)
+	if (cmp == USRXML_type_cmp_inf)
 		return 1;
 
-	dyn = "lower-" ifname;
+	dyn = "lower-" name;
 
 	len = USRXML__dynmap[h,dyn,"ref"];
 
-	if (cmp == USRXML_iftype_cmp_nan)
+	if (cmp == USRXML_type_cmp_nan)
 		return len == 0;
 
-	num = USRXML_iftypes[type,"num"];
+	num = USRXML_types[type,"num"];
 
-	if (cmp == USRXML_iftype_cmp_eql)
+	if (cmp == USRXML_type_cmp_eql)
 		return len == num;
-	if (cmp == USRXML_iftype_cmp_zeq)
+	if (cmp == USRXML_type_cmp_zeq)
 		return len == 0 || len == num;
-	if (cmp == USRXML_iftype_cmp_geq)
+	if (cmp == USRXML_type_cmp_geq)
 		return len >= num;
-	if (cmp == USRXML_iftype_cmp_leq)
+	if (cmp == USRXML_type_cmp_leq)
 		return len <= num;
 
 	return 0;
+}
+
+function usrxml__iftype_cmp(h, ifname)
+{
+	return usrxml__type_cmp(h, ifname, USRXML_ifnames);
 }
 
 function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
@@ -2315,7 +2318,7 @@ function release_usrxml_consts()
 	delete USRXML__priority2name;
 
 	# Network interfaces
-	delete USRXML_iftypes;
+	delete USRXML_types;
 	delete USRXML_ifparms;
 
 	# Valid "zone" values
@@ -2414,7 +2417,7 @@ function usrxml__scope_error(h, sign, name, val,    ret)
 
 	val = sub("^/", "", name);
 
-	if (name == "user" || (name,"cmp") in USRXML_iftypes) {
+	if (name == "user" || (name,"cmp") in USRXML_types) {
 		if (val == 1) {
 			ret = USRXML_E_NONE;
 		} else {
@@ -2477,7 +2480,7 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 				return i;
 			}
 		}
-	} else if ((name,"cmp") in USRXML_iftypes) {
+	} else if ((name,"cmp") in USRXML_types) {
 		USRXML__instance[h,"entry"] = USRXML__scope_if;
 
 		if (val == "")
