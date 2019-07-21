@@ -3299,7 +3299,7 @@ function run_usrxml_parser(h, line, cb, data,
 
 	usrxml__clearerrno(h);
 
-	if (line ~ /^[[:space:]]*$/)
+	if (line ~ "^[[:space:]]*(#|$)")
 		return USRXML_E_NONE;
 
 	# These are modified by match(): save them
