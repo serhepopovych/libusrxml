@@ -3306,7 +3306,7 @@ function run_usrxml_parser(h, line, cb, data,
 	s_rs = RSTART;
 	s_rl = RLENGTH;
 
-	n = match(line, "^[[:space:]]*<(|[/+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
+	n = match(line, "^[[:space:]]*<(|[/:+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
 
 	RSTART = s_rs;
 	RLENGTH = s_rl;
@@ -3380,14 +3380,18 @@ function run_usrxml_parser(h, line, cb, data,
 # Print users entry in oneline usrxml format
 #
 
-function print_usrxml_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, file)
+function print_usrxml_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, sign, file)
 {
 	s1 = data["s1"];
 	s2 = data["s2"];
 	lu = data["lu"];
 	file = data["file"];
 
-	printf s1 "<%s %s>" s2, lu, iflu >>file;
+	sign = arr[h,dyn,iflu];
+	if (sign != ":")
+		sign = "";
+
+	printf s1 "<%s%s %s>" s2, sign, lu, iflu >>file;
 }
 
 function print_usrxml_if_oneline(h, ifid, file, s1, s2,
