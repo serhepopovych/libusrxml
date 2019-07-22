@@ -517,7 +517,7 @@ function usrxml_section_delete_fileline(key,    n, i)
 
 function usrxml_section_fn_arg(h, section, key, fn,    n, ret, s_fn, s_ln)
 {
-	ret = usrxml__seterrno(h, USRXML_E_SYNTAX);
+	ret = USRXML_E_SYNTAX;
 
 	s_fn = USRXML__instance[h,"filename"];
 	s_ln = USRXML__instance[h,"linenum"];
@@ -533,7 +533,7 @@ function usrxml_section_fn_arg(h, section, key, fn,    n, ret, s_fn, s_ln)
 	USRXML__instance[h,"filename"] = s_fn;
 	USRXML__instance[h,"linenum"]  = s_ln;
 
-	return ret;
+	return usrxml__seterrno(h, ret);
 }
 
 function usrxml__inv_arg(h, section)
