@@ -1966,7 +1966,8 @@ function usrxml__type_cmp(h, name, arr,    type, cmp, len, num, dyn)
 
 	dyn = "lower-" name;
 
-	len = USRXML__dynmap[h,dyn,"ref"];
+	len = h SUBSEP dyn SUBSEP "ref";
+	len = (len in USRXML__dynmap) ? USRXML__dynmap[len] : 0;
 
 	if (cmp == USRXML_type_cmp_nan)
 		return len == 0;
