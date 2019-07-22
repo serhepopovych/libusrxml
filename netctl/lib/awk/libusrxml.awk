@@ -3684,7 +3684,7 @@ function load_usrxml_file(_h, file, flags, cb, data,    h, line, rc, ret, s_fn, 
 		close(file);
 
 	if (rc < 0) {
-		ret = usrxml__seterrno(USRXML_E_GETLINE);
+		ret = usrxml__seterrno(h, USRXML_E_GETLINE);
 	} else if (ret == USRXML_E_NONE) {
 		# Check for open sections
 		rc = USRXML__instance[h,"depth"];
