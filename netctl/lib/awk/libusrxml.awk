@@ -2020,9 +2020,11 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, v
 		return usrxml__deactivate_if_by_name(h, dyn, iflu);
 	}
 
-	cb = USRXML__instance[h,"ifup"];
-	if (cb != "")
-		@cb(h, iflu);
+	if (ifname != "") {
+		cb = USRXML__instance[h,"ifup"];
+		if (cb != "")
+			@cb(h, iflu);
+	}
 
 	# Activate interface and it's uppers
 	USRXML_ifnames[i] = 0;
@@ -2075,9 +2077,11 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb,
 			return USRXML_E_NONE;
 	}
 
-	cb = USRXML__instance[h,"ifdown"];
-	if (cb != "")
-		@cb(h, iflu);
+	if (ifname != "") {
+		cb = USRXML__instance[h,"ifdown"];
+		if (cb != "")
+			@cb(h, iflu);
+	}
 
 	# Deactivate interface and it's uppers
 	USRXML_ifnames[i] = -1;
