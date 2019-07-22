@@ -1512,18 +1512,18 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_id(h, userid, no_validate,    n, i, val)
+function usrxml__activate_user_by_id(h, userid, no_validate,    n, i, ret)
 {
 	if (no_validate == "") {
 		# if
-		val = usrxml__validate_if(h, userid);
-		if (val != USRXML_E_NONE)
-			return val;
+		ret = usrxml__validate_if(h, userid);
+		if (ret != USRXML_E_NONE)
+			return ret;
 
 		# pipe
-		val = usrxml__validate_pipe(h, userid);
-		if (val != USRXML_E_NONE)
-			return val;
+		ret = usrxml__validate_pipe(h, userid);
+		if (ret != USRXML_E_NONE)
+			return ret;
 	}
 
 	# h,userid
@@ -1535,28 +1535,28 @@ function usrxml__activate_user_by_id(h, userid, no_validate,    n, i, val)
 	usrxml___dyn_add_val(h, USRXML_userif[i], n, userid, USRXML_ifuser);
 
 	# net
-	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
+	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
 					    USRXML_usernets, "net");
-	if (val != USRXML_E_NONE)
-		return val;
+	if (ret != USRXML_E_NONE)
+		return ret;
 
 	# net6
-	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets6,
+	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets6,
 					    USRXML_usernets6, "net6");
-	if (val != USRXML_E_NONE)
-		return val;
+	if (ret != USRXML_E_NONE)
+		return ret;
 
 	# nat
-	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats,
+	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats,
 					    USRXML_usernats, "nat");
-	if (val != USRXML_E_NONE)
-		return val;
+	if (ret != USRXML_E_NONE)
+		return ret;
 
 	# nat6
-	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats6,
+	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats6,
 					    USRXML_usernats6, "nat6");
-	if (val != USRXML_E_NONE)
-		return val;
+	if (ret != USRXML_E_NONE)
+		return ret;
 
 	return USRXML_E_NONE;
 }
@@ -1573,18 +1573,18 @@ function usrxml__activate_user_by_name(h, username, no_validate,    i)
 	return usrxml__activate_user_by_id(h, USRXML_users[i], no_validate);
 }
 
-function usrxml__deactivate_user_by_id(h, userid, no_validate,    n, i, val)
+function usrxml__deactivate_user_by_id(h, userid, no_validate,    n, i, ret)
 {
 	if (no_validate == "") {
 		# if
-		val = usrxml__validate_if(h, userid);
-		if (val != USRXML_E_NONE)
-			return val;
+		ret = usrxml__validate_if(h, userid);
+		if (ret != USRXML_E_NONE)
+			return ret;
 
 		# pipe
-		val = usrxml__validate_pipe(h, userid);
-		if (val != USRXML_E_NONE)
-			return val;
+		ret = usrxml__validate_pipe(h, userid);
+		if (ret != USRXML_E_NONE)
+			return ret;
 	}
 
 	# h,userid
