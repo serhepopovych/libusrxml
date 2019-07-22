@@ -1512,7 +1512,7 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_id(h, userid, no_validate,    val)
+function usrxml__activate_user_by_id(h, userid, no_validate,    n, i, val)
 {
 	if (no_validate == "") {
 		# if
@@ -1526,10 +1526,13 @@ function usrxml__activate_user_by_id(h, userid, no_validate,    val)
 			return val;
 	}
 
+	# h,userid
+	i = h SUBSEP userid;
+
+	n = USRXML_users[i];
+
 	# if
-	val = h SUBSEP userid;
-	usrxml___dyn_add_val(h, USRXML_userif[val], USRXML_users[val],
-			     userid, USRXML_ifuser);
+	usrxml___dyn_add_val(h, USRXML_userif[i], n, userid, USRXML_ifuser);
 
 	# net
 	val = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
@@ -1570,7 +1573,7 @@ function usrxml__activate_user_by_name(h, username, no_validate,    i)
 	return usrxml__activate_user_by_id(h, USRXML_users[i], no_validate);
 }
 
-function usrxml__deactivate_user_by_id(h, userid, no_validate,    val)
+function usrxml__deactivate_user_by_id(h, userid, no_validate,    n, i, val)
 {
 	if (no_validate == "") {
 		# if
@@ -1584,10 +1587,13 @@ function usrxml__deactivate_user_by_id(h, userid, no_validate,    val)
 			return val;
 	}
 
+	# h,userid
+	i = h SUBSEP userid;
+
+	n = USRXML_users[i];
+
 	# if
-	val = h SUBSEP userid;
-	usrxml___dyn_del_by_attr(h, USRXML_userif[val], USRXML_users[val],
-			         USRXML_ifuser);
+	usrxml___dyn_del_by_attr(h, USRXML_userif[i], n, USRXML_ifuser);
 	# net
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
 	# net6
@@ -1766,16 +1772,17 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_userif(i,    a)
+function usrxml__delete_userif(i,    n, a)
 {
 	# i = h,userid
 	split(i, a, SUBSEP);
 
+	n = USRXML_users[i];
+
 	# h = a[1]
 	# userid = a[2]
 
-	usrxml___dyn_del_by_attr(a[1], USRXML_userif[i], USRXML_users[i],
-				 USRXML_ifuser);
+	usrxml___dyn_del_by_attr(a[1], USRXML_userif[i], n, USRXML_ifuser);
 
 	delete USRXML_userif[i];
 }
