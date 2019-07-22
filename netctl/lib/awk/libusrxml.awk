@@ -1920,23 +1920,22 @@ function usrxml__save_user(h, username)
 	return usrxml__copy_user(h SUBSEP "orig", h, username);
 }
 
-function usrxml__restore_user(h, username,    hh, userid, i)
+function usrxml__restore_user(h, username,    hh)
 {
 	username = usrxml__username(h, username);
 	if (username == "")
 		return;
 
-	userid = USRXML_users[h,username,"id"];
-
-	usrxml__delete_user_by_id(h, userid);
+	usrxml__delete_user_by_name(h, username);
 
 	# h,"orig"
 	hh = h SUBSEP "orig";
 
-	if ((hh,userid) in USRXML_users) {
-		i = usrxml__copy_user(h, hh, username);
+	if ((hh,username) in USRXML_users) {
+		usrxml__copy_user(h, hh, username);
 		usrxml__delete_user(hh, username);
 
+		# User was active before modification: activate it on restore
 		if (!((i,"inactive") in USRXML_users))
 			usrxml__activate_user_by_name(h, username);
 	}
