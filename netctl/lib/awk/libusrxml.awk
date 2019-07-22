@@ -3504,6 +3504,7 @@ function print_usrxml_user_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o)
 	if (o != USRXML_E_NONE)
 		return o;
 
+	# h,userid
 	i = h SUBSEP userid;
 
 	if (!(i in USRXML_users))
