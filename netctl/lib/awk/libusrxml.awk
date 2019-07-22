@@ -1620,13 +1620,14 @@ function usrxml__deactivate_user_by_name(h, username, no_validate,    i)
 
 function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 {
-	usrxml__map_copy_all(i_dst, umap, i_src, umap);
+	if (usrxml__map_copy_all(i_dst, umap, i_src, umap) == 0)
+		return;
 
 	n = umap[i_src,"num"];
 	for (p = 0; p < n; p++) {
-		# h,userid,netid
+		# sh,userid,netid
 		j_src = i_src SUBSEP p;
-		# h,userid,subid,netid
+		# dh,userid,netid
 		j_dst = i_dst SUBSEP p;
 
 		# Remove from destination
