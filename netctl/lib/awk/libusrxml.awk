@@ -1840,20 +1840,24 @@ function usrxml__delete_maps(i, map, umap, name,    m, j, p)
 	delete umap[i,"num"];
 }
 
-function usrxml__delete_user(h, username,    n, m, i, p, userid)
+function usrxml__delete_user(h, username,    n, m, i, j, p)
 {
-	userid = USRXML_users[h,username,"id"];
+	# h,username
+	n = h SUBSEP username;
+
+	if (!(n in USRXML_users))
+		return;
 
 	# h,userid
-	i = h SUBSEP userid;
+	i = h SUBSEP USRXML_users[n,"id"];
 
 	# pipe
 	m = USRXML_userpipe[i];
 	for (p = 0; p < m; p++) {
 		# h,userid,pipeid
-		n = i SUBSEP p;
+		j = i SUBSEP p;
 
-		usrxml__delete_pipe(n);
+		usrxml__delete_pipe(j);
 	}
 	delete USRXML_userpipe[i];
 
