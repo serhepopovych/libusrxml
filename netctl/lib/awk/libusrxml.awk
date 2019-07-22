@@ -933,6 +933,9 @@ function init_usrxml_parser(prog,    h)
 	delete USRXML__dynmap[1];
 	delete USRXML_ifuser[1];
 
+	delete USRXML_users[1];
+	delete USRXML_ifnames[1];
+
 	# Note that rest of USRXML_user*[] arrays
 	# initialized in usrxml__scope_user()
 
