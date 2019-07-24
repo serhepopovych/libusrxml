@@ -714,6 +714,9 @@ function declare_usrxml_consts()
 	# ip6gre
 	USRXML_types["ip6gre","cmp"]    = USRXML_type_cmp_zeq;
 	USRXML_types["ip6gre","num"]    = 1;
+	# user
+	USRXML_types["user","cmp"]      = USRXML_type_cmp_eql;
+	USRXML_types["user","num"]      = 1;
 
 	# Network interface parameters
 	USRXML_ifparms["ip-link"]	= 1;
@@ -1463,18 +1466,6 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 	}
 }
 
-function usrxml__validate_if(h, userid,    i, val)
-{
-	# h,userid
-	i = h SUBSEP userid;
-
-	val = USRXML_userif[i];
-	if (val == "")
-		return usrxml_section_missing_arg(h, "if", "user" SUBSEP i);
-
-	return USRXML_E_NONE;
-}
-
 function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bits)
 {
 	# h,userid
@@ -1515,11 +1506,6 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 function usrxml__activate_user_by_id(h, userid, no_validate,    n, i, ret)
 {
 	if (no_validate == "") {
-		# if
-		ret = usrxml__validate_if(h, userid);
-		if (ret != USRXML_E_NONE)
-			return ret;
-
 		# pipe
 		ret = usrxml__validate_pipe(h, userid);
 		if (ret != USRXML_E_NONE)
@@ -1558,6 +1544,9 @@ function usrxml__activate_user_by_id(h, userid, no_validate,    n, i, ret)
 	if (ret != USRXML_E_NONE)
 		return ret;
 
+	# Activate user
+	USRXML_users[h,n,"inactive"] = 0;
+
 	return USRXML_E_NONE;
 }
 
@@ -1576,11 +1565,6 @@ function usrxml__activate_user_by_name(h, username, no_validate,    i)
 function usrxml__deactivate_user_by_id(h, userid, no_validate,    n, i, ret)
 {
 	if (no_validate == "") {
-		# if
-		ret = usrxml__validate_if(h, userid);
-		if (ret != USRXML_E_NONE)
-			return ret;
-
 		# pipe
 		ret = usrxml__validate_pipe(h, userid);
 		if (ret != USRXML_E_NONE)
@@ -1602,6 +1586,9 @@ function usrxml__deactivate_user_by_id(h, userid, no_validate,    n, i, ret)
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats, USRXML_usernats);
 	# nat6
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
+
+	# Deactivate user
+	USRXML_users[h,n,"inactive"] = -1;
 
 	return USRXML_E_NONE;
 }
@@ -1656,23 +1643,24 @@ function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 
 function usrxml__copy_user(dh, sh, username,    n, m, p, o, i_dst, i_src, j_dst, j_src)
 {
-	# sh,username,"id"
-	i_src = sh SUBSEP username SUBSEP "id";
+	# sh,username
+	i_src = sh SUBSEP username;
 
 	if (!(i_src in USRXML_users))
 		return "";
 
-	# sh,userid
-	i_src = sh SUBSEP USRXML_users[i_src];
-
 	if (dh == sh)
-		return i_src;
+		return sh SUBSEP USRXML_users[i_src,"id"];
+
+	# dh,username
+	i_dst = dh SUBSEP username;
+
+	USRXML_users[i_dst,"inactive"] = USRXML_users[i_src,"inactive"];
 
 	# user
-	i_dst = usrxml__map_add_attr(dh, USRXML_users[i_src], USRXML_users);
+	i_dst = usrxml__map_add_val(dh, username, USRXML_users, USRXML_users[i_src]);
 
-	if ((i_src,"inactive") in USRXML_users)
-		USRXML_users[i_dst,"inactive"] = USRXML_users[i_src,"inactive"];
+	i_src = sh SUBSEP USRXML_users[i_src,"id"];
 
 	# pipe
 	n = USRXML_userpipe[i_src];
@@ -1773,21 +1761,6 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_userif(i,    n, a)
-{
-	# i = h,userid
-	split(i, a, SUBSEP);
-
-	n = USRXML_users[i];
-
-	# h = a[1]
-	# userid = a[2]
-
-	usrxml___dyn_del_by_attr(a[1], USRXML_userif[i], n, USRXML_ifuser);
-
-	delete USRXML_userif[i];
-}
-
 function usrxml__delete_map(i, val, map, umap, name,    a, n, h, id)
 {
 	# h,userid,id,"id"
@@ -1840,13 +1813,18 @@ function usrxml__delete_maps(i, map, umap, name,    m, j, p)
 	delete umap[i,"num"];
 }
 
-function usrxml__delete_user(h, username,    n, m, i, j, p)
+function usrxml__delete_user(h, username,    n, m, i, j, p, t, dyn, name, data)
 {
 	# h,username
 	n = h SUBSEP username;
 
 	if (!(n in USRXML_users))
 		return;
+
+	t = USRXML_users[n];
+
+	# Mark user for deletion (prefix it's type with "/")
+	USRXML_users[n] = "/" t;
 
 	# h,userid
 	i = h SUBSEP USRXML_users[n,"id"];
@@ -1862,7 +1840,23 @@ function usrxml__delete_user(h, username,    n, m, i, j, p)
 	delete USRXML_userpipe[i];
 
 	# if
-	usrxml__delete_userif(i);
+	name = USRXML_userif[i];
+	delete USRXML_userif[i];
+
+	usrxml___dyn_del_by_attr(h, name, username, USRXML_ifuser);
+
+	m = username ":";
+
+	# lower only
+	data["ifname"] = m;
+
+	data["cb"] = "";
+	data["lu"] = dyn = "lower";
+
+	dyn = dyn "-" m;
+	usrxml__dyn_for_each(h, dyn, "usrxml__delete_if_cb", data);
+	delete USRXML__dynmap[h,dyn,"ref"];
+
 	# net
 	usrxml__delete_maps(i, USRXML_nets, USRXML_usernets, "net");
 	# net6
@@ -1873,11 +1867,11 @@ function usrxml__delete_user(h, username,    n, m, i, j, p)
 	usrxml__delete_maps(i, USRXML_nats6, USRXML_usernats6, "nat6");
 
 	# user
-	usrxml_section_delete_fileline("user" SUBSEP i);
+	usrxml_section_delete_fileline(t SUBSEP i);
 
 	usrxml__map_del_by_attr(h, username, USRXML_users);
 
-	delete USRXML_users[i,"inactive"];
+	delete USRXML_users[n,"inactive"];
 }
 
 function usrxml__delete_user_by_id(h, userid,    n)
@@ -1936,7 +1930,7 @@ function usrxml__restore_user(h, username,    hh)
 		usrxml__delete_user(hh, username);
 
 		# User was active before modification: activate it on restore
-		if (!((i,"inactive") in USRXML_users))
+		if (!USRXML_users[h,username,"inactive"])
 			usrxml__activate_user_by_name(h, username);
 	}
 }
@@ -1950,7 +1944,7 @@ function usrxml__cleanup_user(h, username)
 	usrxml__delete_user(h SUBSEP "orig", username);
 }
 
-function usrxml__type_cmp(h, name, arr,    type, cmp, len, num, dyn)
+function usrxml__type_cmp(h, name, arr, sfx,    type, cmp, len, num, dyn)
 {
 	type = arr[h,name];
 
@@ -1963,7 +1957,7 @@ function usrxml__type_cmp(h, name, arr,    type, cmp, len, num, dyn)
 	if (cmp == USRXML_type_cmp_inf)
 		return 1;
 
-	dyn = "lower-" name;
+	dyn = "lower-" name sfx;
 
 	len = h SUBSEP dyn SUBSEP "ref";
 	len = (len in USRXML__dynmap) ? USRXML__dynmap[len] : 0;
@@ -1988,6 +1982,11 @@ function usrxml__type_cmp(h, name, arr,    type, cmp, len, num, dyn)
 function usrxml__iftype_cmp(h, ifname)
 {
 	return usrxml__type_cmp(h, ifname, USRXML_ifnames);
+}
+
+function usrxml__usertype_cmp(h, username)
+{
+	return usrxml__type_cmp(h, username, USRXML_users, ":");
 }
 
 function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
@@ -2325,7 +2324,7 @@ function usrxml__cleanup_if(h, ifname)
 # Helpers to handle activation/deactivation
 #
 
-function usrxml__tag_inactive(h, name, arr, acb, dcb,    n, i, v, r, t, cmp)
+function usrxml__tag_inactive(h, name, arr, acb, dcb, sfx,    n, i, v, r, t, cmp)
 {
 	# h,name
 	n = h SUBSEP name;
@@ -2371,10 +2370,10 @@ function usrxml__tag_inactive(h, name, arr, acb, dcb,    n, i, v, r, t, cmp)
 			}
 			# inactive forced -> inactive forced
 			# active -> active
-			cmp = usrxml__type_cmp(h, name, arr);
+			cmp = usrxml__type_cmp(h, name, arr, sfx);
 		}
 	} else {
-		cmp = usrxml__type_cmp(h, name, arr);
+		cmp = usrxml__type_cmp(h, name, arr, sfx);
 	}
 
 	if (cmp > 0) {
@@ -2406,6 +2405,14 @@ function usrxml__scope_if_inactive(h, ifname)
 	usrxml__tag_inactive(h, ifname, USRXML_ifnames,
 			     "usrxml__scope_if_acb",
 			     "usrxml__scope_if_dcb");
+}
+
+function usrxml__scope_user_inactive(h, username)
+{
+	usrxml__tag_inactive(h, username, USRXML_users,
+			     "usrxml__activate_user_by_name",
+			     "usrxml__deactivate_user_by_name",
+			     ":");
 }
 
 #
@@ -2491,10 +2498,15 @@ function fini_usrxml_parser(h,    n, p)
 	delete USRXML__instance[h,"depth"];
 
 	# Populated from parsing XML document
+	n = USRXML__instance[h,"username"];
 	delete USRXML__instance[h,"username"];
+	delete USRXML__instance[h,n,"inactive"];
+	delete USRXML__instance[h,n,"if"];
+
 	n = USRXML__instance[h,"ifname"];
 	delete USRXML__instance[h,"ifname"];
 	delete USRXML__instance[h,n,"inactive"];
+
 	delete USRXML__instance[h,"pipeid"];
 	delete USRXML__instance[h,"netid"];
 	delete USRXML__instance[h,"net6id"];
@@ -2523,7 +2535,7 @@ function usrxml__scope_error(h, sign, name, val,    ret)
 
 	val = sub("^/", "", name);
 
-	if (name == "user" || (name,"cmp") in USRXML_types) {
+	if ((name,"cmp") in USRXML_types) {
 		if (val == 1) {
 			ret = USRXML_E_NONE;
 		} else {
@@ -2542,22 +2554,33 @@ function usrxml__scope_error(h, sign, name, val,    ret)
 
 function usrxml__scope_none(h, sign, name, val,    n, i)
 {
+	# h,val
+	n = h SUBSEP val;
+
 	if (name == "user") {
 		USRXML__instance[h,"entry"] = USRXML__scope_user;
 
 		if (val == "")
 			return usrxml_ept_val(h, name);
 
-		if (sign > 0) {
-			i = usrxml__map_add_attr(h, val, USRXML_users);
-			if (int(i) < 0)
-				return usrxml_inv_arg(h, name, val);
+		if (!(n in USRXML_users))
+			n = USRXML_E_NONE;
 
-			if (i in USRXML_userif) {
+		if (sign > 0) {
+			if (n != USRXML_E_NONE) {
+				# h,userid
+				i = h SUBSEP USRXML_users[n,"id"];
 				usrxml__save_user(h, val);
 			} else {
-				# New element allocated
-				USRXML_userif[i] = "";
+				i = usrxml__map_add_val(h, val, USRXML_users, name);
+				if (int(i) < 0)
+					return usrxml_inv_arg(h, name, val);
+
+				# New users are inactive by default and
+				# activated on section closure. Old ones marked
+				# as inactive if they was active before.
+
+				USRXML_users[h,val,"inactive"] = -1;
 			}
 
 			USRXML__instance[h,"username"] = val;
@@ -2566,20 +2589,15 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 
 			usrxml_section_record_fileline(h, name SUBSEP i);
 		} else {
-			# h,val,"id"
-			i = h SUBSEP val SUBSEP "id";
-
-			if (i in USRXML_users) {
+			if (n != USRXML_E_NONE) {
 				USRXML__instance[h,"username"] = val;
-
-				n = USRXML_users[i];
 
 				# Save entry before delete to make
 				# it visible to run_usrxml_parser()
 				# and their callbacks
 				i = usrxml__save_user(h, val);
 
-				usrxml__delete_user_by_id(h, n);
+				usrxml__delete_user_by_name(h, val);
 
 				# We can't return > 0 here as this
 				# will collide with parse retry
@@ -2594,9 +2612,6 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 
 		if (!usrxml_dev_valid_name(val))
 			return usrxml_inv_arg(h, name, val);
-
-		# h,val
-		n = h SUBSEP val;
 
 		if (n in USRXML_ifnames) {
 			if (USRXML_ifnames[n] != name)
@@ -2724,10 +2739,16 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
 	if (i == "") {
 		## Add
 
+		# h,iflu
+		i = h SUBSEP iflu;
+
+		i = (sub(":$", "", i) == 1) ?
+			(i in USRXML_users) : (i in USRXML_ifnames);
+
 		# Upper/lower interface doesn't exist: mark as unresolved
 		# unres: @iflu (en0, former @ifname) exists as we called
 		#        from dynamic map iterator
-		if (!((h,iflu) in USRXML_ifnames)) {
+		if (!i) {
 			usrxml___dyn_add_val(h, "unres-" iflu, ifname, lu, arr);
 			usrxml___dyn_add_val(h, dyn, iflu, ":", arr);
 			return 0;
@@ -2745,8 +2766,14 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
 	} else if (i == "/") {
 		## Del
 
+		# h,iflu
+		i = h SUBSEP iflu;
+
+		i = (sub(":$", "", i) == 1) ?
+			(i in USRXML_users) : (i in USRXML_ifnames);
+
 		# Upper/lower interface doesn't exist: remove it and unres
-		if (!((h,iflu) in USRXML_ifnames)) {
+		if (!i) {
 			usrxml___dyn_del_by_attr(h, "unres-" iflu, ifname, arr);
 			usrxml___dyn_del_by_attr(h, dyn, iflu, arr);
 			return 0;
@@ -2867,9 +2894,13 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 		# Handle user supplied <inactive> tag, if any
 		usrxml__scope_if_inactive(h, ifname);
 
-		# Activate interface(s)
-		for (ifname in data)
-			usrxml__activate_if_by_name(h, "", ifname);
+		# Activate user(s)/interface(s)
+		for (ifname in data) {
+			if (sub(":$", "", ifname) == 1)
+				usrxml__activate_user_by_name(h, ifname, "true");
+			else
+				usrxml__activate_if_by_name(h, "", ifname);
+		}
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 		USRXML__instance[h,"depth"]--;
@@ -2895,14 +2926,20 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 			# Support <upper/lower en0> to <lower/upper en0> replace
 			r = (name == "upper") ? "lower" : "upper";
 			r = r "-" ifname;
-		} else {
-			r = n;
-		}
 
-		if (usrxml__dyn_get_val(h, r, val) != "")
-			usrxml__dyn_add_val(h, r, val, "/");
-		else
-			usrxml__dyn_del_by_attr(h, r, val);
+			if (usrxml__dyn_get_val(h, r, val) != "")
+				usrxml__dyn_add_val(h, r, val, "/");
+			else
+				usrxml__dyn_del_by_attr(h, r, val);
+		} else {
+			usrxml__dyn_add_val(h, n, val, "/");
+		}
+	} else if (name == "user") {
+		if (val == "")
+			return usrxml_ept_val(h, name);
+
+		# For user/if lower/upper relation is handled
+		# on user section closure (i.e. on </user> tag)
 	} else if (name in USRXML_ifparms) {
 		if (sign > 0) {
 			if (val == "")
@@ -2940,24 +2977,60 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_user(h, sign, name, val,    n, i, u)
+function usrxml__scope_user(h, sign, name, val,    n, i, username, cb, dyn, iif, uif, data)
 {
-	n = USRXML__instance[h,"username"];
+	username = USRXML__instance[h,"username"];
 
-	u = USRXML_users[h,n,"id"];
-	i = h SUBSEP u;
+	# h,username
+	n = h SUBSEP username;
+
+	# h,userid
+	i = h SUBSEP USRXML_users[n,"id"];
 
 	if (name == "/user") {
-		if (val != "" && val != n)
+		if (val != "" && val != username)
 			return usrxml_inv_arg(h, name, val);
 
-		if ((i,"inactive") in USRXML_users)
-			n = usrxml__deactivate_user_by_id(h, u);
-		else
-			n = usrxml__activate_user_by_id(h, u);
+		uif = USRXML_userif[i];
 
-		if (n != USRXML_E_NONE)
-			return n;
+		# h,username,"if"
+		val = n SUBSEP "if";
+		if (val in USRXML__instance) {
+			iif = USRXML__instance[val];
+			delete USRXML__instance[val];
+		} else {
+			iif = uif;
+		}
+
+		if (uif != iif) {
+			n = username ":";
+
+			dyn = "lower-" n;
+
+			if (uif != "")
+				usrxml__dyn_add_val(h, dyn, uif, "/");
+			if (iif != "")
+				usrxml__dyn_add_val(h, dyn, iif, "");
+
+			# At this point we should not fail since lower
+			# links could be modified during resolve.
+
+			cb = "usrxml__scope_if_cb";
+
+			# Use ":" suffix which is not valid ifname according
+			# to usrxml_dev_valid_name() helper to avoid interface
+			# name clash with keys used to pass params to callback.
+			data["ifname:"] = n;
+
+			# Resolve interface reference links (order is important)
+			data["lu:"] = "lower";
+			usrxml__dyn_for_each(h, dyn, cb, data);
+
+			USRXML_userif[i] = iif;
+		}
+
+		# Handle user supplied <inactive> tag, if any
+		usrxml__scope_user_inactive(h, username);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 		USRXML__instance[h,"depth"]--;
@@ -2972,22 +3045,17 @@ function usrxml__scope_user(h, sign, name, val,    n, i, u)
 		if (!usrxml_dev_valid_name(val))
 			return usrxml_inv_arg(h, name, val);
 
-		n = USRXML_userif[i];
+		# <if> in <user> equivalent to <lower> in <@if@>
+		# with one exception that it can appear only once
 
-		if (sign > 0) {
-			if (n != val) {
-				if (n != "")
-					return usrxml_dup_arg(h, name);
-				USRXML_userif[i] = val;
-			}
-		} else {
-			if (n != "") {
-				if (n != val)
-					return usrxml_inv_arg(h, name, val);
-				usrxml__delete_userif(i);
-				USRXML_userif[i] = "";
-			}
+		if (sign < 0) {
+			uif = USRXML_userif[i];
+			if (uif != "" && val != uif)
+				return usrxml_inv_arg(h, name, val);
+			val = "";
 		}
+
+		USRXML__instance[n,"if"] = val;
 	} else if (name == "net") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -3110,14 +3178,19 @@ function usrxml__scope_user(h, sign, name, val,    n, i, u)
 
 		if (sign > 0) {
 			if (val == "yes")
-				USRXML_users[i,"inactive"] = 1;
+				val = 1;
 			else if (val == "no")
-				delete USRXML_users[i,"inactive"];
+				val = -1;
+			else if (val == "forced")
+				val = 0;
 			else
 				return usrxml_inv_arg(h, name, val);
 		} else {
-			delete USRXML_users[i,"inactive"];
+			val = -1;
 		}
+
+		if (val != 0)
+			USRXML__instance[n,"inactive"] = val;
 	} else {
 		return usrxml_syntax_err(h);
 	}
@@ -3410,6 +3483,9 @@ function print_usrxml_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, sign, file)
 	if (sign != ":")
 		sign = "";
 
+	if (sub(":$", "", iflu) == 1)
+		lu = "user";
+
 	printf s1 "<%s%s %s>" s2, sign, lu, iflu >>file;
 }
 
@@ -3510,7 +3586,8 @@ function usrxml__print_maps(i, umap, name, file, s1, s2,    n, j, p)
 	}
 }
 
-function print_usrxml_user_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o)
+function print_usrxml_user_oneline(h, userid, file, s1, s2,
+				   n, m, i, j, p, o, t, username)
 {
 	o = usrxml_errno(h);
 	if (o != USRXML_E_NONE)
@@ -3525,12 +3602,27 @@ function print_usrxml_user_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o)
 	if (file == "")
 		file = "/dev/stdout";
 
+	username = USRXML_users[i];
+
+	# h,username
+	o = h SUBSEP username;
+
+	t = USRXML_users[o];
+
 	# user
-	printf "<user %s>" s2, USRXML_users[i] >>file;
+	printf "<%s %s>" s2, t, username >>file;
 
 	# inactive
-	if ((i,"inactive") in USRXML_users)
-		printf s1 "<inactive yes>" s2 >>file;
+	o = USRXML_users[o,"inactive"];
+	if (o < 0)
+		o = "forced";
+	else if (o > 0)
+		o = "yes";
+	else
+		o = "";
+
+	if (o != "")
+		printf s1 "<inactive %s>" s2, o >>file;
 
 	# pipe
 	n = USRXML_userpipe[i];
@@ -3568,7 +3660,14 @@ function print_usrxml_user_oneline(h, userid, file, s1, s2,    n, m, i, j, p, o)
 	}
 
 	# if
-	printf s1 "<if %s>" s2, USRXML_userif[i] >>file;
+	n = USRXML_userif[i];
+	if (n != "") {
+		o = usrxml__dyn_get_val(h, "lower-" username ":", n);
+		if (o != ":")
+			o = "";
+
+		printf s1 "<%sif %s>" s2, o, n >>file;
+	}
 
 	# net
 	usrxml__print_maps(i, USRXML_usernets, "net", file, s1, s2);
