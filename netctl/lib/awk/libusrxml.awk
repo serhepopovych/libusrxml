@@ -1599,19 +1599,16 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_name(h, username, no_validate,
-				       userid, i, ret)
+function usrxml__activate_user_by_name(h, username,    userid, i, ret)
 {
 	userid = usrxml__id(h, username);
 	if (userid < 0)
 		return userid;
 
-	if (no_validate == "") {
-		# pipe
-		ret = usrxml__validate_pipe(h, userid);
-		if (ret != USRXML_E_NONE)
-			return ret;
-	}
+	# pipe
+	ret = usrxml__validate_pipe(h, userid);
+	if (ret != USRXML_E_NONE)
+		return ret;
 
 	# h,userid
 	i = h SUBSEP userid;
@@ -1652,19 +1649,16 @@ function usrxml__activate_user_by_name(h, username, no_validate,
 	return USRXML_E_NONE;
 }
 
-function usrxml__deactivate_user_by_name(h, username, no_validate,
-					 userid, i, ret)
+function usrxml__deactivate_user_by_name(h, username,    userid, i, ret)
 {
 	userid = usrxml__id(h, username);
 	if (userid < 0)
 		return userid;
 
-	if (no_validate == "") {
-		# pipe
-		ret = usrxml__validate_pipe(h, userid);
-		if (ret != USRXML_E_NONE)
-			return ret;
-	}
+	# pipe
+	ret = usrxml__validate_pipe(h, userid);
+	if (ret != USRXML_E_NONE)
+		return ret;
 
 	# h,userid
 	i = h SUBSEP userid;
@@ -1962,7 +1956,7 @@ function usrxml__delete_user(h, username,    n, m, i, j, p, t, dyn, name, data)
 
 function usrxml__delete_user_by_name(h, username,    ret)
 {
-	ret = usrxml__deactivate_user_by_name(h, username, "true");
+	ret = usrxml__deactivate_user_by_name(h, username);
 	if (ret != USRXML_E_NONE)
 		return ret;
 
@@ -2804,7 +2798,7 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 			n = USRXML__instance[h,"name"];
 			if (sub(":$", "", ifname) == 1) {
 				USRXML__instance[h,"name"] = ifname;
-				usrxml__activate_user_by_name(h, ifname, "true");
+				usrxml__activate_user_by_name(h, ifname);
 			} else {
 				USRXML__instance[h,"name"] = ifname;
 				usrxml__activate_if_by_name(h, "", ifname);
