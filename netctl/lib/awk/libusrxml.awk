@@ -583,368 +583,6 @@ function usrxml_dev_valid_name(name)
 }
 
 #
-# Initialize users database XML document parser/validator.
-# This is usually called from BEGIN{} section.
-#
-# Returns parser instance handle that may be passed to others.
-#
-
-function declare_usrxml_consts()
-{
-	# Avoid multiple initializations
-	if ("consts" in USRXML__instance)
-		return;
-
-	## Constants (public)
-
-	# USRXML error codes (visible in case of handle allocation error)
-
-	# Also applies to non-libusrxml code
-	USRXML_E_NONE	= 0;
-
-	# Program exit code usually from to 0 to 255.
-	# Start libusrxml errors from 300.
-	USRXML_E_BASE	= 300;
-
-	# Document syntax errors
-	USRXML_E_SYNTAX   = -(USRXML_E_BASE + 0);
-	USRXML_E_INVAL    = -(USRXML_E_BASE + 1);
-	USRXML_E_EMPTY    = -(USRXML_E_BASE + 2);
-	USRXML_E_DUP      = -(USRXML_E_BASE + 3);
-	USRXML_E_MISS     = -(USRXML_E_BASE + 4);
-	USRXML_E_SELF_REF = -(USRXML_E_BASE + 5);
-	USRXML_E_SCOPE    = -(USRXML_E_BASE + 50);
-
-	# API
-	USRXML_E_HANDLE_INVALID	= -(USRXML_E_BASE + 101);
-	USRXML_E_HANDLE_FULL	= -(USRXML_E_BASE + 102);
-	USRXML_E_API_ORDER	= -(USRXML_E_BASE + 103);
-	USRXML_E_GETLINE	= -(USRXML_E_BASE + 104);
-
-	# Generic
-	USRXML_E_NOENT		= -(USRXML_E_BASE + 201);
-	USRXML_E_NOT_ARRAY	= -(USRXML_E_BASE + 202);
-
-	# Messaging
-	USRXML_E_PRIORITY_INVALID = -(USRXML_E_BASE + 301);
-
-	## Constants (internal, arrays get cleaned)
-
-	# Logging priority
-	USRXML_MSG_PRIO_NONE	= -1;
-	USRXML_MSG_PRIO_EMERG	= 0;
-	USRXML_MSG_PRIO_ALERT	= 1;
-	USRXML_MSG_PRIO_CRIT	= 2;
-	USRXML_MSG_PRIO_ERR	= 3;
-	USRXML_MSG_PRIO_WARN	= 4;
-	USRXML_MSG_PRIO_NOTICE	= 5;
-	USRXML_MSG_PRIO_INFO	= 6;
-	USRXML_MSG_PRIO_DEBUG	= 7;
-
-	USRXML__priority2name[USRXML_MSG_PRIO_EMERG]  = "emergency";
-	USRXML__priority2name[USRXML_MSG_PRIO_ALERT]  = "alert";
-	USRXML__priority2name[USRXML_MSG_PRIO_CRIT]   = "critical";
-	USRXML__priority2name[USRXML_MSG_PRIO_ERR]    = "error";
-	USRXML__priority2name[USRXML_MSG_PRIO_WARN]   = "warning";
-	USRXML__priority2name[USRXML_MSG_PRIO_NOTICE] = "notice";
-	USRXML__priority2name[USRXML_MSG_PRIO_INFO]   = "info";
-	USRXML__priority2name[USRXML_MSG_PRIO_DEBUG]  = "debug";
-
-	# Tag scope
-	USRXML__scope_error	= "error";
-	USRXML__scope_none	= "none";
-
-	USRXML__scope_if	= "if";
-
-	USRXML__scope_user	= "user";
-	USRXML__scope_pipe	= "pipe";
-	USRXML__scope_qdisc	= "qdisc";
-	USRXML__scope_net	= "net";
-	USRXML__scope_net6	= "net6";
-
-	# Library public functions call order
-	USRXML__order_none	= 0;
-	USRXML__order_parse	= 1;
-
-	# Load/store flags
-	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
-
-	# Types and dependencies map
-	USRXML_type_cmp_nan = 0x00; # no value supported
-	USRXML_type_cmp_eql = 0x01; # equal
-	USRXML_type_cmp_geq = 0x02; # greather or equal
-	USRXML_type_cmp_leq = 0x03; # less or equal
-	USRXML_type_cmp_zeq = 0x04; # zero or equal
-	USRXML_type_cmp_inf = 0x7f; # do not compare
-
-	# ifb
-	USRXML_types["ifb","cmp"]       = USRXML_type_cmp_nan;
-	# vrf
-	USRXML_types["vrf","cmp"]       = USRXML_type_cmp_inf;
-	# bridge
-	USRXML_types["bridge","cmp"]    = USRXML_type_cmp_inf;
-	# bond
-	USRXML_types["bond","cmp"]      = USRXML_type_cmp_inf;
-	# host
-	USRXML_types["host","cmp"]      = USRXML_type_cmp_nan;
-	# dummy
-	USRXML_types["dummy","cmp"]     = USRXML_type_cmp_nan;
-	# veth
-	USRXML_types["veth","cmp"]      = USRXML_type_cmp_nan;
-	# gretap
-	USRXML_types["gretap","cmp"]    = USRXML_type_cmp_zeq;
-	USRXML_types["gretap","num"]    = 1;
-	# ip6gretap
-	USRXML_types["ip6gretap","cmp"] = USRXML_type_cmp_zeq;
-	USRXML_types["ip6gretap","num"] = 1;
-	# vxlan
-	USRXML_types["vxlan","cmp"]     = USRXML_type_cmp_zeq;
-	USRXML_types["vxlan","num"]     = 1;
-	# vlan
-	USRXML_types["vlan","cmp"]      = USRXML_type_cmp_eql;
-	USRXML_types["vlan","num"]      = 1;
-	# macvlan
-	USRXML_types["macvlan","cmp"]   = USRXML_type_cmp_eql;
-	USRXML_types["macvlan","num"]   = 1;
-	# ipvlan
-	USRXML_types["ipvlan","cmp"]    = USRXML_type_cmp_eql;
-	USRXML_types["ipvlan","num"]    = 1;
-	# gre
-	USRXML_types["gre","cmp"]       = USRXML_type_cmp_zeq;
-	USRXML_types["gre","num"]       = 1;
-	# ip6gre
-	USRXML_types["ip6gre","cmp"]    = USRXML_type_cmp_zeq;
-	USRXML_types["ip6gre","num"]    = 1;
-	# user
-	USRXML_types["user","cmp"]      = USRXML_type_cmp_eql;
-	USRXML_types["user","num"]      = 1;
-
-	# Network interface parameters
-	USRXML_ifparms["ip-link"]	= 1;
-	USRXML_ifparms["ip-link-type"]	= 1;
-	USRXML_ifparms["tc-qdisc"]	= 1;
-	USRXML_ifparms["tc-class"]	= 1;
-	USRXML_ifparms["tc-filter"]	= 1;
-	USRXML_ifparms["ethtool"]	= 1;
-	USRXML_ifparms["sysctl"]	= 1;
-
-	# Valid "zone" values
-	USRXML__zone["world"]	= 1;
-	USRXML__zone["local"]	= 1;
-	USRXML__zone["all"]	= 1;
-
-	# Valid "dir" values
-	USRXML__dir["in"]	= 1;
-	USRXML__dir["out"]	= 1;
-	USRXML__dir["all"]	= 1;
-
-	# Zone and direction names to mask mapping
-	USRXML__zone_dir_bits["world","in"]	= 0x01;
-	USRXML__zone_dir_bits["world","out"]	= 0x02;
-	USRXML__zone_dir_bits["world","all"]	= 0x03;
-	USRXML__zone_dir_bits["local","in"]	= 0x04;
-	USRXML__zone_dir_bits["local","out"]	= 0x08;
-	USRXML__zone_dir_bits["local","all"]	= 0x0c;
-	USRXML__zone_dir_bits["all","in"]	= 0x05;
-	USRXML__zone_dir_bits["all","out"]	= 0x0a;
-	USRXML__zone_dir_bits["all","all"]	= 0x0f;
-
-	# Mark as initialized
-	USRXML__instance["consts"] = 1;
-}
-
-function init_usrxml_parser(prog,    h)
-{
-	# Declare constants
-	declare_usrxml_consts();
-
-	# Establish next (first) instance
-	h = usrxml__alloc_handle();
-	if (h < 0)
-		return h;
-
-	## Variables
-
-	# USRXML__instance[] internal information about parser instance
-
-	# Parse document first
-	USRXML__instance[h,"order"] = USRXML__order_parse;
-
-	# Name of program that uses API
-	USRXML__instance[h,"prog"] = prog ? prog : "usrxml";
-
-	# Library messages handling
-	USRXML__instance[h,"logger","level"] = USRXML_MSG_PRIO_INFO;
-
-	USRXML__instance[h,"logger","dflt_priority"] = \
-	USRXML__instance[h,"result","dflt_priority"] = \
-		USRXML_MSG_PRIO_INFO;
-
-	USRXML__instance[h,"logger","file"] = \
-	USRXML__instance[h,"result","file"] = \
-		"/dev/stdout";
-
-	# Error number updated on each library call
-	USRXML__instance[h,"errno"] = USRXML_E_NONE;
-
-	# Current entry type, scope and depth
-	USRXML__instance[h,"scope"] = USRXML__scope_none;
-	USRXML__instance[h,"depth"] = 0;
-
-	# Populated from parsing XML document
-	USRXML__instance[h,"pipeid"] = 0;
-	USRXML__instance[h,"netid"] = 0;
-	USRXML__instance[h,"net6id"] = 0;
-
-	# Real values set by run_usrxml_parser()
-	USRXML__instance[h,"filename"] = "";
-	USRXML__instance[h,"linenum"] = "";
-
-	# Interface up/down hooks
-	USRXML__instance[h,"ifup"] = "";
-	USRXML__instance[h,"ifdown"] = "";
-
-	# USRXML__fileline[key,{ "file" | "line" },n]
-
-	# Document format and parameters mapping
-	# --------------------------------------
-	#
-	# num = USRXML_ifnames[h,"num"]
-	# id = [0 .. num - 1]
-	# name = USRXML_ifnames[h,id]
-	# id = USRXML_ifnames[h,name,"id"]
-	# <user 'name'>
-	#
-	#   npipes = USRXML_userpipe[h,userid]
-	#   pipeid = [0 .. npipes - 1]
-	#   <pipe 'num'>
-	#     USRXML_userpipe[h,userid,pipeid]
-	#     <zone local|world|all>
-	#       zone = USRXML_userpipe[h,userid,pipeid,"zone"]
-	#     <dir in|out>
-	#       dir =USRXML_userpipe[h,userid,pipeid,"dir"]
-	#     <bw kbits>
-	#       bw = USRXML_userpipe[h,userid,pipeid,"bw"]
-	#     <qdisc 'name'>
-	#       qdisc = USRXML_userpipe[h,userid,pipeid,"qdisc"]
-	#
-	#       nopts = USRXML_userpipe[h,userid,pipeid,"opts"]
-	#       optid = [0 .. nopts - 1]
-	#       <opts 'params'>
-	#         opts += USRXML_userpipe[h,userid,pipeid,"opts",optid]
-	#     </qdisc>
-	#   </pipe>
-	#
-	#   <if>
-	#     userif = USRXML_userif[h,userid]
-	#
-	#   nunets = USRXML_usernets[h,userid,"num"]
-	#   netid = [0 .. nunets - 1]
-	#   netid = USRXML_usernets[h,net,"id"]
-	#   <net 'cidr'>
-	#     net = USRXML_usernets[h,userid,netid]
-	# [
-	#     <!-- These are optional -->
-	#     <src>
-	#       src = USRXML_usernets[h,userid,netid,"src"]
-	#     <via>
-	#       via = USRXML_usernets[h,userid,netid,"via"]
-	#     <mac>
-	#       mac = USRXML_usernets[h,userid,netid,"mac"]
-	#   </net>
-	# ]
-	#
-	#   nunets6 = USRXML_usernets6[h,userid,"num"]
-	#   netid6 = [0 .. nunets6 - 1]
-	#   netid6 = USRXML_usernets6[h,net6,"id"]
-	#   <net6 'cidr6'>
-	#     net6 = USRXML_usernets6[h,userid,netid6]
-	# [
-	#     <!-- These are optional -->
-	#     <src>
-	#       src = USRXML_usernets6[h,userid,netid6,"src"]
-	#     <via>
-	#       via = USRXML_usernets6[h,userid,netid6,"via"]
-	#     <mac>
-	#       mac = USRXML_usernets6[h,userid,netid6,"mac"]
-	#   </net6>
-	# ]
-	#
-	#   nunats = USRXML_usernats[h,userid,"num"]
-	#   natid = [0 .. nunats - 1]
-	#   natid = USRXML_usernats[h,nat,"id"]
-	#   <nat 'cidr'>
-	#     nat = USRXML_usernats[h,userid,natid]
-	#
-	#   nunats6 = USRXML_usernats6[h,userid,"num"]
-	#   natid6 = [0 .. nunats6 - 1]
-	#   natid6 = USRXML_usernats6[h,nat6,"id"]
-	#   <nat6 'cidr6'>
-	#     nat6 = USRXML_usernats6[h,userid,natid6]
-	#
-	# </user>
-
-	# These are used to find duplicates at parse time
-	# -----------------------------------------------
-	#
-	# nifn = USRXML_ifuser[h,"num"]
-	# ifid = [0 .. nifn - 1]
-	# ifid = USRXML_ifuser[h,userif,"id"]
-	# userif = USRXML_ifuser[h,ifid]
-	# nifu = USRXML_ifuser[h,userif]
-	#
-	# nifu = USRXML_ifuser[h,userif,"num"]
-	# iuid = [0 .. nifu - 1]
-	# username = USRXML_ifuser[h,userif,iuid]
-	# userid = USRXML_ifuser[h,userif,username]
-	#
-	# <user 'name'>
-	#
-	#   nnets = USRXML_nets[h,"num"]
-	#   nid = [0 .. nnets - 1]
-	#   nid = USRXML_nets[h,net,"id"]
-	#   <net 'cidr'>
-	#     net = USRXML_nets[h,nid]
-	#     h,userid = USRXML_nets[h,net]
-	#
-	#   nnets6 = USRXML_nets6[h,"num"]
-	#   nid6 = [0 .. nnets6 - 1]
-	#   nid6 = USRXML_nets6[h,net6,"id"]
-	#   <net6 'cidr6'>
-	#     net6 = USRXML_nets6[h,nid6]
-	#     h,userid = USRXML_nets6[h,net6]
-	#
-	#   nnats = USRXML_nats[h,"num"]
-	#   tid = [0 .. nnats - 1]
-	#   tid = USRXML_nats[h,nat,"id"]
-	#   <nat 'cidr'>
-	#     nat = USRXML_nats[h,tid]
-	#     h,userid = USRXML_nats[h,nat]
-	#
-	#   nnats6 = USRXML_nats6[h,"num"]
-	#   tid6 = [0 .. nnats6 - 1]
-	#   tid6 = USRXML_nats6[h,nat6,"id"]
-	#   <nat6 'cidr6'>
-	#     nat6 = USRXML_nats6[h,tid6]
-	#     h,userid = USRXML_nats6[h,nat6]
-	#
-	# </user>
-
-	# isarray() has side effect in that when variable isn't
-	# defined it will be created as "uninitialized scalar"
-	# making iterations like "for (v in arr)" to fail.
-	delete USRXML__dynmap[1];
-	delete USRXML_ifuser[1];
-
-	delete USRXML_ifnames[1];
-
-	# Note that rest of USRXML_user*[] arrays
-	# initialized in usrxml__scope_user()
-
-	return h;
-}
-
-#
 # Map helpers
 #
 
@@ -2287,6 +1925,368 @@ function usrxml__cleanup_if(h, ifname)
 		usrxml__delete_user(h SUBSEP "orig", ifname);
 	else
 		usrxml__delete_if(h SUBSEP "orig", ifname);
+}
+
+#
+# Initialize users database XML document parser/validator.
+# This is usually called from BEGIN{} section.
+#
+# Returns parser instance handle that may be passed to others.
+#
+
+function declare_usrxml_consts()
+{
+	# Avoid multiple initializations
+	if ("consts" in USRXML__instance)
+		return;
+
+	## Constants (public)
+
+	# USRXML error codes (visible in case of handle allocation error)
+
+	# Also applies to non-libusrxml code
+	USRXML_E_NONE	= 0;
+
+	# Program exit code usually from to 0 to 255.
+	# Start libusrxml errors from 300.
+	USRXML_E_BASE	= 300;
+
+	# Document syntax errors
+	USRXML_E_SYNTAX   = -(USRXML_E_BASE + 0);
+	USRXML_E_INVAL    = -(USRXML_E_BASE + 1);
+	USRXML_E_EMPTY    = -(USRXML_E_BASE + 2);
+	USRXML_E_DUP      = -(USRXML_E_BASE + 3);
+	USRXML_E_MISS     = -(USRXML_E_BASE + 4);
+	USRXML_E_SELF_REF = -(USRXML_E_BASE + 5);
+	USRXML_E_SCOPE    = -(USRXML_E_BASE + 50);
+
+	# API
+	USRXML_E_HANDLE_INVALID	= -(USRXML_E_BASE + 101);
+	USRXML_E_HANDLE_FULL	= -(USRXML_E_BASE + 102);
+	USRXML_E_API_ORDER	= -(USRXML_E_BASE + 103);
+	USRXML_E_GETLINE	= -(USRXML_E_BASE + 104);
+
+	# Generic
+	USRXML_E_NOENT		= -(USRXML_E_BASE + 201);
+	USRXML_E_NOT_ARRAY	= -(USRXML_E_BASE + 202);
+
+	# Messaging
+	USRXML_E_PRIORITY_INVALID = -(USRXML_E_BASE + 301);
+
+	## Constants (internal, arrays get cleaned)
+
+	# Logging priority
+	USRXML_MSG_PRIO_NONE	= -1;
+	USRXML_MSG_PRIO_EMERG	= 0;
+	USRXML_MSG_PRIO_ALERT	= 1;
+	USRXML_MSG_PRIO_CRIT	= 2;
+	USRXML_MSG_PRIO_ERR	= 3;
+	USRXML_MSG_PRIO_WARN	= 4;
+	USRXML_MSG_PRIO_NOTICE	= 5;
+	USRXML_MSG_PRIO_INFO	= 6;
+	USRXML_MSG_PRIO_DEBUG	= 7;
+
+	USRXML__priority2name[USRXML_MSG_PRIO_EMERG]  = "emergency";
+	USRXML__priority2name[USRXML_MSG_PRIO_ALERT]  = "alert";
+	USRXML__priority2name[USRXML_MSG_PRIO_CRIT]   = "critical";
+	USRXML__priority2name[USRXML_MSG_PRIO_ERR]    = "error";
+	USRXML__priority2name[USRXML_MSG_PRIO_WARN]   = "warning";
+	USRXML__priority2name[USRXML_MSG_PRIO_NOTICE] = "notice";
+	USRXML__priority2name[USRXML_MSG_PRIO_INFO]   = "info";
+	USRXML__priority2name[USRXML_MSG_PRIO_DEBUG]  = "debug";
+
+	# Tag scope
+	USRXML__scope_error	= "error";
+	USRXML__scope_none	= "none";
+
+	USRXML__scope_if	= "if";
+
+	USRXML__scope_user	= "user";
+	USRXML__scope_pipe	= "pipe";
+	USRXML__scope_qdisc	= "qdisc";
+	USRXML__scope_net	= "net";
+	USRXML__scope_net6	= "net6";
+
+	# Library public functions call order
+	USRXML__order_none	= 0;
+	USRXML__order_parse	= 1;
+
+	# Load/store flags
+	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
+
+	# Types and dependencies map
+	USRXML_type_cmp_nan = 0x00; # no value supported
+	USRXML_type_cmp_eql = 0x01; # equal
+	USRXML_type_cmp_geq = 0x02; # greather or equal
+	USRXML_type_cmp_leq = 0x03; # less or equal
+	USRXML_type_cmp_zeq = 0x04; # zero or equal
+	USRXML_type_cmp_inf = 0x7f; # do not compare
+
+	# ifb
+	USRXML_types["ifb","cmp"]       = USRXML_type_cmp_nan;
+	# vrf
+	USRXML_types["vrf","cmp"]       = USRXML_type_cmp_inf;
+	# bridge
+	USRXML_types["bridge","cmp"]    = USRXML_type_cmp_inf;
+	# bond
+	USRXML_types["bond","cmp"]      = USRXML_type_cmp_inf;
+	# host
+	USRXML_types["host","cmp"]      = USRXML_type_cmp_nan;
+	# dummy
+	USRXML_types["dummy","cmp"]     = USRXML_type_cmp_nan;
+	# veth
+	USRXML_types["veth","cmp"]      = USRXML_type_cmp_nan;
+	# gretap
+	USRXML_types["gretap","cmp"]    = USRXML_type_cmp_zeq;
+	USRXML_types["gretap","num"]    = 1;
+	# ip6gretap
+	USRXML_types["ip6gretap","cmp"] = USRXML_type_cmp_zeq;
+	USRXML_types["ip6gretap","num"] = 1;
+	# vxlan
+	USRXML_types["vxlan","cmp"]     = USRXML_type_cmp_zeq;
+	USRXML_types["vxlan","num"]     = 1;
+	# vlan
+	USRXML_types["vlan","cmp"]      = USRXML_type_cmp_eql;
+	USRXML_types["vlan","num"]      = 1;
+	# macvlan
+	USRXML_types["macvlan","cmp"]   = USRXML_type_cmp_eql;
+	USRXML_types["macvlan","num"]   = 1;
+	# ipvlan
+	USRXML_types["ipvlan","cmp"]    = USRXML_type_cmp_eql;
+	USRXML_types["ipvlan","num"]    = 1;
+	# gre
+	USRXML_types["gre","cmp"]       = USRXML_type_cmp_zeq;
+	USRXML_types["gre","num"]       = 1;
+	# ip6gre
+	USRXML_types["ip6gre","cmp"]    = USRXML_type_cmp_zeq;
+	USRXML_types["ip6gre","num"]    = 1;
+	# user
+	USRXML_types["user","cmp"]      = USRXML_type_cmp_eql;
+	USRXML_types["user","num"]      = 1;
+
+	# Network interface parameters
+	USRXML_ifparms["ip-link"]	= 1;
+	USRXML_ifparms["ip-link-type"]	= 1;
+	USRXML_ifparms["tc-qdisc"]	= 1;
+	USRXML_ifparms["tc-class"]	= 1;
+	USRXML_ifparms["tc-filter"]	= 1;
+	USRXML_ifparms["ethtool"]	= 1;
+	USRXML_ifparms["sysctl"]	= 1;
+
+	# Valid "zone" values
+	USRXML__zone["world"]	= 1;
+	USRXML__zone["local"]	= 1;
+	USRXML__zone["all"]	= 1;
+
+	# Valid "dir" values
+	USRXML__dir["in"]	= 1;
+	USRXML__dir["out"]	= 1;
+	USRXML__dir["all"]	= 1;
+
+	# Zone and direction names to mask mapping
+	USRXML__zone_dir_bits["world","in"]	= 0x01;
+	USRXML__zone_dir_bits["world","out"]	= 0x02;
+	USRXML__zone_dir_bits["world","all"]	= 0x03;
+	USRXML__zone_dir_bits["local","in"]	= 0x04;
+	USRXML__zone_dir_bits["local","out"]	= 0x08;
+	USRXML__zone_dir_bits["local","all"]	= 0x0c;
+	USRXML__zone_dir_bits["all","in"]	= 0x05;
+	USRXML__zone_dir_bits["all","out"]	= 0x0a;
+	USRXML__zone_dir_bits["all","all"]	= 0x0f;
+
+	# Mark as initialized
+	USRXML__instance["consts"] = 1;
+}
+
+function init_usrxml_parser(prog,    h)
+{
+	# Declare constants
+	declare_usrxml_consts();
+
+	# Establish next (first) instance
+	h = usrxml__alloc_handle();
+	if (h < 0)
+		return h;
+
+	## Variables
+
+	# USRXML__instance[] internal information about parser instance
+
+	# Parse document first
+	USRXML__instance[h,"order"] = USRXML__order_parse;
+
+	# Name of program that uses API
+	USRXML__instance[h,"prog"] = prog ? prog : "usrxml";
+
+	# Library messages handling
+	USRXML__instance[h,"logger","level"] = USRXML_MSG_PRIO_INFO;
+
+	USRXML__instance[h,"logger","dflt_priority"] = \
+	USRXML__instance[h,"result","dflt_priority"] = \
+		USRXML_MSG_PRIO_INFO;
+
+	USRXML__instance[h,"logger","file"] = \
+	USRXML__instance[h,"result","file"] = \
+		"/dev/stdout";
+
+	# Error number updated on each library call
+	USRXML__instance[h,"errno"] = USRXML_E_NONE;
+
+	# Current entry type, scope and depth
+	USRXML__instance[h,"scope"] = USRXML__scope_none;
+	USRXML__instance[h,"depth"] = 0;
+
+	# Populated from parsing XML document
+	USRXML__instance[h,"pipeid"] = 0;
+	USRXML__instance[h,"netid"] = 0;
+	USRXML__instance[h,"net6id"] = 0;
+
+	# Real values set by run_usrxml_parser()
+	USRXML__instance[h,"filename"] = "";
+	USRXML__instance[h,"linenum"] = "";
+
+	# Interface up/down hooks
+	USRXML__instance[h,"ifup"] = "";
+	USRXML__instance[h,"ifdown"] = "";
+
+	# USRXML__fileline[key,{ "file" | "line" },n]
+
+	# Document format and parameters mapping
+	# --------------------------------------
+	#
+	# num = USRXML_ifnames[h,"num"]
+	# id = [0 .. num - 1]
+	# name = USRXML_ifnames[h,id]
+	# id = USRXML_ifnames[h,name,"id"]
+	# <user 'name'>
+	#
+	#   npipes = USRXML_userpipe[h,userid]
+	#   pipeid = [0 .. npipes - 1]
+	#   <pipe 'num'>
+	#     USRXML_userpipe[h,userid,pipeid]
+	#     <zone local|world|all>
+	#       zone = USRXML_userpipe[h,userid,pipeid,"zone"]
+	#     <dir in|out>
+	#       dir =USRXML_userpipe[h,userid,pipeid,"dir"]
+	#     <bw kbits>
+	#       bw = USRXML_userpipe[h,userid,pipeid,"bw"]
+	#     <qdisc 'name'>
+	#       qdisc = USRXML_userpipe[h,userid,pipeid,"qdisc"]
+	#
+	#       nopts = USRXML_userpipe[h,userid,pipeid,"opts"]
+	#       optid = [0 .. nopts - 1]
+	#       <opts 'params'>
+	#         opts += USRXML_userpipe[h,userid,pipeid,"opts",optid]
+	#     </qdisc>
+	#   </pipe>
+	#
+	#   <if>
+	#     userif = USRXML_userif[h,userid]
+	#
+	#   nunets = USRXML_usernets[h,userid,"num"]
+	#   netid = [0 .. nunets - 1]
+	#   netid = USRXML_usernets[h,net,"id"]
+	#   <net 'cidr'>
+	#     net = USRXML_usernets[h,userid,netid]
+	# [
+	#     <!-- These are optional -->
+	#     <src>
+	#       src = USRXML_usernets[h,userid,netid,"src"]
+	#     <via>
+	#       via = USRXML_usernets[h,userid,netid,"via"]
+	#     <mac>
+	#       mac = USRXML_usernets[h,userid,netid,"mac"]
+	#   </net>
+	# ]
+	#
+	#   nunets6 = USRXML_usernets6[h,userid,"num"]
+	#   netid6 = [0 .. nunets6 - 1]
+	#   netid6 = USRXML_usernets6[h,net6,"id"]
+	#   <net6 'cidr6'>
+	#     net6 = USRXML_usernets6[h,userid,netid6]
+	# [
+	#     <!-- These are optional -->
+	#     <src>
+	#       src = USRXML_usernets6[h,userid,netid6,"src"]
+	#     <via>
+	#       via = USRXML_usernets6[h,userid,netid6,"via"]
+	#     <mac>
+	#       mac = USRXML_usernets6[h,userid,netid6,"mac"]
+	#   </net6>
+	# ]
+	#
+	#   nunats = USRXML_usernats[h,userid,"num"]
+	#   natid = [0 .. nunats - 1]
+	#   natid = USRXML_usernats[h,nat,"id"]
+	#   <nat 'cidr'>
+	#     nat = USRXML_usernats[h,userid,natid]
+	#
+	#   nunats6 = USRXML_usernats6[h,userid,"num"]
+	#   natid6 = [0 .. nunats6 - 1]
+	#   natid6 = USRXML_usernats6[h,nat6,"id"]
+	#   <nat6 'cidr6'>
+	#     nat6 = USRXML_usernats6[h,userid,natid6]
+	#
+	# </user>
+
+	# These are used to find duplicates at parse time
+	# -----------------------------------------------
+	#
+	# nifn = USRXML_ifuser[h,"num"]
+	# ifid = [0 .. nifn - 1]
+	# ifid = USRXML_ifuser[h,userif,"id"]
+	# userif = USRXML_ifuser[h,ifid]
+	# nifu = USRXML_ifuser[h,userif]
+	#
+	# nifu = USRXML_ifuser[h,userif,"num"]
+	# iuid = [0 .. nifu - 1]
+	# username = USRXML_ifuser[h,userif,iuid]
+	# userid = USRXML_ifuser[h,userif,username]
+	#
+	# <user 'name'>
+	#
+	#   nnets = USRXML_nets[h,"num"]
+	#   nid = [0 .. nnets - 1]
+	#   nid = USRXML_nets[h,net,"id"]
+	#   <net 'cidr'>
+	#     net = USRXML_nets[h,nid]
+	#     h,userid = USRXML_nets[h,net]
+	#
+	#   nnets6 = USRXML_nets6[h,"num"]
+	#   nid6 = [0 .. nnets6 - 1]
+	#   nid6 = USRXML_nets6[h,net6,"id"]
+	#   <net6 'cidr6'>
+	#     net6 = USRXML_nets6[h,nid6]
+	#     h,userid = USRXML_nets6[h,net6]
+	#
+	#   nnats = USRXML_nats[h,"num"]
+	#   tid = [0 .. nnats - 1]
+	#   tid = USRXML_nats[h,nat,"id"]
+	#   <nat 'cidr'>
+	#     nat = USRXML_nats[h,tid]
+	#     h,userid = USRXML_nats[h,nat]
+	#
+	#   nnats6 = USRXML_nats6[h,"num"]
+	#   tid6 = [0 .. nnats6 - 1]
+	#   tid6 = USRXML_nats6[h,nat6,"id"]
+	#   <nat6 'cidr6'>
+	#     nat6 = USRXML_nats6[h,tid6]
+	#     h,userid = USRXML_nats6[h,nat6]
+	#
+	# </user>
+
+	# isarray() has side effect in that when variable isn't
+	# defined it will be created as "uninitialized scalar"
+	# making iterations like "for (v in arr)" to fail.
+	delete USRXML__dynmap[1];
+	delete USRXML_ifuser[1];
+
+	delete USRXML_ifnames[1];
+
+	# Note that rest of USRXML_user*[] arrays
+	# initialized in usrxml__scope_user()
+
+	return h;
 }
 
 #
