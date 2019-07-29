@@ -1853,12 +1853,12 @@ function usrxml__restore_if(h, ifname,    hh, cb)
 
 			usrxml__dyn_for_each(h, "lower-" ifname, cb);
 			usrxml__dyn_for_each(h, "upper-" ifname, cb);
-
-			# No need to (re)activate interface and it's
-			# uppers since we may only be called before
-			# interface activation/deactivation on failure
-			# in usrxml__scope_none() or usrxml__scope_if().
 		}
+
+		# No need to (re)activate interface/user and it's
+		# uppers since we may only be called before
+		# interface/user activation/deactivation on failure
+		# in usrxml__scope_none() or usrxml__scope_{if,user}().
 	}
 }
 
