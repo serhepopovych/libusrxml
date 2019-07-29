@@ -1204,7 +1204,7 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 	}
 }
 
-function usrxml__activate_user(h, username,    userid, ifname, n, ret)
+function usrxml__activate_user(h, username,    userid, n, ret)
 {
 	# h,username
 	n = h SUBSEP username;
@@ -1212,8 +1212,8 @@ function usrxml__activate_user(h, username,    userid, ifname, n, ret)
 	userid = USRXML_ifnames[n,"id"];
 
 	# if
-	ifname = USRXML_userif[h,userid];
-	usrxml___dyn_add_val(h, ifname, username, userid, USRXML_ifuser);
+	n = USRXML_userif[h,userid];
+	usrxml___dyn_add_val(h, n, username, userid, USRXML_ifuser);
 
 	# net
 	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
@@ -1239,21 +1239,18 @@ function usrxml__activate_user(h, username,    userid, ifname, n, ret)
 	if (ret != USRXML_E_NONE)
 		return ret;
 
-	# Activate user
-	USRXML_ifnames[n,"inactive"] = 0;
-
 	return USRXML_E_NONE;
 }
 
 function usrxml__activate_user_by_name(h, username,    ret)
 {
-	ret = usrxml__activate_user(h, username);
-	if (ret != USRXML_E_NONE)
+	if (usrxml__activate_user(h, username) != USRXML_E_NONE)
 		usrxml__deactivate_user_by_name(h, username);
-	return ret;
+
+	return USRXML_E_NONE;
 }
 
-function usrxml__deactivate_user_by_name(h, username,    userid, ifname, n, ret)
+function usrxml__deactivate_user_by_name(h, username,    userid, n, ret)
 {
 	# h,username
 	n = h SUBSEP username;
@@ -1261,8 +1258,8 @@ function usrxml__deactivate_user_by_name(h, username,    userid, ifname, n, ret)
 	userid = USRXML_ifnames[n,"id"];
 
 	# if
-	ifname = USRXML_userif[h,userid];
-	usrxml___dyn_del_by_attr(h, ifname, username, USRXML_ifuser);
+	n = USRXML_userif[h,userid];
+	usrxml___dyn_del_by_attr(h, n, username, USRXML_ifuser);
 	# net
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
 	# net6
@@ -1271,9 +1268,6 @@ function usrxml__deactivate_user_by_name(h, username,    userid, ifname, n, ret)
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats, USRXML_usernats);
 	# nat6
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
-
-	# Deactivate user
-	USRXML_ifnames[n,"inactive"] = -1;
 
 	return USRXML_E_NONE;
 }
@@ -1584,8 +1578,8 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 		return usrxml__deactivate_if_by_name(h, dyn, iflu);
 	}
 
-	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
-		return usrxml__activate_user_by_name(h, iflu);
+	# Activate interface and it's uppers
+	USRXML_ifnames[i] = 0;
 
 	if (ifname != "") {
 		cb = USRXML__instance[h,"ifup"];
@@ -1593,8 +1587,8 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 			@cb(h, iflu);
 	}
 
-	# Activate interface and it's uppers
-	USRXML_ifnames[i] = 0;
+	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
+		return usrxml__activate_user_by_name(h, iflu);
 
 	cb = "usrxml__activate_if_by_name";
 	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
@@ -1631,8 +1625,8 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 			return USRXML_E_NONE;
 	}
 
-	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
-		return usrxml__deactivate_user_by_name(h, iflu);
+	# Deactivate interface and it's uppers
+	USRXML_ifnames[i] = -1;
 
 	if (ifname != "") {
 		cb = USRXML__instance[h,"ifdown"];
@@ -1640,8 +1634,8 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 			@cb(h, iflu);
 	}
 
-	# Deactivate interface and it's uppers
-	USRXML_ifnames[i] = -1;
+	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
+		return usrxml__deactivate_user_by_name(h, iflu);
 
 	cb = "usrxml__deactivate_if_by_name";
 	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
