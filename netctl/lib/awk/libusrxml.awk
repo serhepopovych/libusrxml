@@ -1529,7 +1529,7 @@ function usrxml__type_is_if(h, idn, type)
 	return type != "" && type != "user";
 }
 
-function usrxml__type_cmp(h, name, sfx,    type, cmp, len, num, dyn)
+function usrxml__type_cmp(h, name,    type, cmp, len, num, dyn)
 {
 	type = USRXML_ifnames[h,name];
 
@@ -1542,7 +1542,9 @@ function usrxml__type_cmp(h, name, sfx,    type, cmp, len, num, dyn)
 	if (cmp == USRXML_type_cmp_inf)
 		return 1;
 
-	dyn = "lower-" name sfx;
+	dyn = "lower-" name;
+	if (usrxml__type_is_user(h, name, type))
+		dyn = dyn ":";
 
 	len = h SUBSEP dyn SUBSEP "ref";
 	len = (len in USRXML__dynmap) ? USRXML__dynmap[len] : 0;
@@ -2509,7 +2511,7 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_inactive(h, ifname, sfx,    n, i, v, r, t, cmp)
+function usrxml__scope_inactive(h, ifname,    n, i, v, r, t, cmp)
 {
 	# h,ifname
 	n = h SUBSEP ifname;
@@ -2555,10 +2557,10 @@ function usrxml__scope_inactive(h, ifname, sfx,    n, i, v, r, t, cmp)
 			}
 			# inactive forced -> inactive forced
 			# active -> active
-			cmp = usrxml__type_cmp(h, ifname, sfx);
+			cmp = usrxml__type_cmp(h, ifname);
 		}
 	} else {
-		cmp = usrxml__type_cmp(h, ifname, sfx);
+		cmp = usrxml__type_cmp(h, ifname);
 	}
 
 	if (cmp > 0) {
@@ -2933,7 +2935,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, cb, dyn, iif,
 		}
 
 		# Handle user supplied <inactive> tag, if any
-		usrxml__scope_inactive(h, username, ":");
+		usrxml__scope_inactive(h, username);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 		USRXML__instance[h,"depth"]--;
