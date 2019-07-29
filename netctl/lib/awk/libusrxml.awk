@@ -1403,69 +1403,6 @@ function usrxml__dyn_copy(dh, sh, dyn, arr)
 }
 
 #
-# User maps helpers
-#
-
-function usrxml__map_add_umap_attr2map(h, userid, map, umap, name,    m, i, j, p, val)
-{
-	# h,userid
-	i = h SUBSEP userid;
-
-	m = umap[i,"num"];
-	for (p = 0; p < m; p++) {
-		# h,userid,id
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in umap))
-			continue;
-
-		val = umap[j];
-
-		if (!((h,val) in map)) {
-			usrxml__map_add_val(h, val, map, i);
-			continue;
-		}
-
-		# name,h,userid,id
-		j = name SUBSEP j;
-
-		# Note that USRXML__instance[h,"name"] must be set
-		val = usrxml_section_dup_attr(h, name, val, map[h,val], j);
-		if (val != USRXML_E_NONE)
-			return val;
-	}
-
-	return USRXML_E_NONE;
-}
-
-function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
-{
-	# h,userid
-	i = h SUBSEP userid;
-
-	m = umap[i,"num"];
-	for (p = 0; p < m; p++) {
-		# h,userid,id
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in umap))
-			continue;
-
-		val = umap[j];
-
-		if (!((h,val) in map))
-			continue;
-
-		if (map[h,val] != i)
-			continue;
-
-		usrxml__map_del_by_attr(h, val, map);
-	}
-}
-
-#
 # Name/type helpers
 #
 
@@ -1569,6 +1506,65 @@ function usrxml__type_cmp(h, name,    type, cmp, len, num, dyn)
 #
 # User (slave)
 #
+
+function usrxml__map_add_umap_attr2map(h, userid, map, umap, name,    m, i, j, p, val)
+{
+	# h,userid
+	i = h SUBSEP userid;
+
+	m = umap[i,"num"];
+	for (p = 0; p < m; p++) {
+		# h,userid,id
+		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in umap))
+			continue;
+
+		val = umap[j];
+
+		if (!((h,val) in map)) {
+			usrxml__map_add_val(h, val, map, i);
+			continue;
+		}
+
+		# name,h,userid,id
+		j = name SUBSEP j;
+
+		# Note that USRXML__instance[h,"name"] must be set
+		val = usrxml_section_dup_attr(h, name, val, map[h,val], j);
+		if (val != USRXML_E_NONE)
+			return val;
+	}
+
+	return USRXML_E_NONE;
+}
+
+function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
+{
+	# h,userid
+	i = h SUBSEP userid;
+
+	m = umap[i,"num"];
+	for (p = 0; p < m; p++) {
+		# h,userid,id
+		j = i SUBSEP p;
+
+		# Skip holes entries
+		if (!(j in umap))
+			continue;
+
+		val = umap[j];
+
+		if (!((h,val) in map))
+			continue;
+
+		if (map[h,val] != i)
+			continue;
+
+		usrxml__map_del_by_attr(h, val, map);
+	}
+}
 
 function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bits)
 {
