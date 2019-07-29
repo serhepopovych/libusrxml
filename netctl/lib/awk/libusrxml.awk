@@ -1962,40 +1962,18 @@ function usrxml__delete_user_by_name(h, username,    ret)
 # If (master)
 #
 
-function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
+function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 {
-	val = usrxml__name(h, iflu);
-
-	if (ifname != "") {
-		# Called recursively for "upper-{iflu}": resolve lower
-
-		# <host en1>
-		#   <ip-link mtu 1504>
-		#   <upper bond0> <-- is not in USRXML_ifnames[]: skip
-		# </host>
+	iflu = usrxml__name(h, iflu);
+	if (iflu == "") {
+		# Skip when lower isn't resolved (i.e. points to ":" and
+		# not in USRXML_ifnames[]) and called recursively for
+		# "upper-{iflu}".
 		#
-		# <bond bond0>
-		#   <ip-link mtu 1504>
-		#   <ip-link-type mode 802.3ad miimon 100 xmit_hash_policy encap2+3>
-		#   <lower en1>
-		# </bond>
-
-		if (val == "")
-			return USRXML_E_NONE;
-
-		rev = "lower-" iflu;
-
-		if (usrxml__dyn_get_val(h, rev, ifname, arr) != ifname) {
-			arr[h,rev,"ref"]++;
-			usrxml__dyn_add_val(h, rev, ifname, ifname, arr);
-		}
-	} else {
-		if (val == "")
-			return USRXML_E_NOENT;
+		# Fail with USRXML_E_NOENT otherwise if called with
+		# non-existing @iflu for example.
+		return (ifname != "") ? USRXML_E_NONE : USRXML_E_NOENT;
 	}
-
-	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,val]))
-		return usrxml__activate_user_by_name(h, val);
 
 	# h,iflu,"inactive"
 	i = h SUBSEP iflu SUBSEP "inactive";
@@ -2015,6 +1993,9 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, v
 		return usrxml__deactivate_if_by_name(h, dyn, iflu);
 	}
 
+	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
+		return usrxml__activate_user_by_name(h, iflu);
+
 	if (ifname != "") {
 		cb = USRXML__instance[h,"ifup"];
 		if (cb != "")
@@ -2028,39 +2009,18 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, v
 	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
 }
 
-function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
+function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 {
-	val = usrxml__name(h, iflu);
-
-	if (ifname != "") {
-		# Called recursively for "upper-{ifname}": unresolve lower
-
-		# <host en1>
-		#   <ip-link mtu 1504>
-		#   <upper bond0> <-- is not in USRXML_ifnames[]: skip
-		# </host>
+	iflu = usrxml__name(h, iflu);
+	if (iflu == "") {
+		# Skip when lower isn't resolved (i.e. points to ":" and
+		# not in USRXML_ifnames[]) and called recursively for
+		# "upper-{iflu}".
 		#
-		# <bond bond0>
-		#   <ip-link mtu 1504>
-		#   <ip-link-type mode 802.3ad miimon 100 xmit_hash_policy encap2+3>
-		#   <lower en1>
-		# </bond>
-
-		if (val == "")
-			return USRXML_E_NONE;
-
-		rev = "lower-" iflu;
-
-		usrxml__dyn_del_by_attr(h, rev, ifname, arr);
-		if (--arr[h,rev,"ref"] <= 0)
-			delete arr[h,rev,"ref"];
-	} else {
-		if (val == "")
-			return USRXML_E_NOENT;
+		# Fail with USRXML_E_NOENT otherwise if called with
+		# non-existing @iflu for example.
+		return (ifname != "") ? USRXML_E_NONE : USRXML_E_NOENT;
 	}
-
-	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,val]))
-		return usrxml__deactivate_user_by_name(h, val);
 
 	# h,iflu,"inactive"
 	i = h SUBSEP iflu SUBSEP "inactive";
@@ -2079,6 +2039,9 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb,
 		if (val != 0)
 			return USRXML_E_NONE;
 	}
+
+	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
+		return usrxml__deactivate_user_by_name(h, iflu);
 
 	if (ifname != "") {
 		cb = USRXML__instance[h,"ifdown"];
@@ -2799,17 +2762,8 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 		usrxml__scope_inactive(h, ifname);
 
 		# Activate user(s)/interface(s)
-		for (ifname in data) {
-			n = USRXML__instance[h,"name"];
-			if (sub(":$", "", ifname) == 1) {
-				USRXML__instance[h,"name"] = ifname;
-				usrxml__activate_user_by_name(h, ifname);
-			} else {
-				USRXML__instance[h,"name"] = ifname;
-				usrxml__activate_if_by_name(h, "", ifname);
-			}
-			USRXML__instance[h,"name"] = n;
-		}
+		for (ifname in data)
+			usrxml__activate_if_by_name(h, "", ifname);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 		USRXML__instance[h,"depth"]--;
