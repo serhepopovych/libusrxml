@@ -1605,25 +1605,21 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_name(h, username,    userid, i, ret)
+function usrxml__activate_user_by_name(h, username,    userid, ifname, n, ret)
 {
-	userid = usrxml__id(h, username);
-	if (userid < 0)
-		return userid;
+	# h,username
+	n = h SUBSEP username;
+
+	userid = USRXML_ifnames[n,"id"];
 
 	# pipe
 	ret = usrxml__validate_pipe(h, userid);
 	if (ret != USRXML_E_NONE)
 		return ret;
 
-	# h,userid
-	i = h SUBSEP userid;
-
-	# User name might end with ":" when coming from network interface upper
-	username = USRXML_ifnames[i];
-
 	# if
-	usrxml___dyn_add_val(h, USRXML_userif[i], username, userid, USRXML_ifuser);
+	ifname = USRXML_userif[h,userid];
+	usrxml___dyn_add_val(h, ifname, username, userid, USRXML_ifuser);
 
 	# net
 	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
@@ -1650,30 +1646,26 @@ function usrxml__activate_user_by_name(h, username,    userid, i, ret)
 		return ret;
 
 	# Activate user
-	USRXML_ifnames[h,username,"inactive"] = 0;
+	USRXML_ifnames[n,"inactive"] = 0;
 
 	return USRXML_E_NONE;
 }
 
-function usrxml__deactivate_user_by_name(h, username,    userid, i, ret)
+function usrxml__deactivate_user_by_name(h, username,    userid, ifname, n, ret)
 {
-	userid = usrxml__id(h, username);
-	if (userid < 0)
-		return userid;
+	# h,username
+	n = h SUBSEP username;
+
+	userid = USRXML_ifnames[n,"id"];
 
 	# pipe
 	ret = usrxml__validate_pipe(h, userid);
 	if (ret != USRXML_E_NONE)
 		return ret;
 
-	# h,userid
-	i = h SUBSEP userid;
-
-	# User name might end with ":" when coming from network interface upper
-	username = USRXML_ifnames[i];
-
 	# if
-	usrxml___dyn_del_by_attr(h, USRXML_userif[i], username, USRXML_ifuser);
+	ifname = USRXML_userif[h,userid];
+	usrxml___dyn_del_by_attr(h, ifname, username, USRXML_ifuser);
 	# net
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nets, USRXML_usernets);
 	# net6
@@ -1684,7 +1676,7 @@ function usrxml__deactivate_user_by_name(h, username,    userid, i, ret)
 	usrxml__map_del_umap_attr4map(h, userid, USRXML_nats6, USRXML_usernats6);
 
 	# Deactivate user
-	USRXML_ifnames[h,username,"inactive"] = -1;
+	USRXML_ifnames[n,"inactive"] = -1;
 
 	return USRXML_E_NONE;
 }
@@ -1729,12 +1721,6 @@ function usrxml__copy_user(dh, sh, username,    n, m, p, o, t, i_dst, i_src, j_d
 {
 	# sh,username
 	i_src = sh SUBSEP username;
-
-	if (!(i_src in USRXML_ifnames))
-		return "";
-
-	if (dh == sh)
-		return sh SUBSEP USRXML_ifnames[i_src,"id"];
 
 	# dh,username
 	i_dst = dh SUBSEP username;
@@ -1902,9 +1888,6 @@ function usrxml__delete_user(h, username,    n, m, i, j, p, t, dyn, name, data)
 	# h,username
 	n = h SUBSEP username;
 
-	if (!(n in USRXML_ifnames))
-		return USRXML_E_NOENT;
-
 	t = USRXML_ifnames[n];
 
 	# Mark user for deletion (prefix it's type with "/")
@@ -1975,8 +1958,7 @@ function usrxml__delete_user_by_name(h, username,    ret)
 
 function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
 {
-	if (usrxml__type_is_user(h, iflu))
-		return usrxml__activate_user_by_name(h, iflu);
+	val = usrxml__name(h, iflu);
 
 	if (ifname != "") {
 		# Called recursively for "upper-{iflu}": resolve lower
@@ -1992,7 +1974,7 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, v
 		#   <lower en1>
 		# </bond>
 
-		if (!((h,iflu) in USRXML_ifnames))
+		if (val == "")
 			return USRXML_E_NONE;
 
 		rev = "lower-" iflu;
@@ -2001,7 +1983,13 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, v
 			arr[h,rev,"ref"]++;
 			usrxml__dyn_add_val(h, rev, ifname, ifname, arr);
 		}
+	} else {
+		if (val == "")
+			return USRXML_E_NOENT;
 	}
+
+	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,val]))
+		return usrxml__activate_user_by_name(h, val);
 
 	# h,iflu,"inactive"
 	i = h SUBSEP iflu SUBSEP "inactive";
@@ -2036,8 +2024,7 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, v
 
 function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb, val)
 {
-	if (usrxml__type_is_user(h, iflu))
-		return usrxml__deactivate_user_by_name(h, iflu);
+	val = usrxml__name(h, iflu);
 
 	if (ifname != "") {
 		# Called recursively for "upper-{ifname}": unresolve lower
@@ -2053,7 +2040,7 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb,
 		#   <lower en1>
 		# </bond>
 
-		if (!((h,iflu) in USRXML_ifnames))
+		if (val == "")
 			return USRXML_E_NONE;
 
 		rev = "lower-" iflu;
@@ -2061,7 +2048,13 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, rev, cb,
 		usrxml__dyn_del_by_attr(h, rev, ifname, arr);
 		if (--arr[h,rev,"ref"] <= 0)
 			delete arr[h,rev,"ref"];
+	} else {
+		if (val == "")
+			return USRXML_E_NOENT;
 	}
+
+	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,val]))
+		return usrxml__deactivate_user_by_name(h, val);
 
 	# h,iflu,"inactive"
 	i = h SUBSEP iflu SUBSEP "inactive";
@@ -2115,9 +2108,6 @@ function usrxml__copy_if_cb(sh, dyn, iflu, data, arr,    val, dh, ifname)
 
 function usrxml__copy_if(dh, sh, ifname,    i, i_dst, i_src, name, data)
 {
-	if (usrxml__type_is_user(h, ifname))
-		return usrxml__copy_user(dh, sh, ifname);
-
 	# sh,ifname
 	i_src = sh SUBSEP ifname;
 
@@ -2126,6 +2116,9 @@ function usrxml__copy_if(dh, sh, ifname,    i, i_dst, i_src, name, data)
 
 	if (dh == sh)
 		return sh SUBSEP USRXML_ifnames[i_src,"id"];
+
+	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[i_src]))
+		return usrxml__copy_user(dh, sh, ifname);
 
 	# dh,ifname
 	i_dst = dh SUBSEP ifname;
@@ -2194,14 +2187,14 @@ function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev)
 function usrxml__delete_if(h, ifname, lower_cb, upper_cb,
 			   n, i, t, dyn, name, data)
 {
-	if (usrxml__type_is_user(h, ifname))
-		return usrxml__delete_user_by_name(h, ifname);
-
 	# h,ifname
 	n = h SUBSEP ifname;
 
 	if (!(n in USRXML_ifnames))
 		return USRXML_E_NOENT;
+
+	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[n]))
+		return usrxml__delete_user_by_name(h, ifname);
 
 	t = USRXML_ifnames[n];
 
