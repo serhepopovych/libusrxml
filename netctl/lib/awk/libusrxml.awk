@@ -1469,6 +1469,18 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 # Name/type helpers
 #
 
+function usrxml__iname(h, name)
+{
+	if (name != "")
+		return name;
+
+	name = USRXML__instance[h,"name"];
+	if (name != "")
+		return name;
+
+	return "";
+}
+
 function usrxml__id(h, idn,    i)
 {
 	# h,username/userid
@@ -1487,26 +1499,20 @@ function usrxml__id(h, idn,    i)
 	return USRXML_E_NOENT;
 }
 
-function usrxml__name(h, name)
-{
-	if (name != "")
-		return name;
-
-	name = USRXML__instance[h,"name"];
-	if (name != "")
-		return name;
-
-	return "";
-}
-
-function usrxml__type(h, idn,    username)
+function usrxml__name(h, idn)
 {
 	idn = usrxml__id(h, idn);
 	if (idn < 0)
 		return "";
+	return USRXML_ifnames[h,idn];
+}
 
-	username = USRXML_ifnames[h,idn];
-	return USRXML_ifnames[h,username];
+function usrxml__type(h, idn)
+{
+	idn = usrxml__name(h, idn);
+	if (idn == "")
+		return "";
+	return USRXML_ifnames[h,idn];
 }
 
 function usrxml__type_is_user(h, idn, type)
@@ -2271,7 +2277,7 @@ function usrxml__restore_if_cb(h, dyn, iflu, data, arr)
 
 function usrxml__restore_if(h, ifname,    hh, cb)
 {
-	ifname = usrxml__name(h, ifname);
+	ifname = usrxml__iname(h, ifname);
 	if (ifname == "")
 		return;
 
@@ -2311,7 +2317,7 @@ function usrxml__restore_if(h, ifname,    hh, cb)
 
 function usrxml__cleanup_if(h, ifname)
 {
-	ifname = usrxml__name(h, ifname);
+	ifname = usrxml__iname(h, ifname);
 	if (ifname == "")
 		return;
 
