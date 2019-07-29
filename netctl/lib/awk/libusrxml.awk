@@ -1603,7 +1603,7 @@ function usrxml__validate_pipe(h, userid,    m, i, j, p, val, zones_dirs, zd_bit
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_name(h, username,    userid, ifname, n, ret)
+function usrxml__activate_user(h, username,    userid, ifname, n, ret)
 {
 	# h,username
 	n = h SUBSEP username;
@@ -1647,6 +1647,14 @@ function usrxml__activate_user_by_name(h, username,    userid, ifname, n, ret)
 	USRXML_ifnames[n,"inactive"] = 0;
 
 	return USRXML_E_NONE;
+}
+
+function usrxml__activate_user_by_name(h, username,    ret)
+{
+	ret = usrxml__activate_user(h, username);
+	if (ret != USRXML_E_NONE)
+		usrxml__deactivate_user_by_name(h, username);
+	return ret;
 }
 
 function usrxml__deactivate_user_by_name(h, username,    userid, ifname, n, ret)
