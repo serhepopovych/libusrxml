@@ -2727,16 +2727,18 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 		n = name "-" ifname;
 
 		if (sign > 0) {
-			usrxml__dyn_add_val(h, n, val, "");
+			if (usrxml__dyn_get_val(h, n, val) != val) {
+				usrxml__dyn_add_val(h, n, val, "");
 
-			# Support <upper/lower en0> to <lower/upper en0> replace
-			r = (name == "upper") ? "lower" : "upper";
-			r = r "-" ifname;
+				# Replace <upper/lower en0> to <lower/upper en0>
+				r = (name == "upper") ? "lower" : "upper";
+				r = r "-" ifname;
 
-			if (usrxml__dyn_get_val(h, r, val) != "")
-				usrxml__dyn_add_val(h, r, val, "/");
-			else
-				usrxml__dyn_del_by_attr(h, r, val);
+				if (usrxml__dyn_get_val(h, r, val) != "")
+					usrxml__dyn_add_val(h, r, val, "/");
+				else
+					usrxml__dyn_del_by_attr(h, r, val);
+			}
 		} else {
 			usrxml__dyn_add_val(h, n, val, "/");
 		}
