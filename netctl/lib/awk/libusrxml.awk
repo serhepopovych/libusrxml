@@ -1551,7 +1551,7 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 {
 	iflu = usrxml__name(h, iflu);
 	if (iflu == "") {
-		# Skip when lower isn't resolved (i.e. points to ":" and
+		# Skip when lower isn't resolved (i.e. points to "?" and
 		# not in USRXML_ifnames[]) and called recursively for
 		# "upper-{iflu}".
 		#
@@ -1598,7 +1598,7 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 {
 	iflu = usrxml__name(h, iflu);
 	if (iflu == "") {
-		# Skip when lower isn't resolved (i.e. points to ":" and
+		# Skip when lower isn't resolved (i.e. points to "?" and
 		# not in USRXML_ifnames[]) and called recursively for
 		# "upper-{iflu}".
 		#
@@ -1716,7 +1716,7 @@ function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev)
 {
 	type = arr[h,dyn,iflu];
 
-	if (type == ":") {
+	if (type == "?") {
 		# iflu reference is unresolved: simply delete it
 		usrxml___dyn_del_by_attr(h, "unres-" iflu, data["ifname"], arr);
 	} else if (type == "") {
@@ -1839,7 +1839,7 @@ function usrxml__restore_if(h, ifname,    hh, cb)
 		usrxml__copy_if(h, hh, ifname);
 
 		# Remove new entries: existing entries marked for delete ("/")
-		# or unresolved (":") already overwritten by usrxml__copy_if().
+		# or unresolved ("?") already overwritten by usrxml__copy_if().
 		cb = "usrxml__restore_if_cb";
 
 		if (usrxml__type_is_user(h, ifname)) {
@@ -2526,7 +2526,7 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
 		# Add interface to activate map
 		data[ifname] = 1;
 
-		# Add (":" -> "")
+		# Add ("?" -> "")
 		i = "";
 	} else {
 		rev = (lu == "upper") ? "lower" : "upper";
@@ -2566,7 +2566,7 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
 		#        from dynamic map iterator
 		if (!((h,iflu) in USRXML_ifnames)) {
 			usrxml___dyn_add_val(h, "unres-" iflu, ifname, lu, arr);
-			usrxml___dyn_add_val(h, dyn, iflu, ":", arr);
+			usrxml___dyn_add_val(h, dyn, iflu, "?", arr);
 			return 0;
 		}
 
@@ -3243,7 +3243,7 @@ function run_usrxml_parser(h, line, cb, data,
 	s_rs = RSTART;
 	s_rl = RLENGTH;
 
-	n = match(line, "^[[:space:]]*<(|[/:+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
+	n = match(line, "^[[:space:]]*<(|[/?@!+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
 
 	RSTART = s_rs;
 	RLENGTH = s_rl;
@@ -3320,6 +3320,25 @@ function usrxml__get_inactive_val(i,   val)
 	return val;
 }
 
+function usrxml__get_prefix_lu(h, dyn, iflu,    val)
+{
+	val = usrxml__dyn_get_val(h, dyn, iflu);
+
+	if (val == "?" || val == "") {
+		val = "?";		# unresolved
+	} else {
+		val = USRXML_ifnames[h,val,"inactive"];
+		if (val < 0)
+			val = "@";	# <inactive forced>
+		else if (val > 0)
+			val = "!";	# <inactive yes>
+		else
+			val = "";	# <inactive no>
+	}
+
+	return val;
+}
+
 function usrxml__print_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, sign, file)
 {
 	s1 = data["s1"];
@@ -3327,9 +3346,7 @@ function usrxml__print_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, sign, file)
 	lu = data["lu"];
 	file = data["file"];
 
-	sign = arr[h,dyn,iflu];
-	if (sign != ":")
-		sign = "";
+	sign = usrxml__get_prefix_lu(h, dyn, iflu);
 
 	if (sub(":$", "", iflu) == 1)
 		lu = "user";
@@ -3469,9 +3486,7 @@ function usrxml__print_user(h, i, file, s1, s2,
 	# if
 	n = USRXML_userif[i];
 	if (n != "") {
-		o = usrxml__dyn_get_val(h, "lower-" username ":", n);
-		if (o != ":")
-			o = "";
+		o = usrxml__get_prefix_lu(h, "lower-" username ":", n);
 
 		printf s1 "<%sif %s>" s2, o, n >>file;
 	}
