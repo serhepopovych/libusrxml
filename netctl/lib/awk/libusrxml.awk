@@ -1104,13 +1104,16 @@ function usrxml__type_is_if(h, idn, type)
 	return type != "" && type != "user";
 }
 
-function usrxml__type_cmp(h, name,    type, cmp, len, num, dyn)
+function usrxml__type_cmp(h, name,    n, type, cmp, len, num, dyn)
 {
-	type = USRXML_ifnames[h,name];
+	# h,name
+	n = h SUBSEP name;
 
 	# Item being deleted: force compare mismatch
-	if (type ~ "^/")
+	if ((n,"cmp") in USRXML_ifnames)
 		return 0;
+
+	type = USRXML_ifnames[n];
 
 	cmp = USRXML_types[type,"cmp"];
 
@@ -1474,15 +1477,13 @@ function usrxml__delete_maps(i, map, umap, name,    m, j, p)
 	delete umap[i,"num"];
 }
 
-function usrxml__delete_user(h, username,    n, m, i, j, p, t, dyn, name, data)
+function usrxml__delete_user(h, username,    n, m, i, j, p, dyn, name, data)
 {
 	# h,username
 	n = h SUBSEP username;
 
-	t = USRXML_ifnames[n];
-
-	# Mark user for deletion (prefix it's type with "/")
-	USRXML_ifnames[n] = "/" t;
+	# Mark user for deletion
+	USRXML_ifnames[n,"cmp"] = -1;
 
 	# h,userid
 	i = h SUBSEP USRXML_ifnames[n,"id"];
@@ -1525,11 +1526,12 @@ function usrxml__delete_user(h, username,    n, m, i, j, p, t, dyn, name, data)
 	usrxml__delete_maps(i, USRXML_nats6, USRXML_usernats6, "nat6");
 
 	# user
-	usrxml_section_delete_fileline(t SUBSEP i);
+	usrxml_section_delete_fileline(USRXML_ifnames[n] SUBSEP i);
 
 	usrxml__map_del_by_attr(h, username, USRXML_ifnames);
 
 	delete USRXML_ifnames[n,"inactive"];
+	delete USRXML_ifnames[n,"cmp"];
 
 	return USRXML_E_NONE;
 }
@@ -1739,7 +1741,7 @@ function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev)
 }
 
 function usrxml__delete_if(h, ifname, lower_cb, upper_cb,
-			   n, i, t, dyn, name, data)
+			   n, i, dyn, name, data)
 {
 	# h,ifname
 	n = h SUBSEP ifname;
@@ -1750,10 +1752,8 @@ function usrxml__delete_if(h, ifname, lower_cb, upper_cb,
 	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[n]))
 		return usrxml__delete_user_by_name(h, ifname);
 
-	t = USRXML_ifnames[n];
-
-	# Mark interface for deletion (prefix it's type with "/")
-	USRXML_ifnames[n] = "/" t;
+	# Mark interface for deletion
+	USRXML_ifnames[n,"cmp"] = -1;
 
 	# h,ifid
 	i = h SUBSEP USRXML_ifnames[n,"id"];
@@ -1780,11 +1780,12 @@ function usrxml__delete_if(h, ifname, lower_cb, upper_cb,
 		delete USRXML_ifnames[n,name];
 
 	# if
-	usrxml_section_delete_fileline(t SUBSEP i);
+	usrxml_section_delete_fileline(USRXML_ifnames[n] SUBSEP i);
 
 	usrxml__map_del_by_attr(h, ifname, USRXML_ifnames);
 
 	delete USRXML_ifnames[n,"inactive"];
+	delete USRXML_ifnames[n,"cmp"];
 }
 
 function usrxml__delete_if_by_id(h, ifid,    n, ifname)
@@ -2421,7 +2422,7 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_inactive(h, ifname,    n, i, v, r, t, cmp)
+function usrxml__scope_inactive(h, ifname,    n, i, v, r, cmp)
 {
 	# h,ifname
 	n = h SUBSEP ifname;
@@ -2476,11 +2477,9 @@ function usrxml__scope_inactive(h, ifname,    n, i, v, r, t, cmp)
 	if (cmp > 0) {
 		usrxml__activate_if_by_name(h, "", ifname);
 	} else {
-		t = USRXML_ifnames[n];
-
-		USRXML_ifnames[n] = "/" t; # force type cmp
+		USRXML_ifnames[n,"cmp"] = -1; # force type cmp
 		usrxml__deactivate_if_by_name(h, "", ifname);
-		USRXML_ifnames[n] = t;
+		delete USRXML_ifnames[n,"cmp"];
 
 		if (cmp < 0)
 			USRXML_ifnames[r] = 1;
