@@ -3306,6 +3306,20 @@ function run_usrxml_parser(h, line, cb, data,
 # Print if/user entry in oneline usrxml format
 #
 
+function usrxml__get_inactive_val(i,   val)
+{
+	val = USRXML_ifnames[i,"inactive"];
+
+	if (val < 0)
+		val = "forced";
+	else if (val > 0)
+		val = "yes";
+	else
+		val = "";
+
+	return val;
+}
+
 function usrxml__print_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, sign, file)
 {
 	s1 = data["s1"];
@@ -3337,13 +3351,7 @@ function usrxml__print_if(h, i, file, s1, s2,
 	printf "<%s %s>" s2, t, ifname >>file;
 
 	# inactive
-	o = USRXML_ifnames[i,"inactive"];
-	if (o < 0)
-		o = "forced";
-	else if (o > 0)
-		o = "yes";
-	else
-		o = "";
+	o = usrxml__get_inactive_val(i);
 
 	if (o != "")
 		printf s1 "<inactive %s>" s2, o >>file;
@@ -3418,13 +3426,7 @@ function usrxml__print_user(h, i, file, s1, s2,
 	printf "<%s %s>" s2, t, username >>file;
 
 	# inactive
-	o = USRXML_ifnames[o,"inactive"];
-	if (o < 0)
-		o = "forced";
-	else if (o > 0)
-		o = "yes";
-	else
-		o = "";
+	o = usrxml__get_inactive_val(o);
 
 	if (o != "")
 		printf s1 "<inactive %s>" s2, o >>file;
