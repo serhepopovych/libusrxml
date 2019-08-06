@@ -1124,7 +1124,8 @@ function usrxml__type_cmp(h, name,    n, type, cmp, len, num, dyn)
 	if (usrxml__type_is_user(h, name, type))
 		dyn = dyn ":";
 
-	len = h SUBSEP dyn SUBSEP "ref";
+	# h,dyn,"act"
+	len = h SUBSEP dyn SUBSEP "act";
 	len = (len in USRXML__dynmap) ? USRXML__dynmap[len] : 0;
 
 	if (cmp == USRXML_type_cmp_nan)
@@ -1142,6 +1143,72 @@ function usrxml__type_cmp(h, name,    n, type, cmp, len, num, dyn)
 		return len <= num;
 
 	return 0;
+}
+
+#
+# Helpers to manage number of "act"ive lowers/uppers
+#
+
+function usrxml____act_adjust(h, dyn, val, arr, dec,    i)
+{
+	# h,dyn,"act"
+	i = h SUBSEP dyn SUBSEP "act";
+
+	dec = (1 - 2 * !!dec) * val;
+
+	if ((arr[i] += dec) <= 0)
+		delete arr[i];
+}
+
+function usrxml___act_adjust(h, dyn, ifname, arr, dec,    val)
+{
+	val = !USRXML_ifnames[h,ifname,"inactive"];
+	usrxml____act_adjust(h, dyn, val, arr, dec);
+}
+
+function usrxml___act_adjust_force(h, dyn, arr, dec)
+{
+	usrxml____act_adjust(h, dyn, 1, arr, dec);
+}
+
+function usrxml___act_inc(h, dyn, ifname, arr)
+{
+	usrxml___act_adjust(h, dyn, ifname, arr);
+}
+
+function usrxml___act_dec(h, dyn, ifname, arr)
+{
+	usrxml___act_adjust(h, dyn, ifname, arr, 1);
+}
+
+function usrxml___act_inc_force(h, dyn, arr)
+{
+	usrxml___act_adjust_force(h, dyn, arr);
+}
+
+function usrxml___act_dec_force(h, dyn, arr)
+{
+	usrxml___act_adjust_force(h, dyn, arr, 1);
+}
+
+function usrxml__act_inc(h, dyn, ifname)
+{
+	usrxml___act_inc(h, dyn, ifname, USRXML__dynmap);
+}
+
+function usrxml__act_dec(h, dyn, ifname)
+{
+	usrxml___act_dec(h, dyn, ifname, USRXML__dynmap);
+}
+
+function usrxml__act_inc_force(h, dyn)
+{
+	usrxml___act_inc_force(h, dyn, USRXML__dynmap);
+}
+
+function usrxml__act_dec_force(h, dyn)
+{
+	usrxml___act_dec_force(h, dyn, USRXML__dynmap);
 }
 
 #
@@ -1514,7 +1581,6 @@ function usrxml__delete_user(h, username,    n, m, i, j, p, dyn, name, data)
 
 	dyn = dyn "-" m;
 	usrxml__dyn_for_each(h, dyn, "usrxml__delete_if_cb", data);
-	delete USRXML__dynmap[h,dyn,"ref"];
 
 	# net
 	usrxml__delete_maps(i, USRXML_nets, USRXML_usernets, "net");
@@ -1551,16 +1617,24 @@ function usrxml__delete_user_by_name(h, username,    ret)
 
 function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 {
-	iflu = usrxml__name(h, iflu);
-	if (iflu == "") {
+	val = usrxml__name(h, iflu);
+	if (ifname != "") {
 		# Skip when lower isn't resolved (i.e. points to "?" and
 		# not in USRXML_ifnames[]) and called recursively for
 		# "upper-{iflu}".
 		#
+		if (val == "")
+			return USRXML_E_NONE;
+
+		# We are upper of already active lower
+		arr[h,"lower-" iflu,"act"]++;
+	} else {
 		# Fail with USRXML_E_NOENT otherwise if called with
 		# non-existing @iflu for example.
-		return (ifname != "") ? USRXML_E_NONE : USRXML_E_NOENT;
+		if (val == "")
+			return USRXML_E_NOENT;
 	}
+	iflu = val;
 
 	# h,iflu,"inactive"
 	i = h SUBSEP iflu SUBSEP "inactive";
@@ -1598,16 +1672,24 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 
 function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 {
-	iflu = usrxml__name(h, iflu);
-	if (iflu == "") {
+	val = usrxml__name(h, iflu);
+	if (ifname != "") {
 		# Skip when lower isn't resolved (i.e. points to "?" and
 		# not in USRXML_ifnames[]) and called recursively for
 		# "upper-{iflu}".
 		#
+		if (val == "")
+			return USRXML_E_NONE;
+
+		# We are upper of already active lower
+		arr[h,"lower-" iflu,"act"]--;
+	} else {
 		# Fail with USRXML_E_NOENT otherwise if called with
 		# non-existing @iflu for example.
-		return (ifname != "") ? USRXML_E_NONE : USRXML_E_NOENT;
+		if (val == "")
+			return USRXML_E_NOENT;
 	}
+	iflu = val;
 
 	# h,iflu,"inactive"
 	i = h SUBSEP iflu SUBSEP "inactive";
@@ -1714,7 +1796,7 @@ function usrxml__delete_if_upper_cb(h, dyn, ifname, data, arr)
 		usrxml__deactivate_if_by_name(h, "", ifname);
 }
 
-function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev)
+function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev, ifname)
 {
 	type = arr[h,dyn,iflu];
 
@@ -1725,12 +1807,18 @@ function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev)
 		# iflu added, but no resolution happened at all
 	} else {
 		# iflu marked for delete with "/" or resolved
-		rev = (data["lu"] == "upper") ? "lower" : "upper";
-		rev = rev "-" iflu;
 
-		usrxml___dyn_del_by_attr(h, rev, data["ifname"], arr);
-		if (--arr[h,rev,"ref"] <= 0)
-			delete arr[h,rev,"ref"];
+		ifname = data["ifname"];
+
+		if (data["lu"] == "upper") {
+			rev = "lower-" iflu;
+			usrxml___act_dec(h, rev, ifname, arr);
+		} else {
+			rev = "upper-" iflu;
+			usrxml___act_dec_force(h, dyn, arr);
+		}
+
+		usrxml___dyn_del_by_attr(h, rev, ifname, arr);
 
 		cb = data["cb"];
 		if (cb != "")
@@ -1766,14 +1854,12 @@ function usrxml__delete_if(h, ifname, lower_cb, upper_cb,
 
 	dyn = dyn "-" ifname;
 	usrxml__dyn_for_each(h, dyn, "usrxml__delete_if_cb", data);
-	delete USRXML__dynmap[h,dyn,"ref"];
 
 	data["cb"] = upper_cb;
 	data["lu"] = dyn = "upper";
 
 	dyn = dyn "-" ifname;
 	usrxml__dyn_for_each(h, dyn, "usrxml__delete_if_cb", data);
-	delete USRXML__dynmap[h,dyn,"ref"];
 
 	# parms
 	for (name in USRXML_ifparms)
@@ -2569,15 +2655,19 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
 			return 0;
 		}
 
-		if (usrxml__dyn_get_val(h, dyn, iflu, arr) != iflu)
-			arr[h,dyn,"ref"]++;
-		usrxml___dyn_add_val(h, dyn, iflu, iflu, arr);
+		data[iflu] = 1;
 
 		rev = rev "-" iflu;
 
-		if (usrxml__dyn_get_val(h, rev, ifname, arr) != ifname)
-			arr[h,rev,"ref"]++;
-		usrxml___dyn_add_val(h, rev, ifname, ifname, arr);
+		i = iflu;
+		sub(":$", "", i);
+		usrxml___dyn_add_val(h, dyn, iflu, i, arr);
+
+		i = ifname;
+		sub(":$", "", i);
+		usrxml___dyn_add_val(h, rev, ifname, i, arr);
+
+		i = 0;
 	} else if (i == "/") {
 		## Del
 
@@ -2591,16 +2681,6 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
 		# Was active (i.e. usrxml__dyn_get_val() != "") but now marked
 		# for delete by setting to "/" which is not valid ifname
 		# according to usrxml_dev_valid_name() helper.
-
-		usrxml___dyn_del_by_attr(h, dyn, iflu, arr);
-		if (--arr[h,dyn,"ref"] <= 0)
-			delete arr[h,dyn,"ref"];
-
-		rev = rev "-" iflu;
-
-		usrxml___dyn_del_by_attr(h, rev, ifname, arr);
-		if (--arr[h,rev,"ref"] <= 0)
-			delete arr[h,rev,"ref"];
 
 		# Lowers/uppers deletion can activate interface(s):
 		#
@@ -2642,7 +2722,22 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
 		# </vlan>
 
 		data[iflu] = 1;
+
+		rev = rev "-" iflu;
+
+		usrxml___dyn_del_by_attr(h, dyn, iflu, arr);
+
+		usrxml___dyn_del_by_attr(h, rev, ifname, arr);
+
+		i = 1;
+	} else {
+		return 0;
 	}
+
+	if (lu == "upper")
+		usrxml___act_adjust(h, rev, ifname, arr, i);
+	else
+		usrxml___act_adjust(h, dyn, iflu, arr, i);
 
 	return 0;
 }
