@@ -2339,27 +2339,21 @@ function fini_usrxml_parser(h,    n, p)
 # Parse and validate XML document.
 #
 
-function usrxml__scope_error(h, sign, name, val,    ret)
+function usrxml__scope_error(h, sign, name, val)
 {
-	# Skip all lines until new user entry on error
-
-	val = sub("^/", "", name);
+	# Skip all lines until new section
 
 	if ((name,"cmp") in USRXML_types) {
-		if (val == 1) {
-			ret = USRXML_E_NONE;
-		} else {
-			# Signal caller to lookup with new scope
-			ret = 1;
-		}
+		USRXML__instance[h,"scope"] = USRXML__scope_none;
+		# Note that "depth" reset in caller on "scope" setup
+
+		usrxml__clearerrno(h);
+
+		# Signal caller to lookup with new scope
+		return 1;
 	} else {
-		return USRXML_E_NONE;
+		return usrxml_errno(h);
 	}
-
-	USRXML__instance[h,"scope"] = USRXML__scope_none;
-	USRXML__instance[h,"depth"] = 0;
-
-	return ret;
 }
 
 function usrxml__scope_none(h, sign, name, val,    n, i)
@@ -3240,8 +3234,6 @@ function run_usrxml_parser(h, line, cb, data,
 	}
 	USRXML__instance[h,"linenum"]++;
 
-	usrxml__clearerrno(h);
-
 	if (line ~ "^[[:space:]]*(#|$)")
 		return USRXML_E_NONE;
 
@@ -3290,10 +3282,12 @@ function run_usrxml_parser(h, line, cb, data,
 				ret = a[2] + 1;
 			break;
 		}
-		# Parse error in the middle of operation: skip lines until valid
 		if (ret < 0) {
-			if (n > 0)
+			# Parse error in the middle of section: skip lines
+			if (n > 0) {
 				USRXML__instance[h,"scope"] = USRXML__scope_error;
+				USRXML__instance[h,"depth"] = 0;
+			}
 			break;
 		}
 	} while (ret > 0);
@@ -3600,9 +3594,10 @@ function load_usrxml_file(_h, file, flags, cb, data,    h, line, rc, ret, s_fn, 
 	while ((rc = (getline line <FILENAME)) > 0) {
 		ret = run_usrxml_parser(h, line, cb, data);
 		if (ret < 0) {
-			if (!and(flags, USRXML_LOAD_SKIP_FAILED))
+			if (and(flags, USRXML_LOAD_SKIP_FAILED))
+				usrxml__clearerrno(h);
+			else
 				break;
-			usrxml__clearerrno(h);
 		}
 	}
 
