@@ -1828,6 +1828,8 @@ function usrxml__restore_if(h, ifname,    hh, cb)
 	if (ifname == "")
 		return;
 
+	# First try to delete as there might be nothing
+	# to restore if we creating new entry.
 	usrxml__delete_if(h, ifname);
 
 	# h,"orig"
