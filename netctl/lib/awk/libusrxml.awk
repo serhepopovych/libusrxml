@@ -888,7 +888,7 @@ function usrxml__dyn_del_by_id(h, dyn, id, arr,    hh, attr)
 		return usrxml___dyn_del_by_id(h, dyn, id, USRXML__dynmap);
 }
 
-function usrxml___dyn_for_each(h, dyn, cb, data, arr,
+function usrxml____dyn_for_each(h, dyn, cb, data, arr, dec,
 			       n, i, p, hh, attr, ret)
 {
 	# h,dyn
@@ -901,7 +901,12 @@ function usrxml___dyn_for_each(h, dyn, cb, data, arr,
 		return USRXML_E_NONE;
 
 	n = arr[n];
-	for (p = 0; p < n; p++) {
+
+	dec = !!dec;
+	p = --n * dec;
+	dec = 1 - 2 * dec;
+
+	for (; n-- >= 0; p += dec) {
 		# h,dyn,id
 		i = hh SUBSEP p;
 
@@ -910,7 +915,7 @@ function usrxml___dyn_for_each(h, dyn, cb, data, arr,
 			continue;
 
 		attr = arr[i];
-		ret = @cb(h, dyn, attr, data, arr);
+		ret = @cb(h, dyn, attr, data, arr, dec);
 		if (ret < 0)
 			return ret;
 		if (ret > 0)
@@ -918,6 +923,11 @@ function usrxml___dyn_for_each(h, dyn, cb, data, arr,
 	}
 
 	return USRXML_E_NONE;
+}
+
+function usrxml___dyn_for_each(h, dyn, cb, data, arr)
+{
+	return usrxml____dyn_for_each(h, dyn, cb, data, arr);
 }
 
 function usrxml__dyn_for_each(h, dyn, cb, data, arr)
@@ -928,7 +938,20 @@ function usrxml__dyn_for_each(h, dyn, cb, data, arr)
 		return usrxml___dyn_for_each(h, dyn, cb, data, USRXML__dynmap);
 }
 
-function usrxml__dyn_cnt_val_cb(h, dyn, attr, data, arr,    val)
+function usrxml___dyn_for_each_reverse(h, dyn, cb, data, arr)
+{
+	return usrxml____dyn_for_each(h, dyn, cb, data, arr, -1);
+}
+
+function usrxml__dyn_for_each_reverse(h, dyn, cb, data, arr)
+{
+	if (isarray(arr))
+		return usrxml___dyn_for_each_reverse(h, dyn, cb, data, arr);
+	else
+		return usrxml___dyn_for_each_reverse(h, dyn, cb, data, USRXML__dynmap);
+}
+
+function usrxml__dyn_cnt_val_cb(h, dyn, attr, data, arr, dec,    val)
 {
 	val = arr[h,dyn,attr];
 
@@ -1008,7 +1031,7 @@ function usrxml__finish_dynmap(h, arr)
 		usrxml___finish_dynmap(h, USRXML__dynmap);
 }
 
-function usrxml__dyn_copy_cb(sh, dyn, attr, dh, arr)
+function usrxml__dyn_copy_cb(sh, dyn, attr, dh, arr, dec)
 {
 	usrxml___dyn_add_val(dh, dyn, attr, arr[sh,dyn,attr], arr);
 
@@ -1725,7 +1748,7 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
 }
 
-function usrxml__copy_if_cb(sh, dyn, iflu, data, arr,    val, dh, ifname)
+function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,    val, dh, ifname)
 {
 	dh = data["dh"];
 	ifname = data["ifname"];
@@ -1796,7 +1819,8 @@ function usrxml__delete_if_upper_cb(h, dyn, ifname, data, arr)
 		usrxml__deactivate_if_by_name(h, "", ifname);
 }
 
-function usrxml__delete_if_cb(h, dyn, iflu, data, arr,    type, cb, rev, ifname)
+function usrxml__delete_if_cb(h, dyn, iflu, data, arr, dec,
+			      type, cb, rev, ifname)
 {
 	type = arr[h,dyn,iflu];
 
@@ -1904,7 +1928,7 @@ function usrxml__save_if(h, ifname)
 	return usrxml__copy_if(h SUBSEP USRXML_orig, h, ifname);
 }
 
-function usrxml__restore_if_cb(h, dyn, iflu, data, arr)
+function usrxml__restore_if_cb(h, dyn, iflu, data, arr, dec)
 {
 	return arr[h,dyn,iflu] == "";
 }
@@ -2575,7 +2599,8 @@ function usrxml__scope_inactive(h, ifname,    n, i, v, r, cmp)
 	}
 }
 
-function usrxml__scope_if_cb(h, dyn, iflu, data, arr,    i, ifname, lu, rev)
+function usrxml__scope_if_cb(h, dyn, iflu, data, arr, dec,
+			     i, ifname, lu, rev)
 {
 	ifname = data["ifname:"];
 	lu = data["lu:"];
@@ -3436,7 +3461,8 @@ function usrxml__get_prefix_lu(h, dyn, iflu,    val)
 	return val;
 }
 
-function usrxml__print_if_cb(h, dyn, iflu, data, arr,    s1, s2, lu, sign, file)
+function usrxml__print_if_cb(h, dyn, iflu, data, arr, dec,
+			     s1, s2, lu, sign, file)
 {
 	s1 = data["s1"];
 	s2 = data["s2"];
