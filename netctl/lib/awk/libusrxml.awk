@@ -3376,7 +3376,7 @@ function run_usrxml_parser(h, line, cb, data,
 		if (split(ret, a, SUBSEP) >= 2) {
 			# Make sure we always return value > 0
 			if (cb != "")
-				ret = @cb(h, ret, data, a);
+				ret = @cb(h, ret, a, data);
 			else
 				ret = a[2] + 1;
 			break;
