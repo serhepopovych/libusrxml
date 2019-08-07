@@ -582,6 +582,21 @@ function usrxml_dev_valid_name(name)
 	return name ~ "^[^[:space:]/:]{1,15}$";
 }
 
+function usrxml_make_var_name(val)
+{
+	if (val == "")
+		return "";
+
+	# Replace all not alnum or underline symbols with "_"
+	gsub("[^[:alnum:]_]", "_", val);
+
+	# Prefix with "_" if beginning with digit
+	if (val ~ "^[[:digit:]]")
+		val = "_" val;
+
+	return val;
+}
+
 #
 # Map helpers
 #
