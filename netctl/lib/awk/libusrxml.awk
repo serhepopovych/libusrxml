@@ -1901,7 +1901,7 @@ function usrxml__delete_if_by_name(h, ifname,    n)
 
 function usrxml__save_if(h, ifname)
 {
-	return usrxml__copy_if(h SUBSEP "orig", h, ifname);
+	return usrxml__copy_if(h SUBSEP USRXML_orig, h, ifname);
 }
 
 function usrxml__restore_if_cb(h, dyn, iflu, data, arr)
@@ -1919,8 +1919,8 @@ function usrxml__restore_if(h, ifname,    hh, cb)
 	# to restore if we creating new entry.
 	usrxml__delete_if(h, ifname);
 
-	# h,"orig"
-	hh = h SUBSEP "orig";
+	# h,USRXML_orig
+	hh = h SUBSEP USRXML_orig;
 
 	if ((hh,ifname) in USRXML_ifnames) {
 		usrxml__copy_if(h, hh, ifname);
@@ -1958,9 +1958,9 @@ function usrxml__cleanup_if(h, ifname)
 		return;
 
 	if (usrxml__type_is_user(h, ifname))
-		usrxml__delete_user(h SUBSEP "orig", ifname);
+		usrxml__delete_user(h SUBSEP USRXML_orig, ifname);
 	else
-		usrxml__delete_if(h SUBSEP "orig", ifname);
+		usrxml__delete_if(h SUBSEP USRXML_orig, ifname);
 }
 
 #
@@ -2046,6 +2046,9 @@ function declare_usrxml_consts()
 	# Library public functions call order
 	USRXML__order_none	= 0;
 	USRXML__order_parse	= 1;
+
+	# Handle suffix to store "orig"inal item in same map
+	USRXML_orig		= "orig";
 
 	# Load/store flags
 	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
@@ -3369,7 +3372,7 @@ function run_usrxml_parser(h, line, cb, data,
 		fn = "usrxml__scope_" USRXML__instance[h,"scope"];
 		ret = @fn(h, sign, name, val);
 
-		# h,ifid/userid (2) or h,"orig",ifid/userid (3)
+		# h,ifid/userid (2) or h,USRXML_orig,ifid/userid (3)
 		if (split(ret, a, SUBSEP) >= 2) {
 			# Make sure we always return value > 0
 			if (cb != "")
