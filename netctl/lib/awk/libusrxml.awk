@@ -1680,11 +1680,9 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 	# Activate interface and it's uppers
 	USRXML_ifnames[i] = 0;
 
-	if (ifname != "") {
-		cb = USRXML__instance[h,"ifup"];
-		if (cb != "")
-			@cb(h, iflu);
-	}
+	if (ifname == "")
+		ifname = iflu;
+	usrxml___dyn_add_val(h, ifname, iflu, 1, USRXML_ifupdown);
 
 	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
 		return usrxml__activate_user_by_name(h, iflu);
@@ -1735,11 +1733,9 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 	# Deactivate interface and it's uppers
 	USRXML_ifnames[i] = -1;
 
-	if (ifname != "") {
-		cb = USRXML__instance[h,"ifdown"];
-		if (cb != "")
-			@cb(h, iflu);
-	}
+	if (ifname == "")
+		ifname = iflu;
+	usrxml___dyn_add_val(h, ifname, iflu, -1, USRXML_ifupdown);
 
 	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
 		return usrxml__deactivate_user_by_name(h, iflu);
@@ -1808,7 +1804,7 @@ function usrxml__copy_if(dh, sh, ifname,    i, i_dst, i_src, name, data)
 	return i_dst;
 }
 
-function usrxml__delete_if_upper_cb(h, dyn, ifname, data, arr)
+function usrxml__delete_if_upper_cb(h, dyn, ifname, data, arr, dec)
 {
 	if (!((h,ifname) in USRXML_ifnames))
 		return;
@@ -1908,6 +1904,9 @@ function usrxml__delete_if_by_id(h, ifid,    n, ifname)
 		return;
 
 	ifname = USRXML_ifnames[n];
+
+	usrxml___dyn_add_val(h, ifname, ifname, -1, USRXML_ifupdown);
+
 	usrxml__delete_if(h, ifname, "", "usrxml__delete_if_upper_cb");
 }
 
@@ -1919,6 +1918,8 @@ function usrxml__delete_if_by_name(h, ifname,    n)
 	# Skip holes entries
 	if (!(n in USRXML_ifnames))
 		return;
+
+	usrxml___dyn_add_val(h, ifname, ifname, -1, USRXML_ifupdown);
 
 	usrxml__delete_if(h, ifname, "", "usrxml__delete_if_upper_cb");
 }
@@ -2343,6 +2344,7 @@ function init_usrxml_parser(prog,    h)
 	# making iterations like "for (v in arr)" to fail.
 	delete USRXML__dynmap[1];
 	delete USRXML_ifuser[1];
+	delete USRXML_ifupdown[1];
 
 	delete USRXML_ifnames[1];
 
@@ -2404,6 +2406,7 @@ function fini_usrxml_parser(h,    n, p)
 	# Dynamic mappings
 	usrxml__finish_dynmap(h, USRXML_ifnames);
 	usrxml__finish_dynmap(h, USRXML_ifuser);
+	usrxml__finish_dynmap(h, USRXML_ifupdown);
 	usrxml__finish_dynmap(h);
 
 	# Name of program that uses API
@@ -2504,6 +2507,8 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 				# as inactive if they was active before.
 
 				USRXML_ifnames[h,val,"inactive"] = -1;
+
+				usrxml___dyn_add_val(h, val, val, -1, USRXML_ifupdown);
 			}
 
 			USRXML__instance[h,"name"] = val;
@@ -3336,6 +3341,93 @@ function usrxml__scope_net(h, sign, name, val)
 function usrxml__scope_net6(h, sign, name, val)
 {
 	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6, "6");
+}
+
+function usrxml__ifupdown_cb(h, ifname, iflu, cb, arr, dec,    n, type)
+{
+	# Skip entries not matching current iterator
+	if (dec != USRXML_ifupdown[h,ifname,iflu])
+		return 0;
+
+	if (dec < 0) {
+		# ifdown
+
+		# Find handle in case of deleted entry which
+		# is stored as h,USRXML_orig handle.
+
+		if (!((h,iflu) in USRXML_ifnames)) {
+			# h,USRXML_orig
+			h = h SUBSEP USRXML_orig;
+
+			if (!((h,iflu) in USRXML_ifnames)) {
+				# Assert as we must have saved entry
+				return USRXML_E_NOENT;
+			}
+		}
+	}
+
+	if (cb != "")
+		@cb(h, ifname, iflu, arr, dec);
+
+	return 1;
+}
+
+function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
+{
+	# h,"num"
+	n = h SUBSEP "num";
+
+	if (!(n in USRXML_ifupdown)) {
+		# Assert as we must have at least USRXML_ifnames[ret]
+		return USRXML_E_NOENT;
+	}
+
+	n = USRXML_ifupdown[n];
+
+	# Do ifdown in reverse first
+	for (p = n; --p >= 0; ) {
+		# h,id
+		i = h SUBSEP p;
+
+		# Skip hole entries
+		if (!(i in USRXML_ifupdown))
+			continue;
+
+		ifname = USRXML_ifupdown[i];
+
+		ret = usrxml__dyn_for_each_reverse(h, ifname,
+						   "usrxml__ifupdown_cb",
+						   cb, USRXML_ifupdown);
+		if (ret != USRXML_E_NONE)
+			return ret;
+	}
+
+	# While activate/deactivate (ifup/ifdown) could be called in any order,
+	# which is respected by this code, typically all uppers (interfaces
+	# that rely processed one) are either activated (ifup) or deactivated
+	# (ifdown). Optimize this case by checking if USRXML_ifupdown isn't empty.
+
+	# Do ifup in direct next
+	if ((h,"cnt") in USRXML_ifupdown) {
+		for (p = 0; p < n; p++) {
+			# h,id
+			i = h SUBSEP p;
+
+			# Skip hole entries
+			if (!(i in USRXML_ifupdown))
+				continue;
+
+			ifname = USRXML_ifupdown[i];
+
+			ret = usrxml__dyn_for_each(h, ifname,
+						   "usrxml__ifupdown_cb",
+						   cb, USRXML_ifupdown);
+			if (ret != USRXML_E_NONE)
+				return ret;
+		}
+	}
+
+	return isarray(a) ? a[2] + 1 : USRXML_E_NONE;
 }
 
 function run_usrxml_parser(h, line, cb, data,
