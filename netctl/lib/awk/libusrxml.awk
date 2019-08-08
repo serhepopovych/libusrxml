@@ -821,8 +821,13 @@ function usrxml__dyn_test_attr(h, dyn, attr, arr)
 
 function usrxml__dyn_get_val(h, dyn, attr, arr,    n)
 {
-	# h,dyn,attr
-	n = h SUBSEP dyn SUBSEP attr;
+	# h,dyn
+	n = h SUBSEP dyn;
+
+	if (attr != "") {
+		# h,dyn,attr
+		n = n SUBSEP attr;
+	}
 
 	if (isarray(arr))
 		return (n in arr) ? arr[n] : "";
@@ -830,16 +835,29 @@ function usrxml__dyn_get_val(h, dyn, attr, arr,    n)
 		return (n in USRXML__dynmap) ? USRXML__dynmap[n] : "";
 }
 
-function usrxml___dyn_add_val(h, dyn, attr, val, arr,    hh, ret)
+function usrxml__dyn_get_dval(h, dyn, arr)
+{
+	return usrxml__dyn_get_val(h, dyn, "", arr);
+}
+
+function usrxml___dyn_add_val(h, dyn, attr, val, arr, dval,    hh, ret)
 {
 	# h,dyn
 	hh = h SUBSEP dyn;
 
-	if (!((hh,attr) in arr)) {
+	# Add dynamic array value (dval) if specified
+	# or count number of elements if not.
+	#
+	# Take handle (h) from map id (> 0) or error code (< 0).
+	if (dval != "")
+		ret = int(usrxml__map_add_val(h, dyn, arr, dval));
+	else if (!((hh,attr) in arr))
 		ret = int(usrxml__map_add_attr(h, dyn, arr));
-		if (ret < 0)
-			return ret;
-	}
+	else
+		ret = 0;
+
+	if (ret < 0)
+		return ret;
 
 	return usrxml__map_add_val(hh, attr, arr, val);
 }
@@ -863,16 +881,14 @@ function usrxml___dyn_del_by_attr(h, dyn, attr, arr,    hh, id)
 	hh = h SUBSEP dyn;
 
 	id = usrxml__map_del_by_attr(hh, attr, arr);
-	if (id < 0)
-		return id;
 
-	if (--arr[hh] <= 0)
+	if (!((hh,"num") in arr))
 		usrxml__map_del_by_attr(h, dyn, arr);
 
 	return id;
 }
 
-function usrxml__dyn_del_by_attr(h, dyn, attr, arr,    hh, id)
+function usrxml__dyn_del_by_attr(h, dyn, attr, arr)
 {
 	if (isarray(arr))
 		return usrxml___dyn_del_by_attr(h, dyn, attr, arr);
@@ -886,16 +902,14 @@ function usrxml___dyn_del_by_id(h, dyn, id, arr,    hh, attr)
 	hh = h SUBSEP dyn;
 
 	attr = usrxml__map_del_by_id(hh, id, arr);
-	if (attr == "")
-		return attr;
 
-	if (--arr[hh] <= 0)
-		usrxml__del_by_attr(h, dyn, arr);
+	if (!((hh,"num") in arr))
+		usrxml__map_del_by_attr(h, dyn, arr);
 
 	return attr;
 }
 
-function usrxml__dyn_del_by_id(h, dyn, id, arr,    hh, attr)
+function usrxml__dyn_del_by_id(h, dyn, id, arr)
 {
 	if (isarray(arr))
 		return usrxml___dyn_del_by_id(h, dyn, id, arr);
@@ -1046,9 +1060,9 @@ function usrxml__finish_dynmap(h, arr)
 		usrxml___finish_dynmap(h, USRXML__dynmap);
 }
 
-function usrxml__dyn_copy_cb(sh, dyn, attr, dh, arr, dec)
+function usrxml___dyn_copy_cb(sh, dyn, attr, dh, arr, dec)
 {
-	usrxml___dyn_add_val(dh, dyn, attr, arr[sh,dyn,attr], arr);
+	usrxml__map_add_val(dh SUBSEP dyn, attr, arr, arr[sh,dyn,attr]);
 
 	return 0;
 }
@@ -1063,9 +1077,11 @@ function usrxml___dyn_copy(dh, sh, dyn, arr,    i_src, i_dst)
 	if (dh == sh)
 		return sh SUBSEP arr[i_src,"id"];
 
-	i_dst = usrxml__map_add_val(dh, dyn, arr, 0);
+	usrxml__dyn_del_all(dh, dyn, arr);
 
-	usrxml___dyn_for_each(sh, dyn, "usrxml__dyn_copy_cb", dh, arr);
+	i_dst = usrxml__map_add_val(dh, dyn, arr, arr[i_src]);
+
+	usrxml___dyn_for_each(sh, dyn, "usrxml___dyn_copy_cb", dh, arr);
 
 	return i_dst;
 }
