@@ -3379,7 +3379,7 @@ function usrxml__scope_net6(h, sign, name, val)
 function usrxml__ifupdown_cb(h, ifname, iflu, fn, arr, dec,    n, type)
 {
 	# Skip entries not matching current iterator
-	if (dec != USRXML_ifupdown[h,ifname,iflu])
+	if (dec != arr[h,ifname,iflu])
 		return 0;
 
 	if (dec < 0) {
