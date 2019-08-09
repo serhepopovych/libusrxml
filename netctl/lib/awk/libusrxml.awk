@@ -3426,9 +3426,9 @@ function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
 
 		ifname = USRXML_ifupdown[i];
 
-		ret = usrxml__dyn_for_each_reverse(h, ifname,
-						   "usrxml__ifupdown_cb",
-						   cb, USRXML_ifupdown);
+		ret = usrxml___dyn_for_each_reverse(h, ifname,
+						    "usrxml__ifupdown_cb",
+						    cb, USRXML_ifupdown);
 		if (ret != USRXML_E_NONE)
 			return ret;
 	}
@@ -3450,9 +3450,9 @@ function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
 
 			ifname = USRXML_ifupdown[i];
 
-			ret = usrxml__dyn_for_each(h, ifname,
-						   "usrxml__ifupdown_cb",
-						   cb, USRXML_ifupdown);
+			ret = usrxml___dyn_for_each(h, ifname,
+						    "usrxml__ifupdown_cb",
+						    cb, USRXML_ifupdown);
 			if (ret != USRXML_E_NONE)
 				return ret;
 		}
