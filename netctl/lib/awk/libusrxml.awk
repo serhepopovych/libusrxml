@@ -3374,7 +3374,7 @@ function usrxml__scope_net6(h, sign, name, val)
 	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6, "6");
 }
 
-function usrxml__ifupdown_cb(h, ifname, iflu, cb, arr, dec,    n, type)
+function usrxml__ifupdown_cb(h, ifname, iflu, fn, arr, dec,    n, type)
 {
 	# Skip entries not matching current iterator
 	if (dec != USRXML_ifupdown[h,ifname,iflu])
@@ -3397,13 +3397,13 @@ function usrxml__ifupdown_cb(h, ifname, iflu, cb, arr, dec,    n, type)
 		}
 	}
 
-	if (cb != "")
-		@cb(h, ifname, iflu, arr, dec);
+	if (fn != "")
+		@fn(h, ifname, iflu, arr, dec);
 
 	return 1;
 }
 
-function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
+function usrxml__ifupdown(h, ret, a, fn,    n, i, p, cb, ifname)
 {
 	# h,"num"
 	n = h SUBSEP "num";
@@ -3414,6 +3414,8 @@ function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
 	}
 
 	n = USRXML_ifupdown[n];
+
+	cb = "usrxml__ifupdown_cb";
 
 	# Do ifdown in reverse first
 	for (p = n; --p >= 0; ) {
@@ -3426,9 +3428,8 @@ function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
 
 		ifname = USRXML_ifupdown[i];
 
-		ret = usrxml___dyn_for_each_reverse(h, ifname,
-						    "usrxml__ifupdown_cb",
-						    cb, USRXML_ifupdown);
+		ret = usrxml___dyn_for_each_reverse(h, ifname, cb, fn,
+						    USRXML_ifupdown);
 		if (ret != USRXML_E_NONE)
 			return ret;
 	}
@@ -3450,9 +3451,8 @@ function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
 
 			ifname = USRXML_ifupdown[i];
 
-			ret = usrxml___dyn_for_each(h, ifname,
-						    "usrxml__ifupdown_cb",
-						    cb, USRXML_ifupdown);
+			ret = usrxml___dyn_for_each(h, ifname, cb, fn,
+						    USRXML_ifupdown);
 			if (ret != USRXML_E_NONE)
 				return ret;
 		}
