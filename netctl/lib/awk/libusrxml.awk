@@ -3458,7 +3458,7 @@ function usrxml__ifupdown(h, ret, a, cb,    n, i, p, ifname)
 		}
 	}
 
-	return isarray(a) ? a[2] + 1 : USRXML_E_NONE;
+	return USRXML_E_NONE;
 }
 
 function run_usrxml_parser(h, line, cb, data,
@@ -3520,13 +3520,20 @@ function run_usrxml_parser(h, line, cb, data,
 		fn = "usrxml__scope_" USRXML__instance[h,"scope"];
 		ret = @fn(h, sign, name, val);
 
-		# h,ifid/userid (2) or h,USRXML_orig,ifid/userid (3)
 		if (split(ret, a, SUBSEP) >= 2) {
-			# Make sure we always return value > 0
-			if (cb != "")
+			# h,ifid (2) or h,USRXML_orig,ifid (3)
+			if (cb != "") {
 				ret = @cb(h, ret, a, data);
-			else
-				ret = a[2] + 1;
+				if (ret < 0)
+					break;
+			}
+			# h,ifid
+			ret = a[2];
+			if (ret == USRXML_orig) {
+				# h,USRXML_orig,ifid
+				ret = a[3];
+			}
+			ret++;
 			break;
 		}
 		if (ret < 0) {
