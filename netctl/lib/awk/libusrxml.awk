@@ -1031,7 +1031,7 @@ function usrxml__dyn_del_all(h, dyn, arr)
 	return usrxml__dyn_del_by_val(h, dyn, ".*", arr);
 }
 
-function usrxml___finish_dynmap(h, arr,    n, i, p)
+function usrxml___dyn_clear(h, arr,    n, i, p)
 {
 	# h,"num"
 	n = h SUBSEP "num";
@@ -1052,12 +1052,12 @@ function usrxml___finish_dynmap(h, arr,    n, i, p)
 	}
 }
 
-function usrxml__finish_dynmap(h, arr)
+function usrxml__dyn_clear(h, arr)
 {
 	if (isarray(arr))
-		usrxml___finish_dynmap(h, arr);
+		usrxml___dyn_clear(h, arr);
 	else
-		usrxml___finish_dynmap(h, USRXML__dynmap);
+		usrxml___dyn_clear(h, USRXML__dynmap);
 }
 
 function usrxml___dyn_copy_cb(sh, dyn, attr, dh, arr, dec)
@@ -2435,10 +2435,10 @@ function fini_usrxml_parser(h,    n, p)
 	delete USRXML_ifnames[h,"num"];
 
 	# Dynamic mappings
-	usrxml__finish_dynmap(h, USRXML_ifnames);
-	usrxml__finish_dynmap(h, USRXML_ifuser);
-	usrxml__finish_dynmap(h, USRXML_ifupdown);
-	usrxml__finish_dynmap(h);
+	usrxml___dyn_clear(h, USRXML_ifnames);
+	usrxml___dyn_clear(h, USRXML_ifuser);
+	usrxml___dyn_clear(h, USRXML_ifupdown);
+	usrxml___dyn_clear(h, USRXML__dynmap);
 
 	# Name of program that uses API
 	delete USRXML__instance[h,"prog"];
