@@ -918,7 +918,7 @@ function usrxml__dyn_del_by_id(h, dyn, id, arr)
 }
 
 function usrxml____dyn_for_each(h, dyn, cb, data, arr, dec,
-			       n, i, p, hh, attr, ret)
+			        n, i, p, hh, attr, ret)
 {
 	# h,dyn
 	hh = h SUBSEP dyn;
@@ -946,7 +946,7 @@ function usrxml____dyn_for_each(h, dyn, cb, data, arr, dec,
 		attr = arr[i];
 		ret = @cb(h, dyn, attr, data, arr, dec);
 		if (ret < 0)
-			return ret;
+			return ret SUBSEP p;
 		if (ret > 0)
 			usrxml___dyn_del_by_attr(h, dyn, attr, arr);
 	}
@@ -1020,10 +1020,12 @@ function usrxml__dyn_cnt_ne_val(h, dyn, val, arr,    data)
 	return data["cnt","ne"];
 }
 
-function usrxml__dyn_find_by_val(h, dyn, val, arr,    data)
+function usrxml__dyn_fnd_by_val(h, dyn, val, arr,    data)
 {
-	usrxml__dyn_cnt_val(h, dyn, val, -1, data, arr);
-	return data["cnt","eq"];
+	val = usrxml__dyn_cnt_val(h, dyn, val, -1, data, arr);
+	if (split(val, data, SUBSEP) != 2)
+		return USRXML_E_NOENT;
+	return data[2];
 }
 
 function usrxml__dyn_del_all(h, dyn, arr)
@@ -1719,7 +1721,7 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 		return usrxml__activate_user_by_name(h, iflu);
 
 	cb = "usrxml__activate_if_by_name";
-	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
+	return int(usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu));
 }
 
 function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
@@ -1772,7 +1774,7 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 		return usrxml__deactivate_user_by_name(h, iflu);
 
 	cb = "usrxml__deactivate_if_by_name";
-	return usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu);
+	return int(usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu));
 }
 
 function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,    val, dh, ifname)
@@ -3428,8 +3430,8 @@ function usrxml__ifupdown(h, ret, a, fn,    n, i, p, cb, ifname)
 
 		ifname = USRXML_ifupdown[i];
 
-		ret = usrxml___dyn_for_each_reverse(h, ifname, cb, fn,
-						    USRXML_ifupdown);
+		ret = int(usrxml___dyn_for_each_reverse(h, ifname, cb, fn,
+							USRXML_ifupdown));
 		if (ret != USRXML_E_NONE)
 			return ret;
 	}
@@ -3451,8 +3453,8 @@ function usrxml__ifupdown(h, ret, a, fn,    n, i, p, cb, ifname)
 
 			ifname = USRXML_ifupdown[i];
 
-			ret = usrxml___dyn_for_each(h, ifname, cb, fn,
-						    USRXML_ifupdown);
+			ret = int(usrxml___dyn_for_each(h, ifname, cb, fn,
+							USRXML_ifupdown));
 			if (ret != USRXML_E_NONE)
 				return ret;
 		}
