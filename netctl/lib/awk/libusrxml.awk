@@ -3410,10 +3410,8 @@ function usrxml__ifupdown(h, ret, a, fn,    n, i, p, cb, ifname)
 	# h,"num"
 	n = h SUBSEP "num";
 
-	if (!(n in USRXML_ifupdown)) {
-		# Assert as we must have at least USRXML_ifnames[ret]
-		return USRXML_E_NOENT;
-	}
+	if (!(n in USRXML_ifupdown))
+		return USRXML_E_NONE;
 
 	n = USRXML_ifupdown[n];
 
