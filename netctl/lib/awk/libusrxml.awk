@@ -2463,10 +2463,9 @@ function fini_usrxml_parser(h,    n, p)
 	delete USRXML__instance[h,"depth"];
 
 	# Populated from parsing XML document
-	n = USRXML__instance[h,"name"];
 	delete USRXML__instance[h,"name"];
-	delete USRXML__instance[h,n,"inactive"];
-	delete USRXML__instance[h,n,"if"];
+	delete USRXML__instance[h,"inactive"];
+	delete USRXML__instance[h,"if"];
 
 	delete USRXML__instance[h,"pipeid"];
 	delete USRXML__instance[h,"netid"];
@@ -2546,6 +2545,7 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 			}
 
 			USRXML__instance[h,"name"] = val;
+			USRXML__instance[h,"inactive"] = 0;
 			USRXML__instance[h,"scope"] = (name == "user") ?
 				USRXML__scope_user : USRXML__scope_if;
 			USRXML__instance[h,"depth"]++;
@@ -2582,47 +2582,46 @@ function usrxml__scope_inactive(h, ifname,    n, i, v, r, cmp)
 	# h,ifname,"inactive"
 	r = n SUBSEP "inactive";
 
+	# v < 0 - inactive   (<inactive forced>)
+	# v > 0 - inactive   (<inactive yes>)
+	# v = 0 - active     (<inactive no>)
 	v = USRXML_ifnames[r];
 
-	if (r in USRXML__instance) {
-		# i < 0 - activate   (<inactive no> or <-inactive>)
-		# i > 0 - deactivate (<inactive yes>)
-		i = USRXML__instance[r];
-		delete USRXML__instance[r];
+	# i < 0 - activate   (<inactive no> or <-inactive>)
+	# i > 0 - deactivate (<inactive yes>)
+	# i = 0 - noop       (no <inactive> tag)
+	i = USRXML__instance[h,"inactive"];
 
-		# v + i
-		# -----
-		#  -1 + -1 == -2  -> -1 # inactive forced -> inactive forced
-		#  -1 +  1 ==  0  ->  1 # inactive forced -> inactive yes (ret)
-		#
-		#   1 + -1 ==  0        # inactive yes -> inactive forced
-		#   1 +  1 ==  2  ->  1 # inactive yes -> inactive yes    (ret)
-		#
-		#   0 + -1 == -1  ->  0 # active -> active
-		#   0 +  1 ==  1        # active -> inactive yes   (deactivate)
+	# v + i
+	# -----
+	#  -1 + -1 == -2  -> -1 # inactive forced -> inactive forced
+	#  -1 +  1 ==  0  ->  1 # inactive forced -> inactive yes (ret)
+	#
+	#   1 + -1 ==  0        # inactive yes -> inactive forced
+	#   1 +  1 ==  2  ->  1 # inactive yes -> inactive yes    (ret)
+	#
+	#   0 + -1 == -1  ->  0 # active -> active
+	#   0 +  1 ==  1        # active -> inactive yes   (deactivate)
 
-		if (i > 0) {
-			if (v < 0) {
-				# inactive forced -> inactive yes
-				USRXML_ifnames[r] = 1;
-				return;
-			}
-			if (v > 0) {
-				# inactive yes -> inactive yes
-				return;
-			}
-			# active -> inactive yes
-			cmp = -1;
-		} else {
-			if (v > 0) {
-				# inactive yes -> inactive forced
-				USRXML_ifnames[r] = -1;
-			}
-			# inactive forced -> inactive forced
-			# active -> active
-			cmp = usrxml__type_cmp(h, ifname);
+	if (i > 0) {
+		if (v < 0) {
+			# inactive forced -> inactive yes
+			USRXML_ifnames[r] = 1;
+			return;
 		}
+		if (v > 0) {
+			# inactive yes -> inactive yes
+			return;
+		}
+		# active -> inactive yes
+		cmp = -1;
 	} else {
+		if (i != 0 && v > 0) {
+			# inactive yes -> inactive forced
+			USRXML_ifnames[r] = -1;
+		}
+		# inactive forced -> inactive forced
+		# active -> active
 		cmp = usrxml__type_cmp(h, ifname);
 	}
 
@@ -2938,7 +2937,7 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 		}
 
 		if (val != 0)
-			USRXML__instance[n,"inactive"] = val;
+			USRXML__instance[h,"inactive"] = val;
 	} else {
 		return usrxml_syntax_err(h);
 	}
@@ -3198,7 +3197,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, cb, dyn, iif,
 		}
 
 		if (val != 0)
-			USRXML__instance[n,"inactive"] = val;
+			USRXML__instance[h,"inactive"] = val;
 	} else {
 		return usrxml_syntax_err(h);
 	}
