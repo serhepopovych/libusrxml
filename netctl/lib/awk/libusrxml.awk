@@ -2233,11 +2233,6 @@ function init_usrxml_parser(prog,    h)
 	USRXML__instance[h,"scope"] = USRXML__scope_none;
 	USRXML__instance[h,"depth"] = 0;
 
-	# Populated from parsing XML document
-	USRXML__instance[h,"pipeid"] = 0;
-	USRXML__instance[h,"netid"] = 0;
-	USRXML__instance[h,"net6id"] = 0;
-
 	# Real values set by run_usrxml_parser()
 	USRXML__instance[h,"filename"] = "";
 	USRXML__instance[h,"linenum"] = "";
@@ -3466,12 +3461,18 @@ function usrxml__ifupdown(h, ret, a, fn,    n, i, p, cb, ifname)
 function run_usrxml_parser(h, line, cb, data,
 			   a, n, fn, sign, name, val, entry, ret, s_rs, s_rl)
 {
-	val = USRXML__instance[h,"order"];
+	# h,"order"
+	n = h SUBSEP "order";
+
+	if (!(n in USRXML__instance))
+		return usrxml__seterrno(h, USRXML_E_API_ORDER);
+
+	val = USRXML__instance[n];
 	if (val < USRXML__order_parse)
 		return usrxml__seterrno(h, USRXML_E_API_ORDER);
 
 	if (val > USRXML__order_parse)
-		USRXML__instance[h,"order"] = USRXML__order_parse;
+		USRXML__instance[n] = USRXML__order_parse;
 
 	# When called from main block with multiple files on command line
 	# FILENAME is set each time to next file being processed
