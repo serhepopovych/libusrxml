@@ -1434,7 +1434,8 @@ function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 	}
 }
 
-function usrxml__copy_user(dh, sh, username,    n, m, p, o, t, i_dst, i_src, j_dst, j_src)
+function usrxml__copy_user(dh, sh, username,
+			   n, m, p, o, t, i_dst, i_src, j_dst, j_src, data)
 {
 	# sh,username
 	i_src = sh SUBSEP username;
@@ -1503,6 +1504,11 @@ function usrxml__copy_user(dh, sh, username,    n, m, p, o, t, i_dst, i_src, j_d
 
 	# if
 	USRXML_userif[i_dst] = USRXML_userif[i_src];
+
+	data["dh"] = dh;
+	data["ifname"] = username;
+
+	usrxml__dyn_for_each(sh, "lower-" username ":", "usrxml__copy_if_cb", data);
 
 	# net
 	usrxml__copy_user_net(i_dst, i_src, USRXML_usernets);
