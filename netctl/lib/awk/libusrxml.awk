@@ -2429,7 +2429,7 @@ function fini_usrxml_parser(h,    n, p)
 	delete USRXML__instance[h,"order"];
 
 	# Cleanup saved if/user; if exists
-	usrxml__cleanup_if(h, "");
+	usrxml__cleanup_if(h);
 
 	# user/if
 	n = USRXML_ifnames[h,"num"];
@@ -3405,7 +3405,7 @@ function usrxml__ifupdown_cb(h, ifname, iflu, fn, arr, dec,    n, type)
 	return 1;
 }
 
-function usrxml__ifupdown(h, ret, a, fn,    n, i, p, cb, ifname)
+function usrxml__ifupdown(h, a, fn,    n, i, p, ret, cb, ifname)
 {
 	# h,"num"
 	n = h SUBSEP "num";
@@ -3462,7 +3462,7 @@ function usrxml__ifupdown(h, ret, a, fn,    n, i, p, cb, ifname)
 }
 
 function run_usrxml_parser(h, line, cb, data,
-			   a, n, fn, sign, name, val, entry, ret, s_rs, s_rl)
+			   a, n, fn, sign, name, val, ret, s_rs, s_rl)
 {
 	# h,"order"
 	n = h SUBSEP "order";
@@ -3526,38 +3526,38 @@ function run_usrxml_parser(h, line, cb, data,
 		fn = "usrxml__scope_" USRXML__instance[h,"scope"];
 		ret = @fn(h, sign, name, val);
 
-		if (split(ret, a, SUBSEP) >= 2) {
-			# h,ifid (2) or h,USRXML_orig,ifid (3)
-			if (cb != "") {
-				ret = @cb(h, ret, a, data);
-				if (ret < 0)
-					break;
-			}
-			# h,ifid
-			ret = a[2];
-			if (ret == USRXML_orig) {
-				# h,USRXML_orig,ifid
-				ret = a[3];
-			}
-			ret++;
-			break;
-		}
-		if (ret < 0) {
-			# Parse error in the middle of section: skip lines
-			if (n > 0) {
+		if (int(ret) <= 0) {
+			# Handle (h) always greather than zero (USRXML_E_NONE)
+			if (ret < 0 && n > 0) {
 				USRXML__instance[h,"scope"] = USRXML__scope_error;
 				USRXML__instance[h,"depth"] = 0;
+				usrxml__restore_if(h);
 			}
-			break;
+			return ret;
 		}
-	} while (ret > 0);
+		if (split(ret, a, SUBSEP) >= 2) {
+			# h,ifid (2) or h,USRXML_orig,ifid (3)
+			if (a[2] == USRXML_orig) {
+				a[USRXML_orig] = USRXML_orig;
+				a["id"] = a[3];
+			} else {
+				a["id"] = a[2];
+			}
+			a["i"] = ret;
 
-	if (ret < 0)
-		usrxml__restore_if(h, "");
-	else if (ret > 0)
-		usrxml__cleanup_if(h, "");
+			if (cb != "") {
+				ret = @cb(h, a, data);
+				if (ret < 0) {
+					usrxml__restore_if(h);
+					return ret;
+				}
+			}
 
-	return ret;
+			usrxml__cleanup_if(h);
+			return a["id"] + 1;
+		}
+		# ret > 0
+	} while (1);
 }
 
 #
