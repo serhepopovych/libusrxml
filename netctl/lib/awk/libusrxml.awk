@@ -2183,7 +2183,6 @@ function declare_usrxml_consts()
 
 	# Network interface parameters
 	USRXML_ifparms["ip-link"]	= 1;
-	USRXML_ifparms["ip-link-type"]	= 1;
 	USRXML_ifparms["tc-qdisc"]	= 1;
 	USRXML_ifparms["tc-class"]	= 1;
 	USRXML_ifparms["tc-filter"]	= 1;
@@ -2757,30 +2756,26 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr, dec,
 		# Lowers/uppers deletion can activate interface(s):
 		#
 		# <vlan en0.32.1>
-		#   <ip-link mtu 1500 group downlink>
-		#   <ip-link-type id 1>
+		#   <ip-link link en0.32 mtu 1500 group downlink type @kind@ id 1>
 		#   <lower en0.32>
 		#   <lower en0.33>    <-- only one lower (parent) allowed
 		#   <inactive forced> <-- put to inactive
 		# </vlan>
 		#
 		# <vlan en0.32.2>
-		#   <ip-link mtu 1500 group downlink>
-		#   <ip-link-type id 2>
+		#   <ip-link link en0.32 mtu 1500 group downlink type @kind@ id 2>
 		#   <lower en0.32>
 		# </vlan>
 		#
 		# <vlan en0.32>
-		#   <ip-link mtu 1504>
-		#   <ip-link-type id 32>
+		#   <ip-link link en0 mtu 1504 type @kind@ id 32>
 		#   <upper en0.32.1>
 		#   <upper en0.32.2>
 		#   <lower en0>
 		# </vlan>
 		#
 		# <vlan en0.33>
-		#   <ip-link mtu 1504>
-		#   <ip-link-type id 33>
+		#   <ip-link link en0 mtu 1504 type @kind@ id 33>
 		#   <upper en0.32.1>
 		#   <lower en0>
 		# </vlan>
@@ -2814,7 +2809,8 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr, dec,
 	return 0;
 }
 
-function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data)
+function usrxml__scope_if(h, sign, name, val,
+			  n, i, r, a, ifname, type, cb, data)
 {
 	ifname = USRXML__instance[h,"name"];
 
@@ -2838,9 +2834,6 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 		if (type != "host") {
 			if (!((n,"ip-link") in USRXML_ifnames))
 				return usrxml_missing_arg(h, "ip-link");
-
-			if (!((n,"ip-link-type") in USRXML_ifnames))
-				return usrxml_missing_arg(h, "ip-link-type");
 		}
 
 		# At this point we should not fail since upper/lower
@@ -2920,6 +2913,15 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, ifname, type, cb, data
 				return usrxml_ept_val(h, name);
 
 			gsub("@if@", ifname, val);
+			gsub("@kind@", type, val);
+
+			if (name == "ip-link" && type != "host") {
+				r = "[[:space:]]type[[:space:]]+" \
+				    "([^[:space:]]+)" \
+				    "([[:space:]]|$)";
+				if (usrxml_match(val, r, a) && type != a[1])
+					return usrxml_inv_arg(h, name, val);
+			}
 
 			USRXML_ifnames[n,name] = val;
 		} else {
@@ -3643,6 +3645,7 @@ function usrxml__print_if(h, i, file, s1, s2,
 			o = USRXML_ifnames[p];
 
 			gsub(ifname, "@if@", o);
+			gsub(t, "@kind@", o);
 
 			printf s1 "<%s %s>" s2, n, o >>file;
 		}
