@@ -2243,10 +2243,6 @@ function init_usrxml_parser(prog,    h)
 	USRXML__instance[h,"filename"] = "";
 	USRXML__instance[h,"linenum"] = "";
 
-	# Interface up/down hooks
-	USRXML__instance[h,"ifup"] = "";
-	USRXML__instance[h,"ifdown"] = "";
-
 	# USRXML__fileline[key,{ "file" | "line" },n]
 
 	# Document format and parameters mapping
@@ -2474,10 +2470,6 @@ function fini_usrxml_parser(h,    n, p)
 	# File name and line number
 	delete USRXML__instance[h,"filename"];
 	delete USRXML__instance[h,"linenum"];
-
-	# Interface up/down hooks
-	delete USRXML__instance[h,"ifup"];
-	delete USRXML__instance[h,"ifdown"];
 
 	if (usrxml__free_handle(h) == 0)
 		release_usrxml_consts();
