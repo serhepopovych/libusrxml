@@ -1435,7 +1435,7 @@ function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 }
 
 function usrxml__copy_user(dh, sh, username,
-			   n, m, p, o, t, i_dst, i_src, j_dst, j_src, data)
+			   n, m, p, o, i, cb, i_dst, i_src, j_dst, j_src, data)
 {
 	# sh,username
 	i_src = sh SUBSEP username;
@@ -1461,14 +1461,15 @@ function usrxml__copy_user(dh, sh, username,
 		j_dst = i_dst SUBSEP p;
 
 		# Remove from destination
-		o = USRXML_userpipe[j_dst,"qdisc"];
 		delete USRXML_userpipe[j_dst,"qdisc"];
 
-		m = USRXML_userpipe[j_dst,"opts"];
-		delete USRXML_userpipe[j_dst,"opts"];
+		i = j_dst SUBSEP "opts";
+
+		m = USRXML_userpipe[i];
+		delete USRXML_userpipe[i];
 
 		for (o = 0; o < m; o++)
-			delete USRXML_userpipe[j_dst,o];
+			delete USRXML_userpipe[i,o];
 
 		delete USRXML_userpipe[j_dst];
 		delete USRXML_userpipe[j_dst,"zone"];
@@ -1492,7 +1493,7 @@ function usrxml__copy_user(dh, sh, username,
 			# sh,userid,pipeid,"opts"
 			j_src = j_src SUBSEP "opts";
 			# dh,userid,pipeid,"opts"
-			j_dst = j_dst SUBSEP "opts";
+			j_dst = i;
 
 			m = USRXML_userpipe[j_src];
 			USRXML_userpipe[j_dst] = m;
@@ -1505,10 +1506,14 @@ function usrxml__copy_user(dh, sh, username,
 	# if
 	USRXML_userif[i_dst] = USRXML_userif[i_src];
 
+	cb = "usrxml__copy_if_cb";
+
 	data["dh"] = dh;
 	data["ifname"] = username;
 
-	usrxml__dyn_for_each(sh, "lower-" username ":", "usrxml__copy_if_cb", data);
+	i = "lower-" username ":";
+	usrxml__dyn_del_all(dh, i);
+	usrxml__dyn_for_each(sh, i, cb, data);
 
 	# net
 	usrxml__copy_user_net(i_dst, i_src, USRXML_usernets);
@@ -1802,7 +1807,7 @@ function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,    val, dh, ifname)
 	return 0;
 }
 
-function usrxml__copy_if(dh, sh, ifname,    i, i_dst, i_src, name, data)
+function usrxml__copy_if(dh, sh, ifname,    i, cb, i_dst, i_src, name, data)
 {
 	# sh,ifname
 	i_src = sh SUBSEP ifname;
@@ -1813,7 +1818,7 @@ function usrxml__copy_if(dh, sh, ifname,    i, i_dst, i_src, name, data)
 	if (dh == sh)
 		return sh SUBSEP USRXML_ifnames[i_src,"id"];
 
-	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[i_src]))
+	if (usrxml__type_is_user(sh, ifname, USRXML_ifnames[i_src]))
 		return usrxml__copy_user(dh, sh, ifname);
 
 	# dh,ifname
@@ -1834,11 +1839,18 @@ function usrxml__copy_if(dh, sh, ifname,    i, i_dst, i_src, name, data)
 	i_dst = usrxml__map_add_val(dh, ifname,
 				    USRXML_ifnames, USRXML_ifnames[i_src]);
 
+	cb = "usrxml__copy_if_cb";
+
 	data["dh"] = dh;
 	data["ifname"] = ifname;
 
-	usrxml__dyn_for_each(sh, "lower-" ifname, "usrxml__copy_if_cb", data);
-	usrxml__dyn_for_each(sh, "upper-" ifname, "usrxml__copy_if_cb", data);
+	i = "lower-" ifname;
+	usrxml__dyn_del_all(dh, i);
+	usrxml__dyn_for_each(sh, i, cb, data);
+
+	i = "upper-" ifname;
+	usrxml__dyn_del_all(dh, i);
+	usrxml__dyn_for_each(sh, i, cb, data);
 
 	return i_dst;
 }
@@ -1968,12 +1980,7 @@ function usrxml__save_if(h, ifname)
 	return usrxml__copy_if(h SUBSEP USRXML_orig, h, ifname);
 }
 
-function usrxml__restore_if_cb(h, dyn, iflu, data, arr, dec)
-{
-	return arr[h,dyn,iflu] == "";
-}
-
-function usrxml__restore_if(h, ifname,    hh, cb)
+function usrxml__restore_if(h, ifname,    hh)
 {
 	ifname = usrxml__iname(h, ifname);
 	if (ifname == "")
@@ -1989,23 +1996,14 @@ function usrxml__restore_if(h, ifname,    hh, cb)
 	if ((hh,ifname) in USRXML_ifnames) {
 		usrxml__copy_if(h, hh, ifname);
 
-		# Remove new entries: existing entries marked for delete ("/")
-		# or unresolved ("?") already overwritten by usrxml__copy_if().
-		cb = "usrxml__restore_if_cb";
-
 		if (usrxml__type_is_user(h, ifname)) {
 			usrxml__delete_user(hh, ifname);
-
-			usrxml__dyn_for_each(h, "lower-" ifname ":", cb);
 
 			# User was active before modification: activate it on restore
 			if (!USRXML_ifnames[h,ifname,"inactive"])
 				usrxml__activate_user_by_name(h, ifname);
 		} else {
 			usrxml__delete_if(hh, ifname);
-
-			usrxml__dyn_for_each(h, "lower-" ifname, cb);
-			usrxml__dyn_for_each(h, "upper-" ifname, cb);
 		}
 
 		# No need to (re)activate interface/user and it's
