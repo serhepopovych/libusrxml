@@ -597,6 +597,20 @@ function usrxml_make_var_name(val)
 	return val;
 }
 
+function usrxml_match(s, r, a,    n, s_rs, s_rl)
+{
+	# These are modified by match(): save them
+	s_rs = RSTART;
+	s_rl = RLENGTH;
+
+	n = match(s, r, a);
+
+	RLENGTH = s_rl;
+	RSTART = s_rs;
+
+	return n;
+}
+
 #
 # Map helpers
 #
@@ -3454,7 +3468,7 @@ function usrxml__ifupdown(h, a, fn,    n, i, p, ret, cb, ifname)
 }
 
 function run_usrxml_parser(h, line, cb, data,
-			   a, n, fn, sign, name, val, ret, s_rs, s_rl)
+			   n, r, a, fn, sign, name, val, ret)
 {
 	# h,"order"
 	n = h SUBSEP "order";
@@ -3482,20 +3496,17 @@ function run_usrxml_parser(h, line, cb, data,
 	if (line ~ "^[[:space:]]*(#|$)")
 		return USRXML_E_NONE;
 
-	# These are modified by match(): save them
-	s_rs = RSTART;
-	s_rl = RLENGTH;
+	r = "^[[:space:]]*" \
+	    "<(|[/?@!+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>" \
+	    "[[:space:]]*$";
 
-	n = match(line, "^[[:space:]]*<(|[/?@!+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>[[:space:]]*$", a);
-
-	RSTART = s_rs;
-	RLENGTH = s_rl;
+	n = usrxml_match(line, r, a);
 
 	# On line mismatch make sure name (a[2]) is empty to
 	# trigger syntax error at any scope as it cannot be
 	# empty (see match() regular expression above).
 	if (!n)
-		a[1] = a[2] = a[3] = "";
+		delete a;
 
 	sign = a[1];
 	name = a[2];
