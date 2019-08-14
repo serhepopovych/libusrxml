@@ -1468,17 +1468,9 @@ function usrxml__copy_user_net(i_dst, i_src, umap,    n, p, j_dst, j_src)
 	}
 }
 
-function usrxml__copy_user(dh, sh, username,
-			   n, m, p, o, i, cb, i_dst, i_src, j_dst, j_src, data)
+function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,
+			   n, m, p, o, i, j_dst, j_src)
 {
-	# sh,username
-	i_src = sh SUBSEP username;
-
-	# dh,username
-	i_dst = dh SUBSEP username;
-
-	USRXML_ifnames[i_dst,"inactive"] = USRXML_ifnames[i_src,"inactive"];
-
 	# user
 	i_dst = usrxml__map_add_val(dh, username, USRXML_ifnames, USRXML_ifnames[i_src]);
 
@@ -1539,11 +1531,6 @@ function usrxml__copy_user(dh, sh, username,
 
 	# if
 	USRXML_userif[i_dst] = USRXML_userif[i_src];
-
-	cb = "usrxml__copy_if_cb";
-
-	data["dh"] = dh;
-	data["ifname"] = username;
 
 	i = "lower-" username ":";
 	usrxml__dyn_del_all(dh, i);
@@ -1821,7 +1808,7 @@ function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,    val, dh, ifname)
 	return 0;
 }
 
-function usrxml__copy_if(dh, sh, ifname,    i, cb, i_dst, i_src, name, data)
+function usrxml__copy_if_by_name(dh, sh, ifname,    i, i_dst, i_src, name, cb, data)
 {
 	# sh,ifname
 	i_src = sh SUBSEP ifname;
@@ -1832,13 +1819,18 @@ function usrxml__copy_if(dh, sh, ifname,    i, cb, i_dst, i_src, name, data)
 	if (dh == sh)
 		return sh SUBSEP USRXML_ifnames[i_src,"id"];
 
-	if (usrxml__type_is_user(sh, ifname, USRXML_ifnames[i_src]))
-		return usrxml__copy_user(dh, sh, ifname);
-
 	# dh,ifname
 	i_dst = dh SUBSEP ifname;
 
 	USRXML_ifnames[i_dst,"inactive"] = USRXML_ifnames[i_src,"inactive"];
+
+	cb = "usrxml__copy_if_cb";
+
+	data["dh"] = dh;
+	data["ifname"] = ifname;
+
+	if (usrxml__type_is_user(sh, ifname, USRXML_ifnames[i_src]))
+		return usrxml__copy_user(dh, i_dst, sh, i_src, ifname, cb, data);
 
 	for (name in USRXML_ifparms) {
 		# sh,ifname,name
@@ -1852,11 +1844,6 @@ function usrxml__copy_if(dh, sh, ifname,    i, cb, i_dst, i_src, name, data)
 
 	i_dst = usrxml__map_add_val(dh, ifname,
 				    USRXML_ifnames, USRXML_ifnames[i_src]);
-
-	cb = "usrxml__copy_if_cb";
-
-	data["dh"] = dh;
-	data["ifname"] = ifname;
 
 	i = "lower-" ifname;
 	usrxml__dyn_del_all(dh, i);
@@ -1972,7 +1959,7 @@ function usrxml__delete_if_by_id(h, ifid,    n)
 
 function usrxml__save_if(h, ifname)
 {
-	return usrxml__copy_if(h SUBSEP USRXML_orig, h, ifname);
+	return usrxml__copy_if_by_name(h SUBSEP USRXML_orig, h, ifname);
 }
 
 function usrxml__restore_if(h, ifname,    hh)
@@ -1989,7 +1976,7 @@ function usrxml__restore_if(h, ifname,    hh)
 	hh = h SUBSEP USRXML_orig;
 
 	if ((hh,ifname) in USRXML_ifnames) {
-		usrxml__copy_if(h, hh, ifname);
+		usrxml__copy_if_by_name(h, hh, ifname);
 		usrxml__delete_if_by_name(hh, ifname, 1);
 
 		# No need to (re)activate interface/user and it's
