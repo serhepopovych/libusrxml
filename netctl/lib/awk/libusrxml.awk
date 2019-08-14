@@ -778,6 +778,8 @@ function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    n, i)
 	if (dh == sh)
 		return "";
 
+	usrxml__map_del_by_attr(dh, attr, dmap);
+
 	if (attr ~ "^[[:digit:]]+$") {
 		# sh,id
 		i = sh SUBSEP attr;
@@ -1219,6 +1221,24 @@ function usrxml__type_cmp(h, name,    n, type, cmp, len, num, dyn)
 # Helpers to manage number of "act"ive lowers/uppers
 #
 
+function usrxml___act_copy(dh, sh, dyn, arr)
+{
+	# dh,dyn
+	dh = dh SUBSEP dyn;
+	# sh,dyn
+	sh = sh SUBSEP dyn;
+
+	return usrxml__map_copy_one(dh, arr, sh, arr, "act");
+}
+
+function usrxml__act_copy(dh, sh, dyn, arr)
+{
+	if (isarray(arr))
+		return usrxml___act_copy(dh, sh, dyn, arr);
+	else
+		return usrxml___act_copy(dh, sh, dyn, USRXML__dynmap);
+}
+
 function usrxml____act_adjust(h, dyn, val, arr, dec,    i)
 {
 	# h,dyn,"act"
@@ -1528,6 +1548,8 @@ function usrxml__copy_user(dh, sh, username,
 	i = "lower-" username ":";
 	usrxml__dyn_del_all(dh, i);
 	usrxml__dyn_for_each(sh, i, cb, data);
+
+	usrxml__act_copy(dh, sh, i);
 
 	# net
 	usrxml__copy_user_net(i_dst, i_src, USRXML_usernets);
@@ -1839,6 +1861,8 @@ function usrxml__copy_if(dh, sh, ifname,    i, cb, i_dst, i_src, name, data)
 	i = "lower-" ifname;
 	usrxml__dyn_del_all(dh, i);
 	usrxml__dyn_for_each(sh, i, cb, data);
+
+	usrxml__act_copy(dh, sh, i);
 
 	i = "upper-" ifname;
 	usrxml__dyn_del_all(dh, i);
