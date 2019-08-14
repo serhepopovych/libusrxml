@@ -1630,9 +1630,6 @@ function usrxml__delete_user(h, username,    n, m, i, j, p, dyn, name, data)
 	# h,username
 	n = h SUBSEP username;
 
-	# Mark user for deletion
-	USRXML_ifnames[n,"cmp"] = -1;
-
 	# h,userid
 	i = h SUBSEP USRXML_ifnames[n,"id"];
 
@@ -1657,9 +1654,7 @@ function usrxml__delete_user(h, username,    n, m, i, j, p, dyn, name, data)
 	# lower only
 	data["ifname"] = m;
 
-	data["fn"] = "";
 	data["lu"] = dyn = "lower";
-
 	dyn = dyn "-" m;
 	usrxml__dyn_for_each(h, dyn, "usrxml__delete_if_cb", data);
 
@@ -1678,7 +1673,6 @@ function usrxml__delete_user(h, username,    n, m, i, j, p, dyn, name, data)
 	usrxml__map_del_by_attr(h, username, USRXML_ifnames);
 
 	delete USRXML_ifnames[n,"inactive"];
-	delete USRXML_ifnames[n,"cmp"];
 
 	return USRXML_E_NONE;
 }
@@ -1869,19 +1863,7 @@ function usrxml__copy_if(dh, sh, ifname,    i, cb, i_dst, i_src, name, data)
 	return i_dst;
 }
 
-function usrxml__delete_if_upper_cb(h, dyn, ifname, data, arr, dec)
-{
-	if (!((h,ifname) in USRXML_ifnames))
-		return;
-
-	if (usrxml__type_cmp(h, ifname) > 0)
-		usrxml__activate_if_by_name(h, "", ifname);
-	else
-		usrxml__deactivate_if_by_name(h, "", ifname);
-}
-
-function usrxml__delete_if_cb(h, dyn, iflu, data, arr, dec,
-			      type, fn, rev, ifname)
+function usrxml__delete_if_cb(h, dyn, iflu, data, arr, dec,    type, rev, ifname)
 {
 	type = arr[h,dyn,iflu];
 
@@ -1898,23 +1880,19 @@ function usrxml__delete_if_cb(h, dyn, iflu, data, arr, dec,
 		if (data["lu"] == "upper") {
 			rev = "lower-" iflu;
 			usrxml___act_dec(h, rev, ifname, arr);
+			usrxml__deactivate_if_by_name(h, "", iflu);
 		} else {
 			rev = "upper-" iflu;
 			usrxml___act_dec_force(h, dyn, arr);
 		}
 
 		usrxml___dyn_del_by_attr(h, rev, ifname, arr);
-
-		fn = data["fn"];
-		if (fn != "")
-			@fn(h, dyn, iflu, data, arr, dec);
 	}
 
 	return 1;
 }
 
-function usrxml__delete_if(h, ifname, lower_fn, upper_fn,
-			   n, i, dyn, name, cb, data)
+function usrxml__delete_if(h, ifname,    n, i, dyn, name, cb, data)
 {
 	# h,ifname
 	n = h SUBSEP ifname;
@@ -1925,9 +1903,6 @@ function usrxml__delete_if(h, ifname, lower_fn, upper_fn,
 	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[n]))
 		return usrxml__delete_user_by_name(h, ifname);
 
-	# Mark interface for deletion
-	USRXML_ifnames[n,"cmp"] = -1;
-
 	# h,ifid
 	i = h SUBSEP USRXML_ifnames[n,"id"];
 
@@ -1936,15 +1911,11 @@ function usrxml__delete_if(h, ifname, lower_fn, upper_fn,
 
 	data["ifname"] = ifname;
 
-	data["fn"] = lower_fn;
 	data["lu"] = dyn = "lower";
-
 	dyn = dyn "-" ifname;
 	usrxml__dyn_for_each(h, dyn, cb, data);
 
-	data["fn"] = upper_fn;
 	data["lu"] = dyn = "upper";
-
 	dyn = dyn "-" ifname;
 	usrxml__dyn_for_each(h, dyn, cb, data);
 
@@ -1958,7 +1929,6 @@ function usrxml__delete_if(h, ifname, lower_fn, upper_fn,
 	usrxml__map_del_by_attr(h, ifname, USRXML_ifnames);
 
 	delete USRXML_ifnames[n,"inactive"];
-	delete USRXML_ifnames[n,"cmp"];
 }
 
 function usrxml__delete_if_by_id(h, ifid,    n, ifname)
@@ -1974,7 +1944,7 @@ function usrxml__delete_if_by_id(h, ifid,    n, ifname)
 
 	usrxml___dyn_add_val(h, ifname, ifname, -1, USRXML_ifupdown);
 
-	usrxml__delete_if(h, ifname, "", "usrxml__delete_if_upper_cb");
+	usrxml__delete_if(h, ifname);
 }
 
 function usrxml__delete_if_by_name(h, ifname,    n)
@@ -1988,7 +1958,7 @@ function usrxml__delete_if_by_name(h, ifname,    n)
 
 	usrxml___dyn_add_val(h, ifname, ifname, -1, USRXML_ifupdown);
 
-	usrxml__delete_if(h, ifname, "", "usrxml__delete_if_upper_cb");
+	usrxml__delete_if(h, ifname);
 }
 
 function usrxml__save_if(h, ifname)
