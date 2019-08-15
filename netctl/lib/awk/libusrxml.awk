@@ -933,8 +933,8 @@ function usrxml__dyn_del_by_id(h, dyn, id, arr)
 		return usrxml___dyn_del_by_id(h, dyn, id, USRXML__dynmap);
 }
 
-function usrxml____dyn_for_each(h, dyn, cb, data, arr, dec,
-			        n, i, p, hh, attr, ret)
+function usrxml____dyn_for_each(h, dyn, cb, data, arr, from, dec,
+				n, i, hh, attr, ret)
 {
 	# h,dyn
 	hh = h SUBSEP dyn;
@@ -945,15 +945,23 @@ function usrxml____dyn_for_each(h, dyn, cb, data, arr, dec,
 	if (!(n in arr))
 		return USRXML_E_NONE;
 
-	n = arr[n];
+	n = arr[n] - 1;
 
 	dec = !!dec;
-	p = --n * dec;
+
+	if (from != "") {
+		if (from < 0 || from > n)
+			return USRXML_E_RANGE;
+		n = dec ? from : n - from;
+	} else {
+		from = n * dec;
+	}
+
 	dec = 1 - 2 * dec;
 
-	for (; n-- >= 0; p += dec) {
+	for (; n-- >= 0; from += dec) {
 		# h,dyn,id
-		i = hh SUBSEP p;
+		i = hh SUBSEP from;
 
 		# Skip hole entries
 		if (!(i in arr))
@@ -962,7 +970,7 @@ function usrxml____dyn_for_each(h, dyn, cb, data, arr, dec,
 		attr = arr[i];
 		ret = @cb(h, dyn, attr, data, arr, dec);
 		if (ret < 0)
-			return ret SUBSEP p;
+			return ret SUBSEP from;
 		if (ret > 0)
 			usrxml___dyn_del_by_attr(h, dyn, attr, arr);
 	}
@@ -983,9 +991,22 @@ function usrxml__dyn_for_each(h, dyn, cb, data, arr)
 		return usrxml___dyn_for_each(h, dyn, cb, data, USRXML__dynmap);
 }
 
+function usrxml___dyn_for_each_from(h, dyn, cb, data, from, arr)
+{
+	return usrxml____dyn_for_each(h, dyn, cb, data, arr, from);
+}
+
+function usrxml__dyn_for_each_from(h, dyn, cb, data, from, arr)
+{
+	if (isarray(arr))
+		return usrxml___dyn_for_each_from(h, dyn, cb, data, from, arr);
+	else
+		return usrxml___dyn_for_each_from(h, dyn, cb, data, from, USRXML__dynmap);
+}
+
 function usrxml___dyn_for_each_reverse(h, dyn, cb, data, arr)
 {
-	return usrxml____dyn_for_each(h, dyn, cb, data, arr, -1);
+	return usrxml____dyn_for_each(h, dyn, cb, data, arr, "", -1);
 }
 
 function usrxml__dyn_for_each_reverse(h, dyn, cb, data, arr)
@@ -994,6 +1015,19 @@ function usrxml__dyn_for_each_reverse(h, dyn, cb, data, arr)
 		return usrxml___dyn_for_each_reverse(h, dyn, cb, data, arr);
 	else
 		return usrxml___dyn_for_each_reverse(h, dyn, cb, data, USRXML__dynmap);
+}
+
+function usrxml___dyn_for_each_reverse_from(h, dyn, cb, data, from, arr)
+{
+	return usrxml____dyn_for_each(h, dyn, cb, data, arr, from, -1);
+}
+
+function usrxml__dyn_for_each_reverse_from(h, dyn, cb, data, from, arr)
+{
+	if (isarray(arr))
+		return usrxml___dyn_for_each_reverse_from(h, dyn, cb, data, from, arr);
+	else
+		return usrxml___dyn_for_each_reverse_from(h, dyn, cb, data, from, USRXML__dynmap);
 }
 
 function usrxml__dyn_cnt_val_cb(h, dyn, attr, data, arr, dec,    val)
@@ -1009,36 +1043,38 @@ function usrxml__dyn_cnt_val_cb(h, dyn, attr, data, arr, dec,    val)
 	}
 }
 
-function usrxml__dyn_cnt_val(h, dyn, val, ret, data, arr)
+function usrxml__dyn_cnt_val(h, dyn, val, ret, data, arr, from,    cb)
 {
 	data["val"] = val;
 	data["ret"] = ret;
 	data["cnt","eq"] = data["cnt","ne"] = 0;
 
-	return usrxml__dyn_for_each(h, dyn, "usrxml__dyn_cnt_val_cb", data, arr);
+	# Not using array specific helper here as @arr might be omitted
+	cb = "usrxml__dyn_cnt_val_cb";
+	return usrxml__dyn_for_each_from(h, dyn, cb, data, from, arr);
 }
 
-function usrxml__dyn_del_by_val(h, dyn, val, arr,    data)
+function usrxml__dyn_del_by_val(h, dyn, val, arr, from,    data)
 {
-	usrxml__dyn_cnt_val(h, dyn, val, 1, data, arr);
+	usrxml__dyn_cnt_val(h, dyn, val, 1, data, arr, from);
 	return data["cnt","eq"];
 }
 
-function usrxml__dyn_cnt_eq_val(h, dyn, val, arr,    data)
+function usrxml__dyn_cnt_eq_val(h, dyn, val, arr, from,    data)
 {
-	usrxml__dyn_cnt_val(h, dyn, val, 0, data, arr);
+	usrxml__dyn_cnt_val(h, dyn, val, 0, data, arr, from);
 	return data["cnt","eq"];
 }
 
-function usrxml__dyn_cnt_ne_val(h, dyn, val, arr,    data)
+function usrxml__dyn_cnt_ne_val(h, dyn, val, arr, from,    data)
 {
-	usrxml__dyn_cnt_val(h, dyn, val, 0, data, arr);
+	usrxml__dyn_cnt_val(h, dyn, val, 0, data, arr, from);
 	return data["cnt","ne"];
 }
 
-function usrxml__dyn_fnd_by_val(h, dyn, val, arr,    data)
+function usrxml__dyn_fnd_by_val(h, dyn, val, arr, from,    data)
 {
-	val = usrxml__dyn_cnt_val(h, dyn, val, -1, data, arr);
+	val = usrxml__dyn_cnt_val(h, dyn, val, -1, data, arr, from);
 	if (split(val, data, SUBSEP) != 2)
 		return USRXML_E_NOENT;
 	return data[2];
@@ -2036,7 +2072,8 @@ function declare_usrxml_consts()
 
 	# Generic
 	USRXML_E_NOENT		= -(USRXML_E_BASE + 201);
-	USRXML_E_NOT_ARRAY	= -(USRXML_E_BASE + 202);
+	USRXML_E_RANGE		= -(USRXML_E_BASE + 202);
+	USRXML_E_NOT_ARRAY	= -(USRXML_E_BASE + 203);
 
 	# Messaging
 	USRXML_E_PRIORITY_INVALID = -(USRXML_E_BASE + 301);
