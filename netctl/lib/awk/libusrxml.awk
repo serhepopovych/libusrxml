@@ -3570,6 +3570,8 @@ function usrxml__print_if_cb(h, dyn, iflu, data, arr, dec,
 		lu = "user";
 
 	printf s1 "<%s%s %s>" s2, sign, lu, iflu >>file;
+
+	return 0;
 }
 
 function usrxml__print_if(h, i, file, s1, s2,
