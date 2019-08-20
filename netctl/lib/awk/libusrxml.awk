@@ -1166,18 +1166,6 @@ function usrxml__dyn_copy(dh, sh, dyn, arr)
 # Name/type helpers
 #
 
-function usrxml__iname(h, name)
-{
-	if (name != "")
-		return name;
-
-	name = USRXML__instance[h,"name"];
-	if (name != "")
-		return name;
-
-	return "";
-}
-
 function usrxml__id(h, idn,    i)
 {
 	# h,username/userid
@@ -2012,9 +2000,9 @@ function usrxml__save_if(h, ifname)
 	return usrxml__copy_if_by_name(h SUBSEP USRXML_orig, h, ifname);
 }
 
-function usrxml__restore_if(h, ifname,    hh)
+function usrxml__restore_if(h,    hh, ifname)
 {
-	ifname = usrxml__iname(h, ifname);
+	ifname = USRXML__instance[h,"name"];
 	if (ifname == "")
 		return;
 
@@ -2027,22 +2015,30 @@ function usrxml__restore_if(h, ifname,    hh)
 
 	if ((hh,ifname) in USRXML_ifnames) {
 		usrxml__copy_if_by_name(h, hh, ifname);
-		usrxml__delete_if_by_name(hh, ifname, 1);
 
 		# No need to (re)activate interface/user and it's
 		# uppers since we may only be called before
 		# interface/user activation/deactivation on failure
 		# in usrxml__scope_none() or usrxml__scope_{if,user}().
 	}
+
+	usrxml__cleanup_if(h);
 }
 
-function usrxml__cleanup_if(h, ifname)
+function usrxml__cleanup_if(h,    ifname)
 {
-	ifname = usrxml__iname(h, ifname);
-	if (ifname == "")
-		return;
+	ifname = USRXML__instance[h,"name"];
+	if (ifname != "")
+		usrxml__delete_if_by_name(h SUBSEP USRXML_orig, ifname, 1);
 
-	usrxml__delete_if_by_name(h SUBSEP USRXML_orig, ifname, 1);
+	# Populated from parsing XML document
+	delete USRXML__instance[h,"name"];
+	delete USRXML__instance[h,"inactive"];
+	delete USRXML__instance[h,"if"];
+
+	delete USRXML__instance[h,"pipeid"];
+	delete USRXML__instance[h,"netid"];
+	delete USRXML__instance[h,"net6id"];
 }
 
 #
@@ -2475,15 +2471,6 @@ function fini_usrxml_parser(h,    n, p)
 	# Current entry type, scope and depth
 	delete USRXML__instance[h,"scope"];
 	delete USRXML__instance[h,"depth"];
-
-	# Populated from parsing XML document
-	delete USRXML__instance[h,"name"];
-	delete USRXML__instance[h,"inactive"];
-	delete USRXML__instance[h,"if"];
-
-	delete USRXML__instance[h,"pipeid"];
-	delete USRXML__instance[h,"netid"];
-	delete USRXML__instance[h,"net6id"];
 
 	# File name and line number
 	delete USRXML__instance[h,"filename"];
