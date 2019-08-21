@@ -1043,7 +1043,7 @@ function usrxml__dyn_cnt_val_cb(h, dyn, attr, data, arr, dec,    val)
 	}
 }
 
-function usrxml__dyn_cnt_val(h, dyn, val, ret, data, arr, from,    cb)
+function usrxml__dyn_cnt_val(h, dyn, val, ret, data, arr, from, dec,    cb)
 {
 	data["val"] = val;
 	data["ret"] = ret;
@@ -1051,7 +1051,11 @@ function usrxml__dyn_cnt_val(h, dyn, val, ret, data, arr, from,    cb)
 
 	# Not using array specific helper here as @arr might be omitted
 	cb = "usrxml__dyn_cnt_val_cb";
-	return usrxml__dyn_for_each_from(h, dyn, cb, data, from, arr);
+
+	if (isarray(arr))
+		return usrxml____dyn_for_each(h, dyn, cb, data, arr, from, dec);
+	else
+		return usrxml____dyn_for_each(h, dyn, cb, data, USRXML__dynmap, from, dec);
 }
 
 function usrxml__dyn_del_by_val(h, dyn, val, arr, from,    data)
@@ -1072,12 +1076,22 @@ function usrxml__dyn_cnt_ne_val(h, dyn, val, arr, from,    data)
 	return data["cnt","ne"];
 }
 
-function usrxml__dyn_fnd_by_val(h, dyn, val, arr, from,    data)
+function usrxml___dyn_fnd_by_val(h, dyn, val, arr, from, dec,    data)
 {
-	val = usrxml__dyn_cnt_val(h, dyn, val, -1, data, arr, from);
+	val = usrxml__dyn_cnt_val(h, dyn, val, -1, data, arr, from, dec);
 	if (split(val, data, SUBSEP) != 2)
 		return USRXML_E_NOENT;
 	return data[2];
+}
+
+function usrxml__dyn_fnd_by_val(h, dyn, val, arr, from)
+{
+	return usrxml___dyn_fnd_by_val(h, dyn, val, arr, from);
+}
+
+function usrxml__dyn_fnd_by_val_reverse(h, dyn, val, arr, from)
+{
+	return usrxml___dyn_fnd_by_val(h, dyn, val, arr, from, -1);
 }
 
 function usrxml__dyn_del_all(h, dyn, arr)
