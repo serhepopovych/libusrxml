@@ -2571,10 +2571,40 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_inactive(h, ifname,    n, i, v, r, cmp)
+function usrxml__scope_inactive(h, ifname,    n, i, v, r, cb, cmp, data)
 {
 	# h,ifname
 	n = h SUBSEP ifname;
+
+	i = ifname;
+	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[n]))
+		i = i ":";
+
+	# At this point we should not fail since upper/lower
+	# links could be modified during resolve.
+
+	cb = "usrxml__scope_if_cb";
+
+	# Use ":" suffix which is not valid ifname according
+	# to usrxml_dev_valid_name() helper to avoid interface
+	# name clash with keys used to pass params to callback.
+	data["ifname:"] = i;
+
+	# Resolve interface reference links (order is important)
+	data["lu:"] = "lower";
+	usrxml__dyn_for_each(h, "lower-" i, cb, data);
+
+	data["lu:"] = "upper";
+	usrxml__dyn_for_each(h, "upper-" i, cb, data);
+
+	# Resolve interfaces that refer this one
+	data["lu:"] = "unres";
+	usrxml__dyn_for_each(h, "unres-" i, cb, data);
+
+	delete data["lu:"];
+	delete data["ifname:"];
+
+	# Handle user supplied <inactive> tag, if any
 
 	# h,ifname,"inactive"
 	r = n SUBSEP "inactive";
@@ -2632,6 +2662,10 @@ function usrxml__scope_inactive(h, ifname,    n, i, v, r, cmp)
 		if (cmp < 0)
 			USRXML_ifnames[r] = 1;
 	}
+
+	# Activate user(s)/interface(s)
+	for (ifname in data)
+		usrxml__activate_if_by_name(h, "", ifname);
 }
 
 function usrxml__scope_if_cb(h, dyn, iflu, data, arr, dec,
@@ -2801,8 +2835,7 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr, dec,
 	return 0;
 }
 
-function usrxml__scope_if(h, sign, name, val,
-			  n, i, r, a, ifname, type, cb, data)
+function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 {
 	ifname = USRXML__instance[h,"name"];
 
@@ -2828,36 +2861,7 @@ function usrxml__scope_if(h, sign, name, val,
 				return usrxml_missing_arg(h, "ip-link");
 		}
 
-		# At this point we should not fail since upper/lower
-		# links could be modified during resolve.
-
-		cb = "usrxml__scope_if_cb";
-
-		# Use ":" suffix which is not valid ifname according
-		# to usrxml_dev_valid_name() helper to avoid interface
-		# name clash with keys used to pass params to callback.
-		data["ifname:"] = ifname;
-
-		# Resolve interface reference links (order is important)
-		data["lu:"] = "lower";
-		usrxml__dyn_for_each(h, "lower-" ifname, cb, data);
-
-		data["lu:"] = "upper";
-		usrxml__dyn_for_each(h, "upper-" ifname, cb, data);
-
-		# Resolve interfaces that refer this one
-		data["lu:"] = "unres";
-		usrxml__dyn_for_each(h, "unres-" ifname, cb, data);
-
-		delete data["lu:"];
-		delete data["ifname:"];
-
-		# Handle user supplied <inactive> tag, if any
 		usrxml__scope_inactive(h, ifname);
-
-		# Activate user(s)/interface(s)
-		for (ifname in data)
-			usrxml__activate_if_by_name(h, "", ifname);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 		USRXML__instance[h,"depth"]--;
@@ -2979,7 +2983,7 @@ function usrxml__scope_validate_pipe(i,    m, j, p, val, zones_dirs, zd_bits)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_user(h, sign, name, val,    n, i, username, cb, dyn, iif, uif, data)
+function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif)
 {
 	username = USRXML__instance[h,"name"];
 
@@ -3010,33 +3014,16 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, cb, dyn, iif,
 			return val;
 
 		if (uif != iif) {
-			n = username ":";
-
-			dyn = "lower-" n;
+			dyn = "lower-" username ":";
 
 			if (uif != "")
 				usrxml__dyn_add_val(h, dyn, uif, "/");
 			if (iif != "")
 				usrxml__dyn_add_val(h, dyn, iif, "");
 
-			# At this point we should not fail since lower
-			# links could be modified during resolve.
-
-			cb = "usrxml__scope_if_cb";
-
-			# Use ":" suffix which is not valid ifname according
-			# to usrxml_dev_valid_name() helper to avoid interface
-			# name clash with keys used to pass params to callback.
-			data["ifname:"] = n;
-
-			# Resolve interface reference links (order is important)
-			data["lu:"] = "lower";
-			usrxml__dyn_for_each(h, dyn, cb, data);
-
 			USRXML_userif[i] = iif;
 		}
 
-		# Handle user supplied <inactive> tag, if any
 		usrxml__scope_inactive(h, username);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
