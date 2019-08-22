@@ -2571,105 +2571,8 @@ function usrxml__scope_none(h, sign, name, val,    n, i)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_inactive(h, ifname,    n, i, v, r, cb, cmp, data)
-{
-	# h,ifname
-	n = h SUBSEP ifname;
-
-	i = ifname;
-	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[n]))
-		i = i ":";
-
-	# At this point we should not fail since upper/lower
-	# links could be modified during resolve.
-
-	cb = "usrxml__scope_if_cb";
-
-	# Use ":" suffix which is not valid ifname according
-	# to usrxml_dev_valid_name() helper to avoid interface
-	# name clash with keys used to pass params to callback.
-	data["ifname:"] = i;
-
-	# Resolve interface reference links (order is important)
-	data["lu:"] = "lower";
-	usrxml__dyn_for_each(h, "lower-" i, cb, data);
-
-	data["lu:"] = "upper";
-	usrxml__dyn_for_each(h, "upper-" i, cb, data);
-
-	# Resolve interfaces that refer this one
-	data["lu:"] = "unres";
-	usrxml__dyn_for_each(h, "unres-" i, cb, data);
-
-	delete data["lu:"];
-	delete data["ifname:"];
-
-	# Handle user supplied <inactive> tag, if any
-
-	# h,ifname,"inactive"
-	r = n SUBSEP "inactive";
-
-	# v < 0 - inactive   (<inactive forced>)
-	# v > 0 - inactive   (<inactive yes>)
-	# v = 0 - active     (<inactive no>)
-	v = USRXML_ifnames[r];
-
-	# i < 0 - activate   (<inactive no> or <-inactive>)
-	# i > 0 - deactivate (<inactive yes>)
-	# i = 0 - noop       (no <inactive> tag)
-	i = USRXML__instance[h,"inactive"];
-
-	# v + i
-	# -----
-	#  -1 + -1 == -2  -> -1 # inactive forced -> inactive forced
-	#  -1 +  1 ==  0  ->  1 # inactive forced -> inactive yes (ret)
-	#
-	#   1 + -1 ==  0        # inactive yes -> inactive forced
-	#   1 +  1 ==  2  ->  1 # inactive yes -> inactive yes    (ret)
-	#
-	#   0 + -1 == -1  ->  0 # active -> active
-	#   0 +  1 ==  1        # active -> inactive yes   (deactivate)
-
-	if (i > 0) {
-		if (v < 0) {
-			# inactive forced -> inactive yes
-			USRXML_ifnames[r] = 1;
-			return;
-		}
-		if (v > 0) {
-			# inactive yes -> inactive yes
-			return;
-		}
-		# active -> inactive yes
-		cmp = -1;
-	} else {
-		if (i != 0 && v > 0) {
-			# inactive yes -> inactive forced
-			USRXML_ifnames[r] = -1;
-		}
-		# inactive forced -> inactive forced
-		# active -> active
-		cmp = usrxml__type_cmp(h, ifname);
-	}
-
-	if (cmp > 0) {
-		usrxml__activate_if_by_name(h, "", ifname);
-	} else {
-		USRXML_ifnames[n,"cmp"] = -1; # force type cmp
-		usrxml__deactivate_if_by_name(h, "", ifname);
-		delete USRXML_ifnames[n,"cmp"];
-
-		if (cmp < 0)
-			USRXML_ifnames[r] = 1;
-	}
-
-	# Activate user(s)/interface(s)
-	for (ifname in data)
-		usrxml__activate_if_by_name(h, "", ifname);
-}
-
-function usrxml__scope_if_cb(h, dyn, iflu, data, arr, dec,
-			     i, ifname, lu, rev)
+function usrxml__resolve_refs_cb(h, dyn, iflu, data, arr, dec,
+				 i, ifname, lu, rev)
 {
 	ifname = data["ifname:"];
 	lu = data["lu:"];
@@ -2835,6 +2738,103 @@ function usrxml__scope_if_cb(h, dyn, iflu, data, arr, dec,
 	return 0;
 }
 
+function usrxml__resolve_refs(h, ifname,    n, i, v, r, cmp, cb, data)
+{
+	# h,ifname
+	n = h SUBSEP ifname;
+
+	i = ifname;
+	if (usrxml__type_is_user(h, ifname, USRXML_ifnames[n]))
+		i = i ":";
+
+	# At this point we should not fail since upper/lower
+	# links could be modified during resolve.
+
+	cb = "usrxml__resolve_refs_cb";
+
+	# Use ":" suffix which is not valid ifname according
+	# to usrxml_dev_valid_name() helper to avoid interface
+	# name clash with keys used to pass params to callback.
+	data["ifname:"] = i;
+
+	# Resolve interface reference links (order is important)
+	data["lu:"] = "lower";
+	usrxml__dyn_for_each(h, "lower-" i, cb, data);
+
+	data["lu:"] = "upper";
+	usrxml__dyn_for_each(h, "upper-" i, cb, data);
+
+	# Resolve interfaces that refer this one
+	data["lu:"] = "unres";
+	usrxml__dyn_for_each(h, "unres-" i, cb, data);
+
+	delete data["lu:"];
+	delete data["ifname:"];
+
+	# Handle user supplied <inactive> tag, if any
+
+	# h,ifname,"inactive"
+	r = n SUBSEP "inactive";
+
+	# v < 0 - inactive   (<inactive forced>)
+	# v > 0 - inactive   (<inactive yes>)
+	# v = 0 - active     (<inactive no>)
+	v = USRXML_ifnames[r];
+
+	# i < 0 - activate   (<inactive no> or <-inactive>)
+	# i > 0 - deactivate (<inactive yes>)
+	# i = 0 - noop       (no <inactive> tag)
+	i = USRXML__instance[h,"inactive"];
+
+	# v + i
+	# -----
+	#  -1 + -1 == -2  -> -1 # inactive forced -> inactive forced
+	#  -1 +  1 ==  0  ->  1 # inactive forced -> inactive yes (ret)
+	#
+	#   1 + -1 ==  0        # inactive yes -> inactive forced
+	#   1 +  1 ==  2  ->  1 # inactive yes -> inactive yes    (ret)
+	#
+	#   0 + -1 == -1  ->  0 # active -> active
+	#   0 +  1 ==  1        # active -> inactive yes   (deactivate)
+
+	if (i > 0) {
+		if (v < 0) {
+			# inactive forced -> inactive yes
+			USRXML_ifnames[r] = 1;
+			return;
+		}
+		if (v > 0) {
+			# inactive yes -> inactive yes
+			return;
+		}
+		# active -> inactive yes
+		cmp = -1;
+	} else {
+		if (i != 0 && v > 0) {
+			# inactive yes -> inactive forced
+			USRXML_ifnames[r] = -1;
+		}
+		# inactive forced -> inactive forced
+		# active -> active
+		cmp = usrxml__type_cmp(h, ifname);
+	}
+
+	if (cmp > 0) {
+		usrxml__activate_if_by_name(h, "", ifname);
+	} else {
+		USRXML_ifnames[n,"cmp"] = -1; # force type cmp
+		usrxml__deactivate_if_by_name(h, "", ifname);
+		delete USRXML_ifnames[n,"cmp"];
+
+		if (cmp < 0)
+			USRXML_ifnames[r] = 1;
+	}
+
+	# Activate user(s)/interface(s)
+	for (ifname in data)
+		usrxml__activate_if_by_name(h, "", ifname);
+}
+
 function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 {
 	ifname = USRXML__instance[h,"name"];
@@ -2861,7 +2861,7 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 				return usrxml_missing_arg(h, "ip-link");
 		}
 
-		usrxml__scope_inactive(h, ifname);
+		usrxml__resolve_refs(h, ifname);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 		USRXML__instance[h,"depth"]--;
@@ -3024,7 +3024,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 			USRXML_userif[i] = iif;
 		}
 
-		usrxml__scope_inactive(h, username);
+		usrxml__resolve_refs(h, username);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_none;
 		USRXML__instance[h,"depth"]--;
