@@ -1827,26 +1827,46 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 	return int(usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu));
 }
 
-function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,    val, dh, ifname)
+function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,    t, val, dh, ifname)
 {
 	dh = data["dh"];
 	ifname = data["ifname"];
 
-	usrxml___dyn_add_val(dh, dyn, iflu, arr[sh,dyn,iflu], arr);
+	# sh,unres-{iflu}
+	res = "unres-" iflu;
 
-	dyn = "unres-" iflu;
+	val = arr[sh,dyn,iflu];
 
-	# sh,unres-{iflu},ifname
-	val = usrxml__dyn_get_val(sh, dyn, ifname, arr);
-	if (val != "")
-		usrxml___dyn_add_val(dh, dyn, ifname, val, arr);
+	if (data["new"]) {
+		if (val != "/")
+			val = "";
+		t = "";
+	} else {
+		t = usrxml__dyn_get_val(sh, res, ifname, arr);
+
+		if (t != "") {
+			if (val != "/")
+				val = "?";
+			else
+				t = "";
+		} else {
+			if (val == "?")
+				t = data["lu"];
+		}
+	}
+
+	if (t != "")
+		usrxml___dyn_add_val(dh, res, ifname, t, arr);
 	else
-		usrxml___dyn_del_by_attr(dh, dyn, ifname, arr);
+		usrxml___dyn_del_by_attr(dh, res, ifname, arr);
+
+	usrxml___dyn_add_val(dh, dyn, iflu, val, arr);
 
 	return 0;
 }
 
-function usrxml__copy_if_by_name(dh, sh, ifname,    i, i_dst, i_src, name, cb, data)
+function usrxml__copy_if_by_name(dh, sh, ifname, new,
+				 i, i_dst, i_src, name, cb, data)
 {
 	# sh,ifname
 	i_src = sh SUBSEP ifname;
@@ -1866,6 +1886,7 @@ function usrxml__copy_if_by_name(dh, sh, ifname,    i, i_dst, i_src, name, cb, d
 
 	data["dh"] = dh;
 	data["ifname"] = ifname;
+	data["new"] = new;
 
 	if (usrxml__type_is_user(sh, ifname, USRXML_ifnames[i_src]))
 		return usrxml__copy_user(dh, i_dst, sh, i_src, ifname, cb, data);
@@ -1883,13 +1904,15 @@ function usrxml__copy_if_by_name(dh, sh, ifname,    i, i_dst, i_src, name, cb, d
 	i_dst = usrxml__map_add_val(dh, ifname,
 				    USRXML_ifnames, USRXML_ifnames[i_src]);
 
-	i = "lower-" ifname;
+	data["lu"] = i = "lower";
+	i = i "-" ifname;
 	usrxml__dyn_del_all(dh, i);
 	usrxml__dyn_for_each(sh, i, cb, data);
 
 	usrxml__act_copy(dh, sh, i);
 
-	i = "upper-" ifname;
+	data["lu"] = i = "upper";
+	i = i "-" ifname;
 	usrxml__dyn_del_all(dh, i);
 	usrxml__dyn_for_each(sh, i, cb, data);
 
