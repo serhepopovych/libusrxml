@@ -778,22 +778,24 @@ function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    n, i)
 	if (dh == sh)
 		return "";
 
-	usrxml__map_del_by_attr(dh, attr, dmap);
-
 	if (attr ~ "^[[:digit:]]+$") {
 		# sh,id
 		i = sh SUBSEP attr;
 
-		if (!(i in smap))
+		if (!(i in smap)) {
+			# Not deleting from dest by id
 			return "";
+		}
 
 		attr = smap[i];
 	} else {
 		# sh,attr,"id"
 		i = sh SUBSEP attr SUBSEP "id";
 
-		if (!(i in smap))
+		if (!(i in smap)) {
+			usrxml__map_del_by_attr(dh, attr, dmap);
 			return "";
+		}
 	}
 
 	return usrxml__map_add_val(dh, attr, dmap, smap[sh,attr]);
