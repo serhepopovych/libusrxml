@@ -2025,27 +2025,15 @@ function usrxml__save_if(h, ifname)
 	return usrxml__copy_if_by_name(h SUBSEP USRXML_orig, h, ifname);
 }
 
-function usrxml__restore_if(h,    hh, ifname)
+function usrxml__restore_if(h, refs,    ifname)
 {
 	ifname = USRXML__instance[h,"name"];
-	if (ifname == "")
-		return;
 
-	# First try to delete as there might be nothing
-	# to restore if we creating new entry.
-	usrxml__delete_if_by_name(h, ifname, 1);
+	usrxml__delete_if_by_name(h, ifname, !refs);
 
-	# h,USRXML_orig
-	hh = h SUBSEP USRXML_orig;
-
-	if ((hh,ifname) in USRXML_ifnames) {
-		usrxml__copy_if_by_name(h, hh, ifname);
-
-		# No need to (re)activate interface/user and it's
-		# uppers since we may only be called before
-		# interface/user activation/deactivation on failure
-		# in usrxml__scope_none() or usrxml__scope_{if,user}().
-	}
+	if (usrxml__copy_if_by_name(h, h SUBSEP USRXML_orig, ifname, refs))
+		if (refs)
+			usrxml__resolve_refs(h, ifname);
 
 	usrxml__cleanup_if(h);
 }
@@ -2064,6 +2052,8 @@ function usrxml__cleanup_if(h,    ifname)
 	delete USRXML__instance[h,"pipeid"];
 	delete USRXML__instance[h,"netid"];
 	delete USRXML__instance[h,"net6id"];
+
+	usrxml___dyn_clear(h, USRXML_ifupdown);
 }
 
 #
@@ -3388,36 +3378,40 @@ function usrxml__scope_net6(h, sign, name, val)
 	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6, "6");
 }
 
-function usrxml__ifupdown_cb(h, ifname, iflu, fn, arr, dec,    n, type)
+function usrxml__ifupdown_cb(h, ifname, iflu, a, arr, dec,    ud, fn)
 {
+	# ifdown(-1),ifup(1)
+	ud = arr[h,ifname,iflu];
+
 	# Skip entries not matching current iterator
-	if (dec != arr[h,ifname,iflu])
+	if ((dec - 2 * dec * ("rb" in a)) != ud)
 		return 0;
 
-	if (dec < 0) {
+	if (ud < 0) {
 		# ifdown
 
 		# Find handle in case of deleted entry which
 		# is stored as h,USRXML_orig handle.
 
-		if (!((h,iflu) in USRXML_ifnames)) {
+		if (!((h,ifname) in USRXML_ifnames)) {
 			# h,USRXML_orig
 			h = h SUBSEP USRXML_orig;
 
-			if (!((h,iflu) in USRXML_ifnames)) {
+			if (!((h,ifname) in USRXML_ifnames)) {
 				# Assert as we must have saved entry
 				return USRXML_E_NOENT;
 			}
 		}
 	}
 
+	fn = a["fn"];
 	if (fn != "")
-		@fn(h, ifname, iflu, arr, dec);
+		return @fn(h, ifname, iflu, a, arr, dec);
 
-	return 1;
+	return 0;
 }
 
-function usrxml__ifupdown(h, a, fn,    n, i, p, ret, cb, ifname)
+function usrxml__ifupdown(h, a, fn,    b, n, i, p, f, ret, cb, ifname)
 {
 	# h,"num"
 	n = h SUBSEP "num";
@@ -3427,10 +3421,26 @@ function usrxml__ifupdown(h, a, fn,    n, i, p, ret, cb, ifname)
 
 	n = USRXML_ifupdown[n];
 
+	if (!("rb" in a)) {
+		a["fn"] = fn;
+
+		delete a["fwd","p"];
+		delete a["rev","p"];
+	}
+
+	if (("rev","p") in a) {
+		p = a["rev","p"];
+		f = a["rev","f"];
+	} else {
+		p = n - 1;
+		f = "";
+
+		a["rev","p"] = -1;
+	}
+
 	cb = "usrxml__ifupdown_cb";
 
-	# Do ifdown in reverse first
-	for (p = n; --p >= 0; ) {
+	for (; p >= 0; p--) {
 		# h,id
 		i = h SUBSEP p;
 
@@ -3440,34 +3450,56 @@ function usrxml__ifupdown(h, a, fn,    n, i, p, ret, cb, ifname)
 
 		ifname = USRXML_ifupdown[i];
 
-		ret = int(usrxml___dyn_for_each_reverse(h, ifname, cb, fn,
-							USRXML_ifupdown));
-		if (ret != USRXML_E_NONE)
-			return ret;
+		ret = usrxml___dyn_for_each_reverse_from(h, ifname, cb, a,
+							 f, USRXML_ifupdown);
+		if (split(ret, b, SUBSEP) != 2)
+			continue;
+
+		if ("rb" in a)
+			continue;
+
+		a["fwd","p"] = p;
+		a["fwd","f"] = b[2];
+
+		a["rb"] = 1;
+		usrxml__ifupdown(h, a, fn);
+
+		return b[1];
 	}
 
-	# While activate/deactivate (ifup/ifdown) could be called in any order,
-	# which is respected by this code, typically all uppers (interfaces
-	# that rely processed one) are either activated (ifup) or deactivated
-	# (ifdown). Optimize this case by checking if USRXML_ifupdown isn't empty.
+	if (("fwd","p") in a) {
+		p = a["fwd","p"];
+		f = a["fwd","f"];
+	} else {
+		p = a["fwd","p"] = 0;
+		f = a["fwd","f"] = "";
+	}
 
-	# Do ifup in direct next
-	if ((h,"cnt") in USRXML_ifupdown) {
-		for (p = 0; p < n; p++) {
-			# h,id
-			i = h SUBSEP p;
+	for (; p < n; p++) {
+		# h,id
+		i = h SUBSEP p;
 
-			# Skip hole entries
-			if (!(i in USRXML_ifupdown))
-				continue;
+		# Skip hole entries
+		if (!(i in USRXML_ifupdown))
+			continue;
 
-			ifname = USRXML_ifupdown[i];
+		ifname = USRXML_ifupdown[i];
 
-			ret = int(usrxml___dyn_for_each(h, ifname, cb, fn,
-							USRXML_ifupdown));
-			if (ret != USRXML_E_NONE)
-				return ret;
-		}
+		ret = usrxml___dyn_for_each_from(h, ifname, cb, a,
+						 f, USRXML_ifupdown);
+		if (split(ret, b, SUBSEP) != 2)
+			continue;
+
+		if ("rb" in a)
+			continue;
+
+		a["rev","p"] = p;
+		a["rev","f"] = b[2];
+
+		a["rb"] = 1;
+		usrxml__ifupdown(h, a, fn);
+
+		return b[1];
 	}
 
 	return USRXML_E_NONE;
@@ -3557,7 +3589,7 @@ function run_usrxml_parser(h, line, cb, data,
 			if (cb != "") {
 				ret = @cb(h, a, data);
 				if (ret < 0) {
-					usrxml__restore_if(h);
+					usrxml__restore_if(h, 1);
 					return ret;
 				}
 			}
