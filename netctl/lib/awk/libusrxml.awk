@@ -2845,6 +2845,11 @@ function usrxml__resolve_refs(h, ifname,    n, i, v, r, cmp, cb, data)
 			USRXML_ifnames[r] = 1;
 	}
 
+	if (!((h,ifname,ifname) in USRXML_ifupdown)) {
+		cmp = 1 - 2 * !!USRXML_ifnames[r];
+		usrxml___dyn_add_val(h, ifname, ifname, cmp, USRXML_ifupdown);
+	}
+
 	# Activate user(s)/interface(s)
 	for (ifname in data)
 		usrxml__activate_if_by_name(h, "", ifname);
