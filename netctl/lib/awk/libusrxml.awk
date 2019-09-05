@@ -452,6 +452,12 @@ function usrxml_ept_val(h, section,    errstr)
 	return usrxml_result(h, USRXML_E_EMPTY, USRXML_MSG_PRIO_ERR, errstr);
 }
 
+function usrxml_nept_val(h, section,    errstr)
+{
+	errstr = sprintf("non-empty value in <%s>", section);
+	return usrxml_result(h, USRXML_E_NOT_EMPTY, USRXML_MSG_PRIO_ERR, errstr);
+}
+
 function usrxml_dup_val(h, section, value,    errstr)
 {
 	errstr = sprintf("duplicated value \"%s\" in <%s>", value, section);
@@ -609,6 +615,25 @@ function usrxml_match(s, r, a,    n, s_rs, s_rl)
 	RSTART = s_rs;
 
 	return n;
+}
+
+function usrxml_in_array(key, arr)
+{
+	return key in arr;
+}
+
+function usrxml_copy_array(darr, sarr,    key, cnt)
+{
+	delete darr;
+
+	cnt = 0;
+
+	for (key in sarr) {
+		darr[key] = sarr[key];
+		cnt++;
+	}
+
+	return cnt;
 }
 
 #
@@ -1162,6 +1187,76 @@ function usrxml__dyn_copy(dh, sh, dyn, arr)
 		return usrxml___dyn_copy(dh, sh, dyn, arr);
 	else
 		return usrxml___dyn_copy(dh, sh, dyn, USRXML__dynmap);
+}
+
+#
+# Preference management helpers
+#
+
+function usrxml__pref_pick_first(h, arr,    si, id)
+{
+	si = PROCINFO["sorted_in"];
+	PROCINFO["sorted_in"] = "@ind_num_asc";
+
+	id = USRXML_E_NOENT;
+
+	for (id in arr)
+		break;
+
+	PROCINFO["sorted_in"] = si;
+
+	return id;
+}
+
+function usrxml__pref_add_val(h, arr, val, id)
+{
+	if (id ~ "^[[:digit:]]+$") {
+		if (id >= arr[h]["id"])
+			arr[h]["id"] = id + 1;
+		arr[h]["cnt"] += !usrxml_in_array(id, arr[h]);
+	} else {
+		id = arr[h]["id"]++;
+		arr[h]["cnt"]++;
+	}
+
+	arr[h][id] = val;
+
+	return id;
+}
+
+function usrxml__pref_del_by_id(h, arr, id)
+{
+	if (id == "") {
+		id = usrxml__pref_pick_first(h, arr);
+		if (id < 0)
+			return id;
+	} else if (id ~ "^[[:digit:]]+$") {
+		if (!usrxml_in_array(id, arr[h]))
+			return USRXML_E_NOENT;
+	} else {
+		return USRXML_E_INVAL;
+	}
+
+	if (--arr[h]["cnt"] <= 0)
+		delete arr[h];
+	else
+		delete arr[h][id];
+
+	return id;
+}
+
+function usrxml__pref_copy_all(dh, darr, sh, sarr)
+{
+	if (dh == sh)
+		return 0;
+
+	if (!(sh in sarr) || !isarray(sarr[sh]))
+		return USRXML_E_NOT_ARRAY;
+
+	# Make darr[dh]
+	darr[dh]["cnt"] = 0;
+
+	return usrxml_copy_array(darr[dh], sarr[sh]) - 2;
 }
 
 #
@@ -1894,13 +1989,8 @@ function usrxml__copy_if_by_name(dh, sh, ifname, new,
 		return usrxml__copy_user(dh, i_dst, sh, i_src, ifname, cb, data);
 
 	for (name in USRXML_ifparms) {
-		# sh,ifname,name
-		i = i_src SUBSEP name;
-
-		if (i in USRXML_ifnames)
-			USRXML_ifnames[i_dst,name] = USRXML_ifnames[i];
-		else
-			delete USRXML_ifnames[i_dst,name];
+		usrxml__pref_copy_all(i_dst SUBSEP name, USRXML_ifnames,
+				      i_src SUBSEP name, USRXML_ifnames);
 	}
 
 	i_dst = usrxml__map_add_val(dh, ifname,
@@ -2081,13 +2171,14 @@ function declare_usrxml_consts()
 	USRXML_E_BASE	= 300;
 
 	# Document syntax errors
-	USRXML_E_SYNTAX   = -(USRXML_E_BASE + 0);
-	USRXML_E_INVAL    = -(USRXML_E_BASE + 1);
-	USRXML_E_EMPTY    = -(USRXML_E_BASE + 2);
-	USRXML_E_DUP      = -(USRXML_E_BASE + 3);
-	USRXML_E_MISS     = -(USRXML_E_BASE + 4);
-	USRXML_E_SELF_REF = -(USRXML_E_BASE + 5);
-	USRXML_E_SCOPE    = -(USRXML_E_BASE + 50);
+	USRXML_E_SYNTAX    = -(USRXML_E_BASE + 0);
+	USRXML_E_INVAL     = -(USRXML_E_BASE + 1);
+	USRXML_E_EMPTY     = -(USRXML_E_BASE + 2);
+	USRXML_E_NOT_EMPTY = -(USRXML_E_BASE + 3);
+	USRXML_E_DUP       = -(USRXML_E_BASE + 4);
+	USRXML_E_MISS      = -(USRXML_E_BASE + 5);
+	USRXML_E_SELF_REF  = -(USRXML_E_BASE + 6);
+	USRXML_E_SCOPE     = -(USRXML_E_BASE + 50);
 
 	# API
 	USRXML_E_HANDLE_INVALID	= -(USRXML_E_BASE + 101);
@@ -2923,26 +3014,6 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 
 		# For user/if lower/upper relation is handled
 		# on user section closure (i.e. on </user> tag)
-	} else if (name in USRXML_ifparms) {
-		if (sign > 0) {
-			if (val == "")
-				return usrxml_ept_val(h, name);
-
-			gsub("@if@", ifname, val);
-			gsub("@kind@", type, val);
-
-			if (name == "ip-link" && type != "host") {
-				r = "[[:space:]]type[[:space:]]+" \
-				    "([^[:space:]]+)" \
-				    "([[:space:]]|$)";
-				if (usrxml_match(val, r, a) && type != a[1])
-					return usrxml_inv_arg(h, name, val);
-			}
-
-			USRXML_ifnames[n,name] = val;
-		} else {
-			delete USRXML_ifnames[n,name];
-		}
 	} else if (name == "inactive") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
@@ -2962,6 +3033,37 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 
 		if (val != 0)
 			USRXML__instance[h,"inactive"] = val;
+	} else if (usrxml_match(name, "^([^:]+)(:([[:digit:]]+))?$", a) &&
+		   (name = a[1]) in USRXML_ifparms) {
+		i = a[3];
+
+		# h,ifname,name
+		n = n SUBSEP name;
+
+		if (sign > 0) {
+			if (val == "")
+				return usrxml_ept_val(h, name);
+
+			gsub("@if@", ifname, val);
+			gsub("@kind@", type, val);
+
+			if (name == "ip-link" && type != "host") {
+				r = "[[:space:]]type[[:space:]]+" \
+				    "([^[:space:]]+)" \
+				    "([[:space:]]|$)";
+				if (usrxml_match(val, r, a) && type != a[1])
+					return usrxml_inv_arg(h, name, val);
+			}
+
+			usrxml__pref_add_val(n, USRXML_ifnames, val, i);
+		} else {
+			if (val != "")
+				return usrxml_nept_val(h, name);
+
+			i = usrxml__pref_del_by_id(n, USRXML_ifnames, i);
+			if (i < 0)
+				return usrxml__seterrno(h, i);
+		}
 	} else {
 		return usrxml_syntax_err(h);
 	}
@@ -3540,7 +3642,7 @@ function run_usrxml_parser(h, line, cb, data,
 		return USRXML_E_NONE;
 
 	r = "^[[:space:]]*" \
-	    "<(|[/?@!+-])([[:alpha:]_][[:alnum:]_-]+)(|[[:space:]]+[^<>]+)>" \
+	    "<(|[/?@!+-])([[:alpha:]_][[:alnum:]_:-]+)(|[[:space:]]+[^<>]+)>" \
 	    "[[:space:]]*$";
 
 	n = usrxml_match(line, r, a);
@@ -3662,7 +3764,7 @@ function usrxml__print_if_cb(h, dyn, iflu, data, arr, dec,
 }
 
 function usrxml__print_if(h, i, file, s1, s2,
-			  n, p, o, t, ifname, cb, data)
+			  n, p, o, t, v, ifname, cb, data, si)
 {
 	ifname = USRXML_ifnames[i];
 
@@ -3680,19 +3782,33 @@ function usrxml__print_if(h, i, file, s1, s2,
 	if (o != "")
 		printf s1 "<inactive %s>" s2, o >>file;
 
+	si = PROCINFO["sorted_in"];
+	PROCINFO["sorted_in"] = "@ind_num_asc";
+
 	for (n in USRXML_ifparms) {
 		# h,ifname,n
 		p = i SUBSEP n;
 
-		if (p in USRXML_ifnames) {
-			o = USRXML_ifnames[p];
+		if (!(p in USRXML_ifnames))
+			continue;
 
-			gsub(ifname, "@if@", o);
-			gsub(t, "@kind@", o);
+		for (o in USRXML_ifnames[p]) {
+			if (o !~ "^[[:digit:]]+$")
+				continue;
 
-			printf s1 "<%s %s>" s2, n, o >>file;
+			v = USRXML_ifnames[p][o];
+
+			gsub(ifname, "@if@", v);
+			gsub(t, "@kind@", v);
+
+			if (USRXML_ifnames[p]["cnt"] > 1)
+				printf s1 "<%s:%u %s>" s2, n, o, v >>file;
+			else
+				printf s1 "<%s %s>" s2, n, v >>file;
 		}
 	}
+
+	PROCINFO["sorted_in"] = si;
 
 	cb = "usrxml__print_if_cb";
 
