@@ -3921,10 +3921,10 @@ function load_usrxml_file(_h, file, flags, cb, data,    h, line, rc, ret, s_fn, 
 	while ((rc = (getline line <FILENAME)) > 0) {
 		ret = run_usrxml_parser(h, line, cb, data);
 		if (ret < 0) {
-			if (and(flags, USRXML_LOAD_SKIP_FAILED))
-				usrxml__clearerrno(h);
-			else
+			if (!and(flags, USRXML_LOAD_SKIP_FAILED))
 				break;
+			usrxml__clearerrno(h);
+			ret = USRXML_E_NONE;
 		}
 	}
 
