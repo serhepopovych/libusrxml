@@ -3016,9 +3016,6 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 		# For user/if lower/upper relation is handled
 		# on user section closure (i.e. on </user> tag)
 	} else if (name == "inactive") {
-		if (val == "")
-			return usrxml_ept_val(h, name);
-
 		if (sign > 0) {
 			if (val == "yes")
 				val = 1;
@@ -3026,6 +3023,8 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 				val = -1;
 			else if (val == "forced")
 				val = 0;
+			else if (val == "")
+				return usrxml_ept_val(h, name);
 			else
 				return usrxml_inv_arg(h, name, val);
 		} else {
@@ -3290,9 +3289,6 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 			}
 		}
 	} else if (name == "inactive") {
-		if (val == "")
-			return usrxml_ept_val(h, name);
-
 		if (sign > 0) {
 			if (val == "yes")
 				val = 1;
@@ -3300,6 +3296,8 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 				val = -1;
 			else if (val == "forced")
 				val = 0;
+			else if (val == "")
+				return usrxml_ept_val(h, name);
 			else
 				return usrxml_inv_arg(h, name, val);
 		} else {
