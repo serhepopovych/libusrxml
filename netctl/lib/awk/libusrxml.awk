@@ -622,6 +622,14 @@ function usrxml_in_array(key, arr)
 	return key in arr;
 }
 
+function usrxml_in_array_get(key, arr)
+{
+	if (key in arr)
+		return arr[key];
+	else
+		return "";
+}
+
 function usrxml_copy_array(darr, sarr,    key, cnt)
 {
 	delete darr;
@@ -1208,7 +1216,7 @@ function usrxml__pref_pick_first(h, arr,    si, id)
 	return id;
 }
 
-function usrxml__pref_add_val(h, arr, val, id)
+function usrxml__pref_add_val(h, arr, val, id, tid)
 {
 	if (id ~ "^[[:digit:]]+$") {
 		if (id >= arr[h]["id"])
@@ -1220,6 +1228,8 @@ function usrxml__pref_add_val(h, arr, val, id)
 	}
 
 	arr[h][id] = val;
+	if (tid != "")
+		arr[h]["tid"] = id;
 
 	return id;
 }
@@ -1237,10 +1247,13 @@ function usrxml__pref_del_by_id(h, arr, id)
 		return USRXML_E_INVAL;
 	}
 
-	if (--arr[h]["cnt"] <= 0)
+	if (--arr[h]["cnt"] <= 0) {
 		delete arr[h];
-	else
+	} else {
+		if (usrxml_in_array_get("tid", arr[h]) == id)
+			delete arr[h]["tid"];
 		delete arr[h][id];
+	}
 
 	return id;
 }
@@ -2969,8 +2982,15 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 		# Host is the only type of interface that can have no options.
 
 		if (type != "host") {
-			if (!((n,"ip-link") in USRXML_ifnames))
+			# h,ifname,"ip-link"
+			n = n SUBSEP "ip-link";
+
+			if (n in USRXML_ifnames) {
+				if (!usrxml_in_array("tid", USRXML_ifnames[n]))
+					return usrxml_missing_arg(h, "type::ip-link");
+			} else {
 				return usrxml_missing_arg(h, "ip-link");
+			}
 		}
 
 		usrxml__resolve_refs(h, ifname);
@@ -3051,11 +3071,14 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 				r = "[[:space:]]type[[:space:]]+" \
 				    "([^[:space:]]+)" \
 				    "([[:space:]]|$)";
-				if (usrxml_match(val, r, a) && type != a[1])
-					return usrxml_inv_arg(h, name, val);
+				if (usrxml_match(val, r, a)) {
+					if (type != a[1])
+						return usrxml_inv_arg(h, name, val);
+					type = "";
+				}
 			}
 
-			usrxml__pref_add_val(n, USRXML_ifnames, val, i);
+			usrxml__pref_add_val(n, USRXML_ifnames, val, i, type == "");
 		} else {
 			if (val != "")
 				return usrxml_nept_val(h, name);
