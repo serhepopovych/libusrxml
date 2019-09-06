@@ -2290,6 +2290,7 @@ function declare_usrxml_consts()
 
 	# Network interface parameters
 	USRXML_ifparms["ip-link"]	= 1;
+	USRXML_ifparms["ip-address"]	= 1;
 	USRXML_ifparms["tc-qdisc"]	= 1;
 	USRXML_ifparms["tc-class"]	= 1;
 	USRXML_ifparms["tc-filter"]	= 1;
