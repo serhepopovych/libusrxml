@@ -3507,7 +3507,7 @@ function usrxml__scope_net6(h, sign, name, val)
 	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6, "6");
 }
 
-function usrxml__ifupdown_cb(h, ifname, iflu, a, arr, dec,    ud, fn)
+function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    ud, fn)
 {
 	# ifdown(-1),ifup(1)
 	ud = arr[h,ifname,iflu];
@@ -3533,14 +3533,25 @@ function usrxml__ifupdown_cb(h, ifname, iflu, a, arr, dec,    ud, fn)
 		}
 	}
 
-	fn = a["fn"];
+	if (isarray(data)) {
+		fn = "usrxml" SUBSEP "ifupdown" SUBSEP "fn";
+		if (fn in data)
+			fn = data[fn];
+		else if ("fn" in data)
+			fn = data["fn"];
+		else
+			fn = "";
+	} else {
+		fn = data;
+	}
+
 	if (fn != "")
-		return @fn(h, ifname, iflu, a, arr, dec);
+		return @fn(h, ifname, iflu, data, arr, dec);
 
 	return 0;
 }
 
-function usrxml__ifupdown(h, a, fn,    b, n, i, p, f, ret, cb, ifname)
+function usrxml__ifupdown(h, a, data,    b, n, i, p, f, ret, cb, ifname)
 {
 	# h,"num"
 	n = h SUBSEP "num";
@@ -3551,8 +3562,6 @@ function usrxml__ifupdown(h, a, fn,    b, n, i, p, f, ret, cb, ifname)
 	n = USRXML_ifupdown[n];
 
 	if (!("rb" in a)) {
-		a["fn"] = fn;
-
 		delete a["fwd","p"];
 		delete a["rev","p"];
 	}
@@ -3579,7 +3588,7 @@ function usrxml__ifupdown(h, a, fn,    b, n, i, p, f, ret, cb, ifname)
 
 		ifname = USRXML_ifupdown[i];
 
-		ret = usrxml___dyn_for_each_reverse_from(h, ifname, cb, a,
+		ret = usrxml___dyn_for_each_reverse_from(h, ifname, cb, data,
 							 f, USRXML_ifupdown);
 		if (split(ret, b, SUBSEP) != 2)
 			continue;
@@ -3591,7 +3600,7 @@ function usrxml__ifupdown(h, a, fn,    b, n, i, p, f, ret, cb, ifname)
 		a["fwd","f"] = b[2];
 
 		a["rb"] = 1;
-		usrxml__ifupdown(h, a, fn);
+		usrxml__ifupdown(h, a, data);
 
 		return b[1];
 	}
@@ -3614,7 +3623,7 @@ function usrxml__ifupdown(h, a, fn,    b, n, i, p, f, ret, cb, ifname)
 
 		ifname = USRXML_ifupdown[i];
 
-		ret = usrxml___dyn_for_each_from(h, ifname, cb, a,
+		ret = usrxml___dyn_for_each_from(h, ifname, cb, data,
 						 f, USRXML_ifupdown);
 		if (split(ret, b, SUBSEP) != 2)
 			continue;
@@ -3626,7 +3635,7 @@ function usrxml__ifupdown(h, a, fn,    b, n, i, p, f, ret, cb, ifname)
 		a["rev","f"] = b[2];
 
 		a["rb"] = 1;
-		usrxml__ifupdown(h, a, fn);
+		usrxml__ifupdown(h, a, data);
 
 		return b[1];
 	}
