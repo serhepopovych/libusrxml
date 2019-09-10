@@ -3144,8 +3144,8 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 
 		uif = USRXML_userif[i];
 
-		# h,username,"if"
-		val = n SUBSEP "if";
+		# h,"if"
+		val = h SUBSEP "if";
 		if (val in USRXML__instance) {
 			iif = USRXML__instance[val];
 			delete USRXML__instance[val];
@@ -3194,7 +3194,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 			val = "";
 		}
 
-		USRXML__instance[n,"if"] = val;
+		USRXML__instance[h,"if"] = val;
 	} else if (name == "net") {
 		if (val == "")
 			return usrxml_ept_val(h, name);
