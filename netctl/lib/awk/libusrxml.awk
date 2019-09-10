@@ -1240,6 +1240,9 @@ function usrxml__pref_del_by_id(h, arr, id)
 		id = usrxml__pref_pick_first(h, arr);
 		if (id < 0)
 			return id;
+	} else if (id == "*" || id == "all") {
+		arr[h]["cnt"] = 0;
+		id = -1;
 	} else if (id ~ "^[[:digit:]]+$") {
 		if (!usrxml_in_array(id, arr[h]))
 			return USRXML_E_NOENT;
@@ -3053,7 +3056,7 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 
 		if (val != 0)
 			USRXML__instance[h,"inactive"] = val;
-	} else if (usrxml_match(name, "^([^:]+)(:([[:digit:]]+))?$", a) &&
+	} else if (usrxml_match(name, "^([^:]+)(:([[:digit:]]+|*|all))?$", a) &&
 		   (name = a[1]) in USRXML_ifparms) {
 		i = a[3];
 
@@ -3063,6 +3066,9 @@ function usrxml__scope_if(h, sign, name, val,    n, i, r, a, ifname, type)
 		if (sign > 0) {
 			if (val == "")
 				return usrxml_ept_val(h, name);
+
+			if (i == "*" || i == "all")
+				return usrxml_inv_arg(h, name, val);
 
 			gsub("@if@", ifname, val);
 			gsub("@kind@", type, val);
