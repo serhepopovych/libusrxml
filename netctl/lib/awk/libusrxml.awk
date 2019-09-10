@@ -2303,12 +2303,12 @@ function declare_usrxml_consts()
 
 	# Network interface parameters
 	USRXML_ifparms["ip-link"]	= 1;
-	USRXML_ifparms["ip-address"]	= 1;
-	USRXML_ifparms["tc-qdisc"]	= 1;
-	USRXML_ifparms["tc-class"]	= 1;
-	USRXML_ifparms["tc-filter"]	= 1;
-	USRXML_ifparms["ethtool"]	= 1;
-	USRXML_ifparms["sysctl"]	= 1;
+	USRXML_ifparms["ethtool"]	= 2;
+	USRXML_ifparms["sysctl"]	= 3;
+	USRXML_ifparms["ip-address"]	= 4;
+	USRXML_ifparms["tc-qdisc"]	= 5;
+	USRXML_ifparms["tc-class"]	= 6;
+	USRXML_ifparms["tc-filter"]	= 7;
 
 	# Valid "zone" values
 	USRXML__zone["world"]	= 1;
@@ -3814,7 +3814,7 @@ function usrxml__print_if(h, i, file, s1, s2,
 		printf s1 "<inactive %s>" s2, o >>file;
 
 	si = PROCINFO["sorted_in"];
-	PROCINFO["sorted_in"] = "@ind_num_asc";
+	PROCINFO["sorted_in"] = "@val_num_asc";
 
 	for (n in USRXML_ifparms) {
 		# h,ifname,n
@@ -3822,6 +3822,8 @@ function usrxml__print_if(h, i, file, s1, s2,
 
 		if (!(p in USRXML_ifnames))
 			continue;
+
+		PROCINFO["sorted_in"] = "@ind_num_asc";
 
 		for (o in USRXML_ifnames[p]) {
 			if (o !~ "^[[:digit:]]+$")
@@ -3837,6 +3839,8 @@ function usrxml__print_if(h, i, file, s1, s2,
 			else
 				printf s1 "<%s %s>" s2, n, v >>file;
 		}
+
+		PROCINFO["sorted_in"] = "@val_num_asc";
 	}
 
 	PROCINFO["sorted_in"] = si;
