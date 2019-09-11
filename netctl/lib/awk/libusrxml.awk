@@ -3518,8 +3518,10 @@ function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    ud, fn)
 	# ifdown(-1),ifup(1)
 	ud = arr[h,ifname,iflu];
 
+	r = "usrxml" SUBSEP "ifupdown";
+
 	# Skip entries not matching current iterator
-	if ((dec - 2 * dec * ("rb" in a)) != ud)
+	if ((dec - 2 * dec * usrxml_in_array("rb", data[r,"a"])) != ud)
 		return 0;
 
 	if (ud < 0) {
@@ -3539,17 +3541,10 @@ function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    ud, fn)
 		}
 	}
 
-	if (isarray(data)) {
-		fn = "usrxml" SUBSEP "ifupdown" SUBSEP "fn";
-		if (fn in data)
-			fn = data[fn];
-		else if ("fn" in data)
-			fn = data["fn"];
-		else
-			fn = "";
-	} else {
-		fn = data;
-	}
+	# "usrxml","ifupdown","fn"
+	fn = r SUBSEP "fn";
+
+	fn = (fn in data) ? data[fn] : "";
 
 	if (fn != "")
 		return @fn(h, ifname, iflu, data, arr, dec);
@@ -3557,8 +3552,23 @@ function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    ud, fn)
 	return 0;
 }
 
-function usrxml__ifupdown(h, a, data,    b, n, i, p, f, ret, cb, ifname)
+function usrxml__ifupdown(h, data, a,    b, n, i, p, f, ret, cb, ifname)
 {
+	if (!isarray(a)) {
+		n = "usrxml" SUBSEP "ifupdown" SUBSEP "a";
+
+		if (n in data) {
+			if (!isarray(data[n]))
+				return USRXML_E_NOT_ARRAY;
+		} else {
+			# Last resort: create empty array
+			data[n][1] = 1;
+			delete data[n][1];
+		}
+
+		return usrxml__ifupdown(h, data, data[n]);
+	}
+
 	# h,"num"
 	n = h SUBSEP "num";
 
@@ -3606,7 +3616,7 @@ function usrxml__ifupdown(h, a, data,    b, n, i, p, f, ret, cb, ifname)
 		a["fwd","f"] = b[2];
 
 		a["rb"] = 1;
-		usrxml__ifupdown(h, a, data);
+		usrxml__ifupdown(h, data, a);
 
 		return b[1];
 	}
@@ -3641,7 +3651,7 @@ function usrxml__ifupdown(h, a, data,    b, n, i, p, f, ret, cb, ifname)
 		a["rev","f"] = b[2];
 
 		a["rb"] = 1;
-		usrxml__ifupdown(h, a, data);
+		usrxml__ifupdown(h, data, a);
 
 		return b[1];
 	}
@@ -3650,7 +3660,7 @@ function usrxml__ifupdown(h, a, data,    b, n, i, p, f, ret, cb, ifname)
 }
 
 function run_usrxml_parser(h, line, cb, data,
-			   n, r, a, fn, sign, name, val, ret)
+			   n, r, a, b, fn, sign, name, val, ret)
 {
 	# h,"order"
 	n = h SUBSEP "order";
@@ -3731,7 +3741,28 @@ function run_usrxml_parser(h, line, cb, data,
 			a["i"] = ret;
 
 			if (cb != "") {
-				ret = @cb(h, a, data);
+				r = "usrxml" SUBSEP "ifupdown" SUBSEP "a";
+
+				if (isarray(data)) {
+					delete data[r];
+
+					data[r]["id"] = a["id"];
+					data[r]["i"] = a["i"];
+					if (USRXML_orig in a)
+						data[r][USRXML_orig] = a[USRXML_orig];
+
+					ret = @cb(h, data, data[r]);
+				} else {
+					delete b;
+
+					b[r]["id"] = a["id"];
+					b[r]["i"] = a["i"];
+					if (USRXML_orig in a)
+						b[r][USRXML_orig] = a[USRXML_orig];
+
+					ret = @cb(h, b, b[r]);
+				}
+
 				if (ret < 0) {
 					usrxml__restore_if(h, 1);
 					return ret;
