@@ -900,7 +900,7 @@ function usrxml___dyn_add_val(h, dyn, attr, val, arr, dval,    hh, ret)
 	# or count number of elements if not.
 	#
 	# Take handle (h) from map id (> 0) or error code (< 0).
-	if (dval != "")
+	if (dval != SUBSEP)
 		ret = int(usrxml__map_add_val(h, dyn, arr, dval));
 	else if (!((hh,attr) in arr))
 		ret = int(usrxml__map_add_attr(h, dyn, arr));
@@ -916,9 +916,9 @@ function usrxml___dyn_add_val(h, dyn, attr, val, arr, dval,    hh, ret)
 function usrxml__dyn_add_val(h, dyn, attr, val, arr,    hh)
 {
 	if (isarray(arr))
-		return usrxml___dyn_add_val(h, dyn, attr, val, arr);
+		return usrxml___dyn_add_val(h, dyn, attr, val, arr, SUBSEP);
 	else
-		return usrxml___dyn_add_val(h, dyn, attr, val, USRXML__dynmap);
+		return usrxml___dyn_add_val(h, dyn, attr, val, USRXML__dynmap, SUBSEP);
 }
 
 function usrxml__dyn_add_attr(h, dyn, attr, arr)
@@ -926,15 +926,19 @@ function usrxml__dyn_add_attr(h, dyn, attr, arr)
 	return usrxml__dyn_add_val(h, dyn, attr, SUBSEP, arr);
 }
 
-function usrxml___dyn_del_by_attr(h, dyn, attr, arr,    hh, id)
+function usrxml___dyn_del_by_attr(h, dyn, attr, arr, dval,    hh, id)
 {
 	# h,dyn
 	hh = h SUBSEP dyn;
 
 	id = usrxml__map_del_by_attr(hh, attr, arr);
 
-	if (!((hh,"num") in arr))
+	if ((hh,"num") in arr) {
+		if (dval != SUBSEP)
+			arr[h,dyn] = dval;
+	} else {
 		usrxml__map_del_by_attr(h, dyn, arr);
+	}
 
 	return id;
 }
@@ -942,20 +946,24 @@ function usrxml___dyn_del_by_attr(h, dyn, attr, arr,    hh, id)
 function usrxml__dyn_del_by_attr(h, dyn, attr, arr)
 {
 	if (isarray(arr))
-		return usrxml___dyn_del_by_attr(h, dyn, attr, arr);
+		return usrxml___dyn_del_by_attr(h, dyn, attr, arr, SUBSEP);
 	else
-		return usrxml___dyn_del_by_attr(h, dyn, attr, USRXML__dynmap);
+		return usrxml___dyn_del_by_attr(h, dyn, attr, USRXML__dynmap, SUBSEP);
 }
 
-function usrxml___dyn_del_by_id(h, dyn, id, arr,    hh, attr)
+function usrxml___dyn_del_by_id(h, dyn, id, arr, dval,    hh, attr)
 {
 	# h,dyn
 	hh = h SUBSEP dyn;
 
 	attr = usrxml__map_del_by_id(hh, id, arr);
 
-	if (!((hh,"num") in arr))
+	if ((hh,"num") in arr) {
+		if (dval != SUBSEP)
+			arr[h,dyn] = dval;
+	} else {
 		usrxml__map_del_by_attr(h, dyn, arr);
+	}
 
 	return attr;
 }
@@ -963,9 +971,9 @@ function usrxml___dyn_del_by_id(h, dyn, id, arr,    hh, attr)
 function usrxml__dyn_del_by_id(h, dyn, id, arr)
 {
 	if (isarray(arr))
-		return usrxml___dyn_del_by_id(h, dyn, id, arr);
+		return usrxml___dyn_del_by_id(h, dyn, id, arr, SUBSEP);
 	else
-		return usrxml___dyn_del_by_id(h, dyn, id, USRXML__dynmap);
+		return usrxml___dyn_del_by_id(h, dyn, id, USRXML__dynmap, SUBSEP);
 }
 
 function usrxml____dyn_for_each(h, dyn, cb, data, arr, from, dec,
