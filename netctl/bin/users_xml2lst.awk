@@ -5,6 +5,11 @@
 
 ################################################################################
 
+function run_usrxml_parser_cb(h, data, a)
+{
+	return print_usrxml_entry_oneline(h, a["id"]);
+}
+
 BEGIN{
 	##
 	## Initialize user database parser
@@ -19,7 +24,7 @@ BEGIN{
 	## Parse user database
 	##
 	line = $0;
-	if (run_usrxml_parser(h, line, "print_usrxml_entry_oneline") < 0)
+	if (run_usrxml_parser(h, line, "run_usrxml_parser_cb") < 0)
 		exit 1;
 }
 

@@ -5,6 +5,11 @@
 
 ################################################################################
 
+function run_usrxml_parser_cb(h, data, a)
+{
+	return print_usrxml_entry(h, a["id"]);
+}
+
 BEGIN{
 	RS	= ">"
 
@@ -21,7 +26,7 @@ BEGIN{
 	## Parse user database
 	##
 	line = ($0 !~ /^[[:space:]]*$/) ? $0">" : "";
-	if (run_usrxml_parser(h, line, "print_usrxml_entry") < 0)
+	if (run_usrxml_parser(h, line, "run_usrxml_parser_cb") < 0)
 		exit 1;
 }
 
