@@ -1387,15 +1387,18 @@ function usrxml___act_copy(dh, sh, dyn, arr)
 	# sh,dyn
 	sh = sh SUBSEP dyn;
 
-	return usrxml__map_copy_one(dh, arr, sh, arr, "act");
+	if ((sh,"act") in arr)
+		arr[dh,"act"] = arr[sh,"act"];
+	else
+		delete arr[dh,"act"];
 }
 
 function usrxml__act_copy(dh, sh, dyn, arr)
 {
 	if (isarray(arr))
-		return usrxml___act_copy(dh, sh, dyn, arr);
+		usrxml___act_copy(dh, sh, dyn, arr);
 	else
-		return usrxml___act_copy(dh, sh, dyn, USRXML__dynmap);
+		usrxml___act_copy(dh, sh, dyn, USRXML__dynmap);
 }
 
 function usrxml____act_adjust(h, dyn, val, arr, dec,    i)
