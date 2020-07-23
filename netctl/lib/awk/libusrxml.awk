@@ -1536,7 +1536,7 @@ function usrxml__activate_user(h, username,    userid, n, ret, dval)
 	# if
 	n = USRXML_userif[h,userid];
 
-	dval = usrxml__dyn_get_dval(h, n);
+	dval = usrxml__dyn_get_dval(h, n, USRXML_ifuser);
 	dval = (dval != "") ? dval " " userid : userid;
 
 	usrxml___dyn_add_val(h, n, username, userid, USRXML_ifuser, dval);
@@ -1586,7 +1586,7 @@ function usrxml__deactivate_user_by_name(h, username,    userid, n, ret, dval)
 	# if
 	n = USRXML_userif[h,userid];
 
-	dval = usrxml__dyn_get_dval(h, n);
+	dval = usrxml__dyn_get_dval(h, n, USRXML_ifuser);
 	dval = gensub("^" userid " |( )" userid " | " userid "$", "\\1", "g", dval);
 
 	usrxml___dyn_del_by_attr(h, n, username, USRXML_ifuser, dval);
