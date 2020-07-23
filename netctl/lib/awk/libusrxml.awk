@@ -2970,12 +2970,9 @@ function usrxml__resolve_refs(h, ifname,    n, i, v, r, cmp, cb, data)
 		# active -> inactive yes
 		cmp = -1;
 	} else {
-		if (i != 0 && v > 0) {
-			# inactive yes -> inactive forced
+		# active,inactive (yes|forced) -> inactive forced
+		if (i != 0 || v == 0)
 			USRXML_ifnames[r] = -1;
-		}
-		# inactive forced -> inactive forced
-		# active -> active
 		cmp = usrxml__type_cmp(h, ifname);
 	}
 
