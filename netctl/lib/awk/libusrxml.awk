@@ -1540,7 +1540,7 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 	}
 }
 
-function usrxml__activate_user(h, username,    userid, n, ret, dval)
+function usrxml__activate_user(h, username,    userid, n, t, dval)
 {
 	# h,username
 	n = h SUBSEP username;
@@ -1551,38 +1551,40 @@ function usrxml__activate_user(h, username,    userid, n, ret, dval)
 	n = USRXML_userif[h,userid];
 
 	dval = usrxml__dyn_get_dval(h, n, USRXML_ifuser);
+	t = "^" userid " |( )" userid " | " userid "$";
+	dval = gensub(t, "\\1", "g", dval);
 	dval = (dval != "") ? dval " " userid : userid;
 
 	usrxml___dyn_add_val(h, n, username, userid, USRXML_ifuser, dval);
 
 	# net
-	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
-					    USRXML_usernets, "net");
-	if (ret != USRXML_E_NONE)
-		return ret;
+	t = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets,
+					  USRXML_usernets, "net");
+	if (t != USRXML_E_NONE)
+		return t;
 
 	# net6
-	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets6,
-					    USRXML_usernets6, "net6");
-	if (ret != USRXML_E_NONE)
-		return ret;
+	t = usrxml__map_add_umap_attr2map(h, userid, USRXML_nets6,
+					  USRXML_usernets6, "net6");
+	if (t != USRXML_E_NONE)
+		return t;
 
 	# nat
-	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats,
-					    USRXML_usernats, "nat");
-	if (ret != USRXML_E_NONE)
-		return ret;
+	t = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats,
+					  USRXML_usernats, "nat");
+	if (t != USRXML_E_NONE)
+		return t;
 
 	# nat6
-	ret = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats6,
-					    USRXML_usernats6, "nat6");
-	if (ret != USRXML_E_NONE)
-		return ret;
+	t = usrxml__map_add_umap_attr2map(h, userid, USRXML_nats6,
+					  USRXML_usernats6, "nat6");
+	if (t != USRXML_E_NONE)
+		return t;
 
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_name(h, username,    ret)
+function usrxml__activate_user_by_name(h, username)
 {
 	if (usrxml__activate_user(h, username) != USRXML_E_NONE)
 		usrxml__deactivate_user_by_name(h, username);
@@ -1590,7 +1592,7 @@ function usrxml__activate_user_by_name(h, username,    ret)
 	return USRXML_E_NONE;
 }
 
-function usrxml__deactivate_user_by_name(h, username,    userid, n, ret, dval)
+function usrxml__deactivate_user_by_name(h, username,    userid, n, t, dval)
 {
 	# h,username
 	n = h SUBSEP username;
@@ -1601,7 +1603,8 @@ function usrxml__deactivate_user_by_name(h, username,    userid, n, ret, dval)
 	n = USRXML_userif[h,userid];
 
 	dval = usrxml__dyn_get_dval(h, n, USRXML_ifuser);
-	dval = gensub("^" userid " |( )" userid " | " userid "$", "\\1", "g", dval);
+	t = "^" userid " |( )" userid " | " userid "$";
+	dval = gensub(t, "\\1", "g", dval);
 
 	usrxml___dyn_del_by_attr(h, n, username, USRXML_ifuser, dval);
 
