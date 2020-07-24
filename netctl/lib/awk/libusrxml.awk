@@ -1472,6 +1472,9 @@ function usrxml__map_add_umap_attr2map(h, userid, map, umap, name,    m, i, j, p
 	# h,userid
 	i = h SUBSEP userid;
 
+	if (!((i,"num") in umap))
+		return USRXML_E_NONE;
+
 	m = umap[i,"num"];
 	for (p = 0; p < m; p++) {
 		# h,userid,id
@@ -1504,6 +1507,9 @@ function usrxml__map_del_umap_attr4map(h, userid, map, umap,    m, i, j, p, val)
 {
 	# h,userid
 	i = h SUBSEP userid;
+
+	if (!((i,"num") in umap))
+		return;
 
 	m = umap[i,"num"];
 	for (p = 0; p < m; p++) {
@@ -3920,6 +3926,9 @@ function usrxml__print_if(h, i, file, s1, s2,
 
 function usrxml__print_user_maps(i, umap, name, file, s1, s2,    n, j, p)
 {
+	if (!((i,"num") in umap))
+		return;
+
 	n = umap[i,"num"];
 	for (p = 0; p < n; p++) {
 		# h,userid,netid
