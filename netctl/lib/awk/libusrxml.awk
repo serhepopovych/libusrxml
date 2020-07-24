@@ -774,20 +774,28 @@ function usrxml__map_del_all(h, map,    n, i, p, cnt)
 	return cnt;
 }
 
-function usrxml__map_copy_all(dh, dmap, sh, smap,    n, i, p, attr)
+function usrxml__map_copy_all(dh, dmap, sh, smap,    n, i, p, attr, cnt)
 {
+	if (dh == sh)
+		return 0;
+
 	# sh,"num"
 	i = sh SUBSEP "num";
 
 	if (!(i in smap))
 		return 0;
 
-	if (dh == sh)
+	n = smap[i];
+	if (!n)
 		return 0;
 
 	usrxml__map_del_all(dh, dmap);
 
-	n = smap[i];
+	dmap[dh,"num"] = n;
+	dmap[dh,"min"] = smap[sh,"min"];
+	dmap[dh,"max"] = smap[sh,"max"];
+	dmap[dh,"cnt"] = cnt = smap[sh,"cnt"];
+
 	for (p = 0; p < n; p++) {
 		# sh,id
 		i = sh SUBSEP p;
@@ -797,13 +805,13 @@ function usrxml__map_copy_all(dh, dmap, sh, smap,    n, i, p, attr)
 			continue;
 
 		attr = smap[i];
-		usrxml__map_add_val(dh, attr, dmap, smap[sh,attr]);
+
+		dmap[dh,p] = attr;
+		dmap[dh,attr] = smap[sh,attr];
+		dmap[dh,attr,"id"] = p;
 	}
 
-	# dh,"cnt"
-	i = dh SUBSEP "cnt";
-
-	return (i in dmap) ? dmap[i] : 0;
+	return cnt;
 }
 
 function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    n, i)
