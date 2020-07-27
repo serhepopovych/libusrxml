@@ -3527,13 +3527,13 @@ function usrxml__scope_qdisc(h, sign, name, val,    n, o)
 	return USRXML_E_NONE;
 }
 
-function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
+function usrxml__scope_nets(h, sign, name, val, umap,    n, o, s)
 {
 	n = USRXML__instance[h,"n"];
-	net = umap[n];
+	s = umap["tname"];
 
-	if (name == "/net" s) {
-		if (val != "" && val != net)
+	if (name == "/" s) {
+		if (val != "" && val != umap[n])
 			return usrxml_inv_arg(h, name, val);
 
 		USRXML__instance[h,"scope"] = USRXML__scope_user;
@@ -3549,7 +3549,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 
 		o = val;
 
-		val = ipa_normalize(val, (s == "") ? "4" : "6");
+		val = ipa_normalize(val, (s == "net") ? "4" : "6");
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
 	} else if (name == "via") {
@@ -3561,7 +3561,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 
 		o = val;
 
-		val = ipa_normalize(val, (s == "") ? "4" : "6");
+		val = ipa_normalize(val, (s == "net") ? "4" : "6");
 		if (val == "")
 			return usrxml_inv_arg(h, name, o);
 	} else if (name == "mac") {
@@ -3571,7 +3571,7 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 		if ((n, "via") in umap)
 			return usrxml_inv_arg(h, name, val);
 
-		if (s == "") {
+		if (s == "net") {
 			s = "4";
 			o = 32;
 		} else {
@@ -3607,12 +3607,12 @@ function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 
 function usrxml__scope_net(h, sign, name, val)
 {
-	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets, "");
+	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets);
 }
 
 function usrxml__scope_net6(h, sign, name, val)
 {
-	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6, "6");
+	return usrxml__scope_nets(h, sign, name, val, USRXML_usernets6);
 }
 
 function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    ud, fn)
