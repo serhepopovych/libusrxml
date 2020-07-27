@@ -733,6 +733,49 @@ function usrxml__map_del_by_attr(h, attr, map,    n, id, num)
 	return id;
 }
 
+function usrxml__map_add_attr_once(h, attr, map,    n)
+{
+	# h,attr,"id"
+	n = h SUBSEP attr SUBSEP "id";
+
+	if (n in map)
+		return h SUBSEP map[n];
+	else
+		return usrxml__map_add_val(h, attr, map, SUBSEP);
+}
+
+function usrxml__map_add_attr_retval(h, attr, map, _once,    n, ret)
+{
+	# h,attr
+	n = h SUBSEP attr;
+
+	if (_once && n in map)
+		return map[n];
+
+	ret = usrxml__map_add_val(h, attr, map, SUBSEP);
+	if (ret < 0)
+		return "";
+
+	return map[n];
+}
+
+function usrxml__map_add_attr_once_retval(h, attr, map)
+{
+	return usrxml__map_add_attr_retval(h, attr, map, 1);
+}
+
+function usrxml__map_del_if_zero_attr(h, attr, map,    val)
+{
+	val = map[h,attr];
+	if (val < 0)
+		return -1;
+
+	if (--val <= 0)
+		return usrxml__map_del_by_attr(h, attr, map);
+	else
+		return -1;
+}
+
 function usrxml__map_del_by_id(h, id, map,    n, attr)
 {
 	# h,id
@@ -1770,16 +1813,14 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_umap(i, val, umap, name,    n)
+function usrxml__delete_umap(i, val, umap, name,    n, ret)
 {
-	# h,userid,id,"id"
-	n = i SUBSEP val SUBSEP "id";
-
-	if (!(n in umap))
-		return -1;
+	ret = usrxml__map_del_if_zero_attr(i, val, umap);
+	if (ret < 0)
+		return ret;
 
 	# h,userid,id
-	n = i SUBSEP umap[n];
+	n = i SUBSEP ret;
 
 	usrxml_section_delete_fileline(name SUBSEP n);
 
@@ -1789,7 +1830,7 @@ function usrxml__delete_umap(i, val, umap, name,    n)
 	delete umap[n,"mac"];
 	delete umap[n,"has_opts"];
 
-	return usrxml__map_del_by_attr(i, val, umap);
+	return ret;
 }
 
 function usrxml__delete_map(i, val, map, umap, name,    a, h, ret)
@@ -3252,7 +3293,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 			return usrxml_inv_arg(h, name, n);
 
 		if (sign > 0) {
-			n = usrxml__map_add_attr(i, val, USRXML_usernets);
+			n = usrxml__map_add_attr_once(i, val, USRXML_usernets);
 
 			USRXML__instance[h,"netid"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_net;
@@ -3274,7 +3315,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 			return usrxml_inv_arg(h, name, n);
 
 		if (sign > 0) {
-			n = usrxml__map_add_attr(i, val, USRXML_usernets6);
+			n = usrxml__map_add_attr_once(i, val, USRXML_usernets6);
 
 			USRXML__instance[h,"net6id"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_net6;
