@@ -2243,9 +2243,8 @@ function usrxml__cleanup_if(h,    ifname)
 	delete USRXML__instance[h,"inactive"];
 	delete USRXML__instance[h,"if"];
 
-	delete USRXML__instance[h,"pipeid"];
-	delete USRXML__instance[h,"netid"];
-	delete USRXML__instance[h,"net6id"];
+	delete USRXML__instance[h,"i"];
+	delete USRXML__instance[h,"n"];
 
 	usrxml___dyn_clear(h, USRXML_ifupdown);
 }
@@ -3317,7 +3316,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 		if (sign > 0) {
 			n = usrxml__map_add_attr_once(i, val, USRXML_usernets);
 
-			USRXML__instance[h,"netid"] = n;
+			USRXML__instance[h,"n"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_net;
 			USRXML__instance[h,"depth"]++;
 
@@ -3339,7 +3338,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 		if (sign > 0) {
 			n = usrxml__map_add_attr_once(i, val, USRXML_usernets6);
 
-			USRXML__instance[h,"net6id"] = n;
+			USRXML__instance[h,"n"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_net6;
 			USRXML__instance[h,"depth"]++;
 
@@ -3407,7 +3406,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 			USRXML_userpipe[n] = val;
 			USRXML_userpipe[n,"qdisc"] = "";
 
-			USRXML__instance[h,"pipeid"] = n;
+			USRXML__instance[h,"n"] = n;
 			USRXML__instance[h,"scope"] = USRXML__scope_pipe;
 			USRXML__instance[h,"depth"]++;
 
@@ -3447,7 +3446,7 @@ function usrxml__scope_user(h, sign, name, val,    n, i, username, dyn, iif, uif
 
 function usrxml__scope_pipe(h, sign, name, val,    n)
 {
-	n = USRXML__instance[h,"pipeid"];
+	n = USRXML__instance[h,"n"];
 
 	if (name == "/pipe") {
 		if (val != "" && val != USRXML_userpipe[n])
@@ -3507,7 +3506,7 @@ function usrxml__scope_pipe(h, sign, name, val,    n)
 
 function usrxml__scope_qdisc(h, sign, name, val,    n, o)
 {
-	n = USRXML__instance[h,"pipeid"];
+	n = USRXML__instance[h,"n"];
 
 	if (name == "/qdisc") {
 		if (val != "" && val != USRXML_userpipe[n,"qdisc"])
@@ -3530,7 +3529,7 @@ function usrxml__scope_qdisc(h, sign, name, val,    n, o)
 
 function usrxml__scope_nets(h, sign, name, val, umap, s,    n, o, net)
 {
-	n = USRXML__instance[h,"net" s "id"];
+	n = USRXML__instance[h,"n"];
 	net = umap[n];
 
 	if (name == "/net" s) {
