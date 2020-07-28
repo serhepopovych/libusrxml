@@ -1883,14 +1883,12 @@ function usrxml__delete_pipe(n)
 	delete USRXML_userpipe[n,"bw"];
 }
 
-function usrxml__delete_umap(i, val, umap,    n, ret)
+function usrxml__delete_umap(n, val, umap, a, dec)
 {
-	ret = usrxml__map_del_if_zero_attr(i, val, umap);
-	if (ret < 0)
-		return ret;
-
-	# h,userid,id
-	n = i SUBSEP ret;
+	if (dec != "") {
+		# h,userid,id
+		n = n SUBSEP umap[n,val,"id"];
+	}
 
 	usrxml_section_delete_fileline(umap["tname"] SUBSEP n);
 
@@ -1900,14 +1898,17 @@ function usrxml__delete_umap(i, val, umap,    n, ret)
 	delete umap[n,"mac"];
 	delete umap[n,"has_opts"];
 
-	return ret;
+	return 1;
 }
 
 function usrxml__delete_map(i, val, map, umap,    a, h, ret)
 {
-	ret = usrxml__delete_umap(i, val, umap);
+	ret = usrxml__map_del_if_zero_attr(i, val, umap);
 	if (ret < 0)
 		return ret;
+
+	delete a["i"];
+	usrxml__delete_umap(i SUBSEP ret, val, umap, a);
 
 	# i = h,userid
 	split(i, a, SUBSEP);
@@ -1918,25 +1919,6 @@ function usrxml__delete_map(i, val, map, umap,    a, h, ret)
 		usrxml__map_del_by_attr(h, val, map);
 
 	return ret;
-}
-
-function usrxml__delete_umaps(i, umap,    m, j, p)
-{
-	# i = h,userid
-
-	m = umap[i,"num"];
-	for (p = 0; p < m; p++) {
-		# h,userid,id
-		j = i SUBSEP p;
-
-		# Skip holes entries
-		if (!(j in umap))
-			continue;
-
-		usrxml__delete_umap(i, umap[j], umap);
-	}
-	# Remove in case of umap[i,"num"] is not defined (e.g. no <net6> tags)
-	delete umap[i,"num"];
 }
 
 function usrxml__delete_user(h, username, n, i, cb, data,    m, j, p, dyn, name)
@@ -1965,14 +1947,13 @@ function usrxml__delete_user(h, username, n, i, cb, data,    m, j, p, dyn, name)
 
 	usrxml___dyn_del_by_attr(h, name, username, USRXML_ifuser);
 
-	# net
-	usrxml__delete_umaps(i, USRXML_usernets);
-	# net6
-	usrxml__delete_umaps(i, USRXML_usernets6);
-	# nat
-	usrxml__delete_umaps(i, USRXML_usernats);
-	# nat6
-	usrxml__delete_umaps(i, USRXML_usernats6);
+	# net,net6,nat,nat6
+	cb = "usrxml__delete_umap";
+
+	usrxml__map_for_each(i, USRXML_usernets, cb);
+	usrxml__map_for_each(i, USRXML_usernets6, cb);
+	usrxml__map_for_each(i, USRXML_usernats, cb);
+	usrxml__map_for_each(i, USRXML_usernats6, cb);
 
 	# user
 	usrxml_section_delete_fileline(USRXML_ifnames[n] SUBSEP i);
