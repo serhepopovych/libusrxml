@@ -885,6 +885,68 @@ function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    n, i)
 	return usrxml__map_add_val(dh, attr, dmap, smap[sh,attr]);
 }
 
+function usrxml____map_for_each(h, map, cb, data, from, dec,
+				n, i, attr, ret)
+{
+	# h,"num"
+	n = h SUBSEP "num";
+
+	if (!(n in map))
+		return USRXML_E_NONE;
+
+	n = map[n] - 1;
+
+	dec = !!dec;
+
+	if (from != "") {
+		if (from < 0 || from > n)
+			return USRXML_E_RANGE;
+		n = dec ? from : n - from;
+	} else {
+		from = n * dec;
+	}
+
+	dec = 1 - 2 * dec;
+
+	for (; n-- >= 0; from += dec) {
+		# h,id
+		i = h SUBSEP from;
+
+		# Skip hole entries
+		if (!(i in map))
+			continue;
+
+		attr = map[i];
+		ret = @cb(h, attr, map, data, dec);
+		if (ret < 0)
+			return ret SUBSEP from;
+		if (ret > 0)
+			usrxml__map_del_by_attr(h, attr, map);
+	}
+
+	return USRXML_E_NONE;
+}
+
+function usrxml__map_for_each(h, map, cb, data)
+{
+	return usrxml____map_for_each(h, map, cb, data);
+}
+
+function usrxml__map_for_each_from(h, map, cb, data, from)
+{
+	return usrxml____map_for_each(h, map, cb, data, from);
+}
+
+function usrxml__map_for_each_reverse(h, map, cb, data)
+{
+	return usrxml____map_for_each(h, map, cb, data, "", -1);
+}
+
+function usrxml__map_for_each_reverse_from(h, map, cb, data, from)
+{
+	return usrxml____map_for_each(h, map, cb, data, from, -1);
+}
+
 #
 # Dynamic array helpers
 #
@@ -1027,49 +1089,53 @@ function usrxml__dyn_del_by_id(h, dyn, id, arr)
 		return usrxml___dyn_del_by_id(h, dyn, id, USRXML__dynmap, SUBSEP);
 }
 
+function usrxml____dyn_for_each_cb(h, attr, arr, d, dec,    dyn, cb, ret)
+{
+	h   = d["dfe"]["h"];
+	dyn = d["dfe"]["dyn"];
+	cb  = d["dfe"]["cb"];
+
+	if ("data" in d["dfe"])
+		ret = @cb(h, dyn, attr, d["dfe"]["data"], arr, dec);
+	else
+		ret = @cb(h, dyn, attr, d, arr, dec);
+
+	if (ret < 0)
+		return ret;
+	if (ret > 0)
+		usrxml___dyn_del_by_attr(h, dyn, attr, arr);
+
+	return 0;
+}
+
 function usrxml____dyn_for_each(h, dyn, cb, data, arr, from, dec,
-				n, i, hh, attr, ret)
+				hh, d, fn, ret)
 {
 	# h,dyn
 	hh = h SUBSEP dyn;
 
-	# h,dyn,"num"
-	n = hh SUBSEP "num";
+	fn = "usrxml____dyn_for_each_cb";
 
-	if (!(n in arr))
-		return USRXML_E_NONE;
+	if (isarray(data)) {
+		delete data["dfe"];
 
-	n = arr[n] - 1;
+		data["dfe"]["h"]   = h;
+		data["dfe"]["dyn"] = dyn;
+		data["dfe"]["cb"]  = cb;
 
-	dec = !!dec;
+		ret = usrxml____map_for_each(hh, arr, fn, data, from, dec);
 
-	if (from != "") {
-		if (from < 0 || from > n)
-			return USRXML_E_RANGE;
-		n = dec ? from : n - from;
+		delete data["dfe"];
+
+		return ret;
 	} else {
-		from = n * dec;
+		d["dfe"]["h"]   = h;
+		d["dfe"]["dyn"] = dyn;
+		d["dfe"]["cb"]  = cb;
+		d["dfe"]["data"] = data;
+
+		return usrxml____map_for_each(hh, arr, fn, d, from, dec);
 	}
-
-	dec = 1 - 2 * dec;
-
-	for (; n-- >= 0; from += dec) {
-		# h,dyn,id
-		i = hh SUBSEP from;
-
-		# Skip hole entries
-		if (!(i in arr))
-			continue;
-
-		attr = arr[i];
-		ret = @cb(h, dyn, attr, data, arr, dec);
-		if (ret < 0)
-			return ret SUBSEP from;
-		if (ret > 0)
-			usrxml___dyn_del_by_attr(h, dyn, attr, arr);
-	}
-
-	return USRXML_E_NONE;
 }
 
 function usrxml___dyn_for_each(h, dyn, cb, data, arr)
