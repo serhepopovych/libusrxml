@@ -986,7 +986,7 @@ function usrxml___dyn_del_by_attr(h, dyn, attr, arr, dval,    hh, id)
 
 	if ((hh,"num") in arr) {
 		if (dval != SUBSEP)
-			arr[h,dyn] = dval;
+			arr[hh] = dval;
 	} else {
 		usrxml__map_del_by_attr(h, dyn, arr);
 	}
