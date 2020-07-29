@@ -1793,8 +1793,13 @@ function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,
 	i_src = sh SUBSEP USRXML_ifnames[i_src,"id"];
 
 	# pipe
-	n = USRXML_userpipe[i_src];
-	USRXML_userpipe[i_dst] = n;
+	if (i_src in USRXML_userpipe) {
+		n = USRXML_userpipe[i_src];
+		USRXML_userpipe[i_dst] = n;
+	} else {
+		delete USRXML_userpipe[i_dst];
+		n = 0;
+	}
 
 	for (p = 0; p < n; p++) {
 		# sh,userid,pipeid
@@ -3270,7 +3275,7 @@ function usrxml__scope_validate_pipe(i,    m, j, p, val, zones_dirs, zd_bits)
 	# pipe
 	zones_dirs = 0;
 
-	m = USRXML_userpipe[i];
+	m = (i in USRXML_userpipe) ? USRXML_userpipe[i] : 0;
 	for (p = 0; p < m; p++) {
 		# h,userid,pipeid
 		j = i SUBSEP p;
@@ -4113,7 +4118,7 @@ function usrxml__print_user(h, i, file, s1, s2,
 		printf s1 "<inactive %s>" s2, o >>file;
 
 	# pipe
-	n = USRXML_userpipe[i];
+	n = (i in USRXML_userpipe) ? USRXML_userpipe[i] : 0;
 	for (p = 0; p < n; p++) {
 		# h,userid,pipeid
 		j = i SUBSEP p;
