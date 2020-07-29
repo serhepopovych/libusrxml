@@ -2090,7 +2090,8 @@ function usrxml__deactivate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 	return int(usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu));
 }
 
-function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,    t, val, dh, ifname)
+function usrxml__copy_if_cb(sh, dyn, iflu, data, arr, dec,
+			    t, res, val, dh, ifname)
 {
 	dh = data["dh"];
 	ifname = data["ifname"];
