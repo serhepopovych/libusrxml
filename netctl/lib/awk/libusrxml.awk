@@ -857,7 +857,7 @@ function usrxml__map_copy_all(dh, dmap, sh, smap,    n, i, p, attr, cnt)
 	return cnt;
 }
 
-function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    n, i)
+function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    p, i)
 {
 	if (dh == sh)
 		return "";
@@ -866,23 +866,37 @@ function usrxml__map_copy_one(dh, dmap, sh, smap, attr,    n, i)
 		# sh,id
 		i = sh SUBSEP attr;
 
-		if (!(i in smap)) {
-			# Not deleting from dest by id
+		if (!(i in smap))
 			return "";
-		}
 
+		p = attr;
 		attr = smap[i];
 	} else {
 		# sh,attr,"id"
 		i = sh SUBSEP attr SUBSEP "id";
 
-		if (!(i in smap)) {
-			usrxml__map_del_by_attr(dh, attr, dmap);
+		if (!(i in smap))
 			return "";
-		}
+
+		p = smap[i];
 	}
 
-	return usrxml__map_add_val(dh, attr, dmap, smap[sh,attr]);
+	usrxml__map_del_by_attr(dh, attr, dmap);
+
+	# dh,id
+	i = dh SUBSEP p;
+
+	if (!(i in dmap)) {
+		if (p > dmap[dh,"num"])
+			dmap[dh,"num"] = dmap[dh,"max"] = p;
+		dmap[dh,"cnt"]++;
+	}
+
+	dmap[i] = attr;
+	dmap[dh,attr] = smap[sh,attr];
+	dmap[dh,attr,"id"] = p;
+
+	return i;
 }
 
 function usrxml____map_for_each(h, map, cb, data, from, dec,
@@ -1773,7 +1787,8 @@ function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,
 			   n, m, p, o, i, j_dst, j_src)
 {
 	# user
-	i_dst = usrxml__map_add_val(dh, username, USRXML_ifnames, USRXML_ifnames[i_src]);
+	i_dst = usrxml__map_copy_one(dh, USRXML_ifnames,
+				     sh, USRXML_ifnames, username);
 
 	i_src = sh SUBSEP USRXML_ifnames[i_src,"id"];
 
@@ -2144,8 +2159,8 @@ function usrxml__copy_if_by_name(dh, sh, ifname, new,
 				      i_src SUBSEP name, USRXML_ifnames);
 	}
 
-	i_dst = usrxml__map_add_val(dh, ifname,
-				    USRXML_ifnames, USRXML_ifnames[i_src]);
+	i_dst = usrxml__map_copy_one(dh, USRXML_ifnames,
+				     sh, USRXML_ifnames, ifname);
 
 	data["lu"] = i = "lower";
 	i = i "-" ifname;
