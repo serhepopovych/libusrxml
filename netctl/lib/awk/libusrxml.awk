@@ -1711,12 +1711,12 @@ function usrxml__activate_user(h, username,    userid, n, t, dval)
 	return USRXML_E_NONE;
 }
 
-function usrxml__activate_user_by_name(h, username)
+function usrxml__activate_user_by_name(h, username,   ret)
 {
-	if (usrxml__activate_user(h, username) != USRXML_E_NONE)
+	ret = usrxml__activate_user(h, username);
+	if (ret != USRXML_E_NONE)
 		usrxml__deactivate_user_by_name(h, username);
-
-	return USRXML_E_NONE;
+	return ret;
 }
 
 function usrxml__deactivate_user_by_name(h, username,    userid, n, t, dval)
@@ -2028,6 +2028,17 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 		return usrxml__deactivate_if_by_name(h, dyn, iflu);
 	}
 
+	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu])) {
+		val = usrxml__activate_user_by_name(h, iflu);
+		if (val != USRXML_E_NONE) {
+			# Silence errors as user is kept inactive anyway
+			usrxml_clearerrno(h);
+			return USRXML_E_NONE;
+		}
+	} else {
+		val = -1;
+	}
+
 	# Activate interface and it's uppers
 	USRXML_ifnames[i] = 0;
 
@@ -2035,8 +2046,8 @@ function usrxml__activate_if_by_name(h, dyn, iflu, ifname, arr,    i, cb, val)
 		ifname = iflu;
 	usrxml___dyn_add_val(h, ifname, iflu, 1, USRXML_ifupdown);
 
-	if (usrxml__type_is_user(h, iflu, USRXML_ifnames[h,iflu]))
-		return usrxml__activate_user_by_name(h, iflu);
+	if (val == USRXML_E_NONE)
+		return val;
 
 	cb = "usrxml__activate_if_by_name";
 	return int(usrxml__dyn_for_each(h, "upper-" iflu, cb, iflu));
