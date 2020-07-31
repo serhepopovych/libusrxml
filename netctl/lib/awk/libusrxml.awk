@@ -3810,7 +3810,7 @@ function usrxml__scope_nets(h, sign, name, val, umap,    n, o, s)
 			o = 128;
 		}
 
-		if (ipp_network(net, s) == net && ipp_length(net, s) != o)
+		if (ipp_network(val, s) == val && ipp_length(val, s) != o)
 			return usrxml_inv_arg(h, name, val);
 	} else if ((n,"has_opts") in umap) {
 		return usrxml_syntax_err(h);
@@ -3935,7 +3935,7 @@ function usrxml__scope_nat6(h, sign, name, val)
 				  USRXML_usernats6, USRXML_usernets6);
 }
 
-function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    ud, fn)
+function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    r, ud, fn)
 {
 	# ifdown(-1),ifup(1)
 	ud = arr[h,ifname,iflu];
