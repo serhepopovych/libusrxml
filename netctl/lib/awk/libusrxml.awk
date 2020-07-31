@@ -512,14 +512,46 @@ function usrxml_section_record_fileline(h, key,    n)
 	USRXML__fileline[key,"line",n] = USRXML__instance[h,"linenum"];
 }
 
-function usrxml_section_delete_fileline(key,    n, i)
+function usrxml_section_delete_fileline(key,    n)
 {
 	n = USRXML__fileline[key];
-	for (i = 0; i < n; i++) {
-		delete USRXML__fileline[key,"file",i];
-		delete USRXML__fileline[key,"line",i];
+	while (n--) {
+		delete USRXML__fileline[key,"file",n];
+		delete USRXML__fileline[key,"line",n];
 	}
 	delete USRXML__fileline[key];
+}
+
+function usrxml_section_copy_fileline(dh, skey,    dkey, n, i, a)
+{
+	# skey = name,sh,userid,...
+	if (split(skey, a, SUBSEP) < 3)
+		return;
+
+	if (dh == a[2])
+		return;
+
+	# dh
+	dkey = a[1] SUBSEP dh;
+
+	n = length(a);
+	for (i = 3; i <= n; i++)
+		dkey = dkey SUBSEP a[i];
+
+	usrxml_section_delete_fileline(dkey);
+
+	if (!(skey in USRXML__fileline))
+		return;
+
+	n = USRXML__fileline[skey];
+	USRXML__fileline[dkey] = n;
+
+	while (n--) {
+		i = "file" SUBSEP n;
+		USRXML__fileline[dkey,i] = USRXML__fileline[skey,i];
+		i = "line" SUBSEP n;
+		USRXML__fileline[dkey,i] = USRXML__fileline[skey,i];
+	}
 }
 
 function usrxml_section_fn_arg(h, section, key, fn,    n, ret, s_fn, s_ln)
@@ -1631,7 +1663,7 @@ function usrxml__map_add_umap_attr2map(h, username, userid, map, umap,
 		if (username != "") {
 			# "nat" or "nat6"
 
-			usrxml___dyn_add_val(h, v, username, p, map, name);
+			usrxml___dyn_add_val(h, v, username, j, map, name);
 		} else {
 			# "net" or "net6"
 
@@ -1774,7 +1806,7 @@ function usrxml__deactivate_user_by_name(h, username,    userid, n, t, dval)
 	return USRXML_E_NONE;
 }
 
-function usrxml__copy_user_nxt(i_dst, i_src, umap,    n, p, j_dst, j_src)
+function usrxml__copy_user_nxt(dh, i_dst, i_src, umap,    n, p, j_dst, j_src)
 {
 	if (usrxml__map_copy_all(i_dst, umap, i_src, umap) == 0)
 		return;
@@ -1793,7 +1825,10 @@ function usrxml__copy_user_nxt(i_dst, i_src, umap,    n, p, j_dst, j_src)
 		delete umap[j_dst,"via"];
 		delete umap[j_dst,"mac"];
 
+		usrxml_section_copy_fileline(dh, umap["tname"] SUBSEP j_src);
+
 		usrxml__map_del_all(j_dst SUBSEP "netx", umap);
+		usrxml_section_copy_fileline(dh, "netx" SUBSEP j_src);
 
 		# Skip holes entries
 		if (!(j_src in umap))
@@ -1865,6 +1900,9 @@ function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,
 		delete USRXML_userpipe[j_dst,"dir"];
 		delete USRXML_userpipe[j_dst,"bw"];
 
+		usrxml_section_copy_fileline(dh, "pipe" SUBSEP j_src);
+		usrxml_section_copy_fileline(dh, "qdisc" SUBSEP j_src);
+
 		# Skip holes entries
 		if (!(j_src in USRXML_userpipe))
 			continue;
@@ -1902,13 +1940,13 @@ function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,
 	usrxml__act_copy(dh, sh, i);
 
 	# net
-	usrxml__copy_user_nxt(i_dst, i_src, USRXML_usernets);
+	usrxml__copy_user_nxt(dh, i_dst, i_src, USRXML_usernets);
 	# net6
-	usrxml__copy_user_nxt(i_dst, i_src, USRXML_usernets6);
+	usrxml__copy_user_nxt(dh, i_dst, i_src, USRXML_usernets6);
 	# nat
-	usrxml__copy_user_nxt(i_dst, i_src, USRXML_usernats);
+	usrxml__copy_user_nxt(dh, i_dst, i_src, USRXML_usernats);
 	# nat6
-	usrxml__copy_user_nxt(i_dst, i_src, USRXML_usernats6);
+	usrxml__copy_user_nxt(dh, i_dst, i_src, USRXML_usernats6);
 
 	return i_dst;
 }
@@ -2236,13 +2274,19 @@ function usrxml__copy_if_by_name(dh, sh, ifname, new,
 	if (!(i_src in USRXML_ifnames))
 		return "";
 
+	# sh,ifid
+	i = sh SUBSEP USRXML_ifnames[i_src,"id"];
+
 	if (dh == sh)
-		return sh SUBSEP USRXML_ifnames[i_src,"id"];
+		return i;
 
 	# dh,ifname
 	i_dst = dh SUBSEP ifname;
 
 	USRXML_ifnames[i_dst,"inactive"] = USRXML_ifnames[i_src,"inactive"];
+
+	name = USRXML_ifnames[i_src];
+	usrxml_section_copy_fileline(dh, name SUBSEP i);
 
 	cb = "usrxml__copy_if_cb";
 
@@ -2250,7 +2294,7 @@ function usrxml__copy_if_by_name(dh, sh, ifname, new,
 	data["ifname"] = ifname;
 	data["new"] = new;
 
-	if (usrxml__type_is_user(sh, ifname, USRXML_ifnames[i_src]))
+	if (usrxml__type_is_user(sh, ifname, name))
 		return usrxml__copy_user(dh, i_dst, sh, i_src, ifname, cb, data);
 
 	for (name in USRXML_ifparms) {
@@ -2377,7 +2421,7 @@ function usrxml__delete_if_by_id(h, ifid,    n)
 
 function usrxml__save_if(h, ifname)
 {
-	return usrxml__copy_if_by_name(h SUBSEP USRXML_orig, h, ifname);
+	return usrxml__copy_if_by_name(h USRXML_orig, h, ifname);
 }
 
 function usrxml__restore_if(h, refs,    ifname)
@@ -2386,7 +2430,7 @@ function usrxml__restore_if(h, refs,    ifname)
 
 	usrxml__delete_if_by_name(h, ifname, !refs);
 
-	if (usrxml__copy_if_by_name(h, h SUBSEP USRXML_orig, ifname, refs))
+	if (usrxml__copy_if_by_name(h, h USRXML_orig, ifname, refs))
 		if (refs)
 			usrxml__resolve_refs(h, ifname);
 
@@ -2397,7 +2441,7 @@ function usrxml__cleanup_if(h,    ifname)
 {
 	ifname = USRXML__instance[h,"name"];
 	if (ifname != "")
-		usrxml__delete_if_by_name(h SUBSEP USRXML_orig, ifname, 1);
+		usrxml__delete_if_by_name(h USRXML_orig, ifname, 1);
 
 	# Populated from parsing XML document
 	delete USRXML__instance[h,"name"];
@@ -3906,11 +3950,11 @@ function usrxml__ifupdown_cb(h, ifname, iflu, data, arr, dec,    ud, fn)
 		# ifdown
 
 		# Find handle in case of deleted entry which
-		# is stored as h,USRXML_orig handle.
+		# is stored as hUSRXML_orig handle.
 
 		if (!((h,ifname) in USRXML_ifnames)) {
-			# h,USRXML_orig
-			h = h SUBSEP USRXML_orig;
+			# hUSRXML_orig
+			h = h USRXML_orig;
 
 			if (!((h,ifname) in USRXML_ifnames)) {
 				# Assert as we must have saved entry
@@ -4109,13 +4153,10 @@ function run_usrxml_parser(h, line, cb, data,
 			return ret;
 		}
 		if (split(ret, a, SUBSEP) >= 2) {
-			# h,ifid (2) or h,USRXML_orig,ifid (3)
-			if (a[2] == USRXML_orig) {
+			# h,ifid or hUSRXML_orig,ifid
+			if (a[1] == h USRXML_orig)
 				a[USRXML_orig] = USRXML_orig;
-				a["id"] = a[3];
-			} else {
-				a["id"] = a[2];
-			}
+			a["id"] = a[2];
 			a["i"] = ret;
 
 			if (cb != "") {
