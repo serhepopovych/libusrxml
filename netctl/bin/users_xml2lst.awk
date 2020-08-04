@@ -14,7 +14,7 @@ BEGIN{
 	##
 	## Initialize user database parser
 	##
-	h = init_usrxml_parser("users_xml2lst");
+	h = init_usrxml_parser("users_xml2lst.awk");
 	if (h < 0)
 		exit 1;
 }
