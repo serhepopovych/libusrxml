@@ -1860,16 +1860,9 @@ function usrxml__copy_user_nxt(dh, i_dst, i_src, umap,    n, p, j_dst, j_src)
 	}
 }
 
-function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,
-			   n, m, p, o, i, j_dst, j_src)
+function usrxml__copy_user_pipe(dh, i_dst, i_src,
+				n, m, p, o, i, j_dst, j_src)
 {
-	# user
-	i_dst = usrxml__map_copy_one(dh, USRXML_ifnames,
-				     sh, USRXML_ifnames, username);
-
-	i_src = sh SUBSEP USRXML_ifnames[i_src,"id"];
-
-	# pipe
 	if (i_src in USRXML_userpipe) {
 		n = USRXML_userpipe[i_src];
 		USRXML_userpipe[i_dst] = n;
@@ -1929,6 +1922,18 @@ function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,
 				USRXML_userpipe[j_dst,o] = USRXML_userpipe[j_src,o];
 		}
 	}
+}
+
+function usrxml__copy_user(dh, i_dst, sh, i_src, username, cb, data,    i)
+{
+	# user
+	i_dst = usrxml__map_copy_one(dh, USRXML_ifnames,
+				     sh, USRXML_ifnames, username);
+
+	i_src = sh SUBSEP USRXML_ifnames[i_src,"id"];
+
+	# pipe
+	usrxml__copy_user_pipe(dh, i_dst, i_src);
 
 	# if
 	USRXML_userif[i_dst] = USRXML_userif[i_src];
