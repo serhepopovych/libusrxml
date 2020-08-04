@@ -2552,6 +2552,9 @@ function declare_usrxml_consts()
 	# Handle suffix to store "orig"inal item in same map
 	USRXML_orig		= "orig";
 
+	# Current API version
+	USRXML_api		= 2;
+
 	# Load/store flags
 	USRXML_LOAD_SKIP_FAILED	= lshift(1, 0);
 
@@ -2639,10 +2642,17 @@ function declare_usrxml_consts()
 	USRXML__instance["consts"] = 1;
 }
 
-function init_usrxml_parser(prog,    h)
+function init_usrxml_parser(prog, compat,    h)
 {
 	# Declare constants
 	declare_usrxml_consts();
+
+	# Make sure requested compatibility level supported
+	compat += 0;
+	if (compat == 0)
+		compat = USRXML_api;
+	else if (compat < 0 || compat > USRXML_api)
+		return USRXML_E_RANGE;
 
 	# Establish next (first) instance
 	h = usrxml__alloc_handle();
@@ -2680,6 +2690,14 @@ function init_usrxml_parser(prog,    h)
 	# Real values set by run_usrxml_parser()
 	USRXML__instance[h,"filename"] = "";
 	USRXML__instance[h,"linenum"] = "";
+
+	# Compatibility with previous API
+	USRXML__instance[h,"compat"] = compat;
+
+	if (compat < 2) {
+		# Make <user> active regardles of <if> tag present in usrxml
+		USRXML_types["user","cmp"] = USRXML_type_cmp_inf;
+	}
 
 	# USRXML__fileline[key,{ "file" | "line" },n]
 
@@ -2931,6 +2949,9 @@ function fini_usrxml_parser(h,    n, p)
 	# File name and line number
 	delete USRXML__instance[h,"filename"];
 	delete USRXML__instance[h,"linenum"];
+
+	# Compatibility with previous API
+	delete USRXML__instance[h,"compat"];
 
 	if (usrxml__free_handle(h) == 0)
 		release_usrxml_consts();
@@ -4222,6 +4243,11 @@ function usrxml__get_inactive_val(i,   val)
 
 function usrxml__get_prefix_lu(h, dyn, iflu,    val)
 {
+	if (USRXML__instance[h,"compat"] < 2) {
+		# Hide "?" sign from <if> tag when no interface in usrxml
+		return "";
+	}
+
 	val = usrxml__dyn_get_val(h, dyn, iflu);
 
 	if (val == "?" || val == "") {
