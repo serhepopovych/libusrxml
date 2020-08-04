@@ -1968,18 +1968,31 @@ function usrxml__delete_qdisc(n,    m, p)
 	delete USRXML_userpipe[n];
 }
 
-function usrxml__delete_pipe(n)
+function usrxml__delete_pipe(n, all,    m, j, p)
 {
-	# n = h,userid,pipeid
+	if (all) {
+		# n = h,userid
 
-	usrxml__delete_qdisc(n);
+		m = USRXML_userpipe[n];
+		for (p = 0; p < m; p++) {
+			# h,userid,pipeid
+			j = n SUBSEP p;
 
-	usrxml_section_delete_fileline("pipe" SUBSEP n);
+			usrxml__delete_pipe(j);
+		}
+		delete USRXML_userpipe[n];
+	} else {
+		# n = h,userid,pipeid
 
-	delete USRXML_userpipe[n];
-	delete USRXML_userpipe[n,"zone"];
-	delete USRXML_userpipe[n,"dir"];
-	delete USRXML_userpipe[n,"bw"];
+		usrxml__delete_qdisc(n);
+
+		usrxml_section_delete_fileline("pipe" SUBSEP n);
+
+		delete USRXML_userpipe[n];
+		delete USRXML_userpipe[n,"zone"];
+		delete USRXML_userpipe[n,"dir"];
+		delete USRXML_userpipe[n,"bw"];
+	}
 }
 
 function usrxml__delete_netx(n, val, umap, a, dec,    name)
@@ -2061,25 +2074,14 @@ function usrxml__delete_nat(i, val, map, umap,    a, h, ret)
 	return ret;
 }
 
-function usrxml__delete_user(h, username, n, i, cb, data,    m, j, p, dyn, name)
+function usrxml__delete_user(h, username, n, i, cb, data,    dyn, name)
 {
-	m = username ":";
-
-	data["ifname"] = m;
-
+	data["ifname"] = name = username ":";
 	data["lu"] = dyn = "lower";
-	dyn = dyn "-" m;
-	usrxml__dyn_for_each(h, dyn, cb, data);
+	usrxml__dyn_for_each(h, dyn "-" name, cb, data);
 
 	# pipe
-	m = USRXML_userpipe[i];
-	for (p = 0; p < m; p++) {
-		# h,userid,pipeid
-		j = i SUBSEP p;
-
-		usrxml__delete_pipe(j);
-	}
-	delete USRXML_userpipe[i];
+	usrxml__delete_pipe(i, 1);
 
 	# if
 	name = USRXML_userif[i];
